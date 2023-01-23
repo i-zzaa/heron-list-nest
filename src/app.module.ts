@@ -35,6 +35,7 @@ import { ModalidadeService } from './modalidade/modalidade.service';
 import { PermissaoService } from './permissao/permissao.service';
 import { StatusService } from './status/status.service';
 import { StatusEventosService } from './statusEventos/statusEventos.service';
+import { PrismaService } from './prisma.service';
 
 @Module({
   imports: [],
@@ -77,6 +78,7 @@ import { StatusEventosService } from './statusEventos/statusEventos.service';
     VacancyService,
     PatientService,
     UserService,
+    PrismaService,
     AppService,
   ],
 })

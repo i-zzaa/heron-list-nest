@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma.service';
 import { UserServiceInterface } from './user.interface';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
 @Injectable()
 export class UserService implements UserServiceInterface {
+  constructor(private readonly prismaService: PrismaService) {}
+
   async getUsers(): Promise<any[]> {
-    const usuarios = await prisma.usuario.findMany({
+    const usuarios = await this.prismaService.usuario.findMany({
       select: {
         id: true,
         nome: true,
