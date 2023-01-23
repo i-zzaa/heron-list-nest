@@ -6,7 +6,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  get(): string {
+  get(): Promise<any[]> {
     return this.userService.getUsers();
   }
 

@@ -15,5 +15,5 @@ export abstract class UserServiceInterface {
   abstract updatePassword(): string;
   abstract updatePasswordLogin(): string;
   abstract searchUsers(): string;
-  abstract getUsers(): string;
+  abstract getUsers(): Promise<any[]>;
 }
