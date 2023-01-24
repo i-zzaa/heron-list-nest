@@ -36,6 +36,8 @@ import { PermissaoService } from './permissao/permissao.service';
 import { StatusService } from './status/status.service';
 import { StatusEventosService } from './statusEventos/statusEventos.service';
 import { PrismaService } from './prisma.service';
+import { AuthController } from './auth/auth.controller';
+import { AuthService } from './auth/auth.service';
 
 @Module({
   imports: [],
@@ -57,6 +59,7 @@ import { PrismaService } from './prisma.service';
     VacancyController,
     PatientController,
     UserController,
+    AuthController,
     AppController,
   ],
   providers: [
@@ -79,6 +82,7 @@ import { PrismaService } from './prisma.service';
     PatientService,
     UserService,
     PrismaService,
+    AuthService,
     AppService,
   ],
 })

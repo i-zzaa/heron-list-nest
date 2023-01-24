@@ -12,7 +12,7 @@ import {
   AuthServiceInterface,
 } from './auth.interface';
 import createError from 'http-errors';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 import { signAccessToken } from 'src/utils/jwt';
 
 @Injectable()
