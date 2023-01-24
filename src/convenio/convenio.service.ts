@@ -1,18 +1,55 @@
 import { Injectable } from '@nestjs/common';
-import { ConvenioServiceInterface } from './convenio.interface';
+import { PrismaService } from 'src/prisma.service';
+import { ConvenioProps, ConvenioServiceInterface } from './convenio.interface';
 
 @Injectable()
 export class ConvenioService implements ConvenioServiceInterface {
-  createConvenio(): string {
-    return 'service convenio';
+  constructor(private readonly prismaService: PrismaService) {}
+
+  async createConvenio(body: ConvenioProps) {
+    return await this.prismaService.convenio.create({
+      data: body,
+    });
   }
-  updateConvenio(): string {
-    return 'service convenio';
+  async updateConvenio(body: ConvenioProps, id: number) {
+    return await this.prismaService.convenio.update({
+      data: {
+        nome: body.nome,
+      },
+      where: {
+        id: id,
+      },
+    });
   }
-  getConvenio(): string {
-    return 'service convenio';
+  async getConvenio() {
+    return await this.prismaService.convenio.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
   }
-  searchConvenio(): string {
-    return 'service convenio';
+  async searchConvenio(word: string) {
+    return await this.prismaService.convenio.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+      where: {
+        OR: [
+          {
+            nome: {
+              contains: word,
+            },
+          },
+        ],
+      },
+    });
   }
 }
