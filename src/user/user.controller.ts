@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { CreateUserProps, UserPasswordLoginProps } from './user.interface';
 import { UserService } from './user.service';
 
 @Controller('usuarios')
@@ -11,32 +12,33 @@ export class UserController {
   }
 
   @Post()
-  createUser(): string {
-    return this.userService.createUser();
+  async createUser(@Body() body: CreateUserProps) {
+    return await this.userService.createUser(body);
   }
 
   @Put()
-  update(): string {
-    return this.userService.updateUser();
+  update(@Body() body: any) {
+    return this.userService.updateUser(body);
   }
 
   @Get('terapeutas')
-  getTerapeuta(): string {
+  getTerapeuta() {
     return this.userService.getTerapeuta();
   }
 
   @Get(':search')
-  search(): string {
-    return this.userService.searchUsers();
+  search(@Param('search') search: string) {
+    return this.userService.searchUsers(search);
   }
 
   @Get('reset-senha/:id')
-  updatePassword(): string {
-    return this.userService.updatePassword();
+  updatePassword(@Body('userId') userId: number) {
+    return this.userService.updatePassword(userId);
   }
 
   @Put('reset-senha/:login')
-  updatePasswordLogin(): string {
-    return this.userService.updatePasswordLogin();
+  updatePasswordLogin(@Body() body: UserPasswordLoginProps) {
+    const { login, senha } = body;
+    return this.userService.updatePasswordLogin(login, senha);
   }
 }

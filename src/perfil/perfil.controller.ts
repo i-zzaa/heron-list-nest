@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { PerfilProps } from './perfil.interface';
 import { PerfilService } from './perfil.service';
 
 @Controller('perfil')
@@ -6,22 +7,22 @@ export class PerfilController {
   constructor(private readonly perfilService: PerfilService) {}
 
   @Get()
-  get(): string {
+  get() {
     return this.perfilService.getPerfil();
   }
 
   @Post()
-  createUser(): string {
-    return this.perfilService.createPerfil();
+  createUser(@Body() body: any) {
+    return this.perfilService.createPerfil(body);
   }
 
   @Put(':id')
-  update(): string {
-    return this.perfilService.updatePerfil();
+  update(@Body() body: PerfilProps, @Param('id') id: number) {
+    return this.perfilService.updatePerfil(body, id);
   }
 
-  @Get()
-  search(): string {
-    return this.perfilService.updatePerfil();
+  @Post()
+  search(@Param('search') search: string) {
+    return this.perfilService.searchPerfil(search);
   }
 }

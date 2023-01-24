@@ -1,21 +1,81 @@
 import { Injectable } from '@nestjs/common';
-import { PermissaoServiceInterface } from './permissao.interface';
+import { PrismaService } from 'src/prisma.service';
+import { UserService } from 'src/user/user.service';
+import {
+  PermissaoProps,
+  PermissaoServiceInterface,
+} from './permissao.interface';
 
 @Injectable()
 export class PermissaoService implements PermissaoServiceInterface {
-  createPermissao(): string {
-    return 'service permissao';
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly userService: UserService,
+  ) {}
+
+  async createPermissao(body: PermissaoProps): Promise<PermissaoProps> {
+    return await this.prismaService.permissao.create({
+      data: body,
+    });
   }
-  updatePermissao(): string {
-    return 'service permissao';
+  async updatePermissao(body: PermissaoProps, id: number) {
+    return await this.prismaService.permissao.update({
+      data: {
+        cod: body.cod,
+        descricao: body.descricao,
+      },
+      where: {
+        id: Number(id),
+      },
+    });
   }
-  getPermissao(): string {
-    return 'service permissao';
+  async getPermissaoUser(login: string) {
+    const { id } = await this.userService.getUser(login);
+
+    const permissoes = await this.prismaService.usuarioOnPermissao.findMany({
+      select: {
+        permissao: {
+          select: {
+            cod: true,
+            descricao: true,
+          },
+        },
+      },
+      where: {
+        usuarioId: id,
+      },
+      orderBy: {
+        permissao: {
+          cod: 'asc',
+        },
+      },
+    });
+
+    return permissoes?.map(({ permissao }: any) => permissao.cod);
   }
-  searchPermissao(): string {
-    return 'service permissao';
-  }
-  deletePermissao(): string {
-    return 'service permissao';
+  async searchPermissao(word: string) {
+    return await this.prismaService.permissao.findMany({
+      select: {
+        cod: true,
+        descricao: true,
+      },
+      orderBy: {
+        cod: 'asc',
+      },
+      where: {
+        OR: [
+          {
+            cod: {
+              contains: word,
+            },
+          },
+          {
+            descricao: {
+              contains: word,
+            },
+          },
+        ],
+      },
+    });
   }
 }
