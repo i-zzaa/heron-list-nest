@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { LocalidadeServiceInterface } from './localidade.interface';
+import {
+  LocalidadeDropdownProps,
+  LocalidadeServiceInterface,
+} from './localidade.interface';
 
 @Injectable()
 export class LocalidadeService implements LocalidadeServiceInterface {
@@ -18,4 +21,8 @@ export class LocalidadeService implements LocalidadeServiceInterface {
   deleteLocalidade(): string {
     return 'service localidade';
   }
+
+  formatLocalidade = ({ casa, sala }: LocalidadeDropdownProps) => {
+    return `${casa} - ${sala}`;
+  };
 }

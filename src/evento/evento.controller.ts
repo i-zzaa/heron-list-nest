@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Body,
+  Headers,
+} from '@nestjs/common';
 import { EventoService } from './evento.service';
 
 @Controller('evento')
@@ -6,22 +15,23 @@ export class EventoController {
   constructor(private readonly eventoService: EventoService) {}
 
   @Get('mes/:mes/:ano')
-  getMonth(): string {
-    return this.eventoService.getEvento();
+  getMonth(@Param() params: any) {
+    const { ano, mes } = params;
+    return this.eventoService.getMonth({ ano, mes });
   }
 
   @Get('filter/:mes/:ano')
-  getFilter(): string {
-    return this.eventoService.getFilter();
+  getFilter(@Param() params: any, @Query() query: any) {
+    return this.eventoService.getFilter(params, query);
   }
 
   @Post()
-  createUser(): string {
-    return this.eventoService.createEvento();
+  createUser(@Body() body: any, @Headers('login') login: string) {
+    return this.eventoService.createEvento(body, login);
   }
 
   @Put(':id')
-  update(): string {
-    return this.eventoService.updateEvento();
+  update(@Body() body: any, @Headers('login') login: string) {
+    return this.eventoService.updateEvento(body, login);
   }
 }
