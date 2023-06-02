@@ -4,303 +4,40 @@ generator client {
 }
 
 datasource db {
-  //   provider             = "sqlite"
-  // provider             = "postgresql"
-  provider             = "mysql"
-  url                  = env("VITE_DATABASE_URL")
+  provider             = "sqlite"
+  // provider             = "mysql"
+  url                  = env("DATABASE_URL")
   referentialIntegrity = "prisma"
 }
 
-model Convenio {
-  id       Int        @id @default(autoincrement())
-  nome     String
-  Paciente Paciente[]
-}
-
-model Paciente {
-  id               Int    @id @default(autoincrement())
-  nome             String
-  telefone         String
-  responsavel      String
-  dataNascimento   String
-  convenioId       Int
-  statusPacienteId Int
-  tipoSessaoId     Int
-  statusId         Int?
-
-  emAtendimento Boolean @default(false)
-  disabled      Boolean @default(false)
-
-  vaga           Vaga?
-  calendario     Calendario[]
-  statusPaciente StatusPaciente @relation(fields: [statusPacienteId], references: [id])
-  convenio       Convenio?      @relation(fields: [convenioId], references: [id])
-  tipoSessao     TipoSessao?    @relation(fields: [tipoSessaoId], references: [id])
-  status         Status?        @relation(fields: [statusId], references: [id])
-
-  createdAt   DateTime     @default(now())
-  updateAt    DateTime     @default(now())
-  vagaTerapia VagaTerapia?
-}
-
-model StatusPaciente {
-  id       Int        @id @default(autoincrement())
-  nome     String
-  Paciente Paciente[]
-}
-
-model Vaga {
-  id          Int     @id @default(autoincrement())
-  pacienteId  Int     @unique
-  dataContato String
-  periodoId   Int
-  observacao  String?
-  naFila      Boolean @default(true)
-
-  dataSaiuFila   String?
-  devolutiva     Boolean @default(false)
-  dataDevolutiva String?
-  diff           String?
-  dataRetorno    String?
-
-  periodo        Periodo?              @relation(fields: [periodoId], references: [id])
-  paciente       Paciente?             @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
-  especialidades VagaOnEspecialidade[]
-
-  createdAt DateTime @default(now())
-}
-
-model VagaOnEspecialidade {
-  agendado        Boolean @default(false)
-  dataAgendado    String?
-  vagaId          Int
-  especialidadeId Int
-
-  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
-  vaga          Vaga          @relation(fields: [vagaId], references: [id], onDelete: Cascade)
-
-  @@id([vagaId, especialidadeId])
-}
-
-model VagaTerapia {
-  id         Int @id @default(autoincrement())
-  pacienteId Int @unique
-  periodoId  Int
-
-  dataVoltouAba String
-  observacao    String?
-  naFila        Boolean @default(true)
-  dataSaiuFila  String?
-  diff          String?
-
-  periodo        Periodo                      @relation(fields: [periodoId], references: [id])
-  especialidades VagaTerapiaOnEspecialidade[]
-  paciente       Paciente?                    @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
-}
-
-model VagaTerapiaOnEspecialidade {
-  especialidadeId Int
-  vagaId          Int
-  agendado        Boolean @default(false)
-  dataAgendado    String?
-  valor           String  @default("200")
-  km              String  @default("0")
-
-  vaga          VagaTerapia   @relation(fields: [vagaId], references: [id], onDelete: Cascade)
-  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
-
-  @@id([vagaId, especialidadeId])
-}
-
-model Periodo {
-  id          Int           @id @default(autoincrement())
-  nome        String
-  vaga        Vaga[]
-  vagaTerapia VagaTerapia[]
-}
-
-model Especialidade {
-  id                         Int                          @id @default(autoincrement())
-  nome                       String
-  cor                        String                       @default("#000000")
-  vagas                      VagaOnEspecialidade[]
-  Funcao                     Funcao[]
-  calendario                 Calendario[]
-  terapeuta                  Terapeuta[]
-  vagaTerapiaOnEspecialidade VagaTerapiaOnEspecialidade[]
-}
-
-model Status {
-  id       Int        @id @default(autoincrement())
-  nome     String
-  paciente Paciente[]
-}
-
-model TipoSessao {
-  id       Int        @id @default(autoincrement())
-  nome     String
-  paciente Paciente[]
-}
-
-model Usuario {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  login     String   @unique
-  senha     String
-  ativo     Boolean  @default(true)
-  perfilId  Int
-  createdAt DateTime @default(now())
-
-  perfil     Perfil               @relation(fields: [perfilId], references: [id])
-  calendario Calendario[]
-  terapeuta  Terapeuta?
-  permissoes UsuarioOnPermissao[]
-}
-
-model Perfil {
-  id      Int       @id @default(autoincrement())
-  nome    String
-  usuario Usuario[]
-}
-
-model Localidade {
-  id         Int          @id @default(autoincrement())
-  casa       String
-  sala       String
-  ativo      Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @default(now())
-  calendario Calendario[]
-}
-
-model StatusEventos {
-  id         Int          @id @default(autoincrement())
-  nome       String
-  cobrar     Boolean      @default(true)
-  ativo      Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @default(now())
-  calendario Calendario[]
-}
-
-model Frequencia {
-  id         Int          @id @default(autoincrement())
-  nome       String
-  ativo      Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @default(now())
-  calendario Calendario[]
-}
-
-model Modalidade {
-  id         Int          @id @default(autoincrement())
-  nome       String
-  ativo      Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @default(now())
-  calendario Calendario[]
-}
-
-model Intervalo {
-  id         Int          @id @default(autoincrement())
-  nome       String
-  ativo      Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @default(now())
-  calendario Calendario[]
-}
-
-model Funcao {
-  id              Int      @id @default(autoincrement())
-  nome            String
-  especialidadeId Int
-  ativo           Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now())
-
-  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
-  calendario    Calendario[]
-
-  terapeutas TerapeutaOnFuncao[]
-}
-
-model Terapeuta {
-  usuarioId       Int      @unique
-  especialidadeId Int
-  fazDevolutiva   Boolean? @default(true)
-  cargaHoraria    Json?
-
-  usuario       Usuario?       @relation(fields: [usuarioId], references: [id])
-  especialidade Especialidade? @relation(fields: [especialidadeId], references: [id])
-  calendario    Calendario[]
-
-  funcoes TerapeutaOnFuncao[]
-}
-
-model TerapeutaOnFuncao {
-  terapeutaId Int
-  funcaoId    Int
-  comissao    String? @default("80")
-  tipo        String? @default("fixo")
-
-  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId], onDelete: Cascade)
-  funcao    Funcao?    @relation(fields: [funcaoId], references: [id], onDelete: Cascade)
-
-  @@id([terapeutaId, funcaoId])
-}
-
-model Calendario {
-  id      Int @id @default(autoincrement())
-  groupId Int
-
-  dataInicio     String
-  dataFim        String
-  start          String
-  end            String?
-  diasFrequencia String
-  exdate         String?
-
-  ciclo           String
-  observacao      String?
-  pacienteId      Int
-  modalidadeId    Int
-  especialidadeId Int
-  terapeutaId     Int
-  funcaoId        Int
-  localidadeId    Int
-  statusEventosId Int
-  frequenciaId    Int
-  intervaloId     Int
-
-  usuarioId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  terapeuta     Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
-  paciente      Paciente      @relation(fields: [pacienteId], references: [id])
-  modalidade    Modalidade    @relation(fields: [modalidadeId], references: [id])
-  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
-  funcao        Funcao        @relation(fields: [funcaoId], references: [id])
-  localidade    Localidade    @relation(fields: [localidadeId], references: [id])
-  statusEventos StatusEventos @relation(fields: [statusEventosId], references: [id])
-  frequencia    Frequencia    @relation(fields: [frequenciaId], references: [id])
-  intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
-  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
-}
-
-model Permissao {
-  id        Int                  @id @default(autoincrement())
-  cod       String
+model Catalogo {
+  id        Int       @id @default(autoincrement())
+  title     String
   descricao String
-  usuarios  UsuarioOnPermissao[]
+  icone     String
+  servicos  Servico[]
 }
 
-model UsuarioOnPermissao {
-  permissaoId Int
-  usuarioId   Int
+model Servico {
+  id        Int    @id @default(autoincrement())
+  title     String
+  descricao String
 
-  permissao Permissao? @relation(fields: [permissaoId], references: [id], onDelete: Cascade)
-  usuario   Usuario?   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  catalogoId Int?
+  Catalogo   Catalogo? @relation(fields: [catalogoId], references: [id])
+}
 
-  @@id([permissaoId, usuarioId])
+model Ticket {
+  id     Int    @id @default(autoincrement())
+  ticket String @unique @default(uuid())
+
+  titulo     String
+  tipo       String
+  prioridade String
+  atendente  String
+  fila       String
+  detalhe    String
+  data       String
+
+  userId Int
 }
