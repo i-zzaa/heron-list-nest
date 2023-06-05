@@ -1,3 +1,5 @@
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+
 export interface DetailProps {
   id?: number;
   ticketId?: number;
@@ -24,17 +26,31 @@ export interface TicketProps {
   detail: DetailProps[];
 }
 
-export interface TicketCreateProps {
-  ticket: string;
-  title: string;
-  type: string;
-  priority: string;
-  attendant: string;
-  queue: string;
-  date: string;
-  status: string;
+export class TicketCreateProps {
+  @IsString()
+  @IsNotEmpty()
+  readonly title: string;
 
-  userId: number;
+  @IsString()
+  readonly type: string;
+
+  @IsString()
+  readonly priority: string;
+
+  @IsString()
+  readonly attendant: string;
+
+  @IsString()
+  readonly queue: string;
+
+  @IsString()
+  readonly date: string;
+
+  @IsString()
+  readonly status: string;
+
+  @IsNumber()
+  readonly userId: number;
 }
 
 export abstract class TicketServiceInterface {
