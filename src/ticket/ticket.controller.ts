@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, Body } from '@nestjs/common';
 import { TicketService } from './ticket.service';
-import { TicketProps } from './ticket.interface';
+import { TicketCreateProps } from './ticket.interface';
 
 @Controller('ticket')
 export class TicketController {
@@ -12,7 +12,7 @@ export class TicketController {
   }
 
   @Post()
-  create(@Body() body: TicketProps) {
+  create(@Body() body: TicketCreateProps) {
     return this.ticketService.create(body);
   }
 

@@ -10,34 +10,46 @@ datasource db {
   referentialIntegrity = "prisma"
 }
 
-model Catalogo {
-  id        Int       @id @default(autoincrement())
-  title     String
-  descricao String
-  icone     String
-  servicos  Servico[]
+model Catalog {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  icon        String
+  services    Service[]
 }
 
-model Servico {
-  id        Int    @id @default(autoincrement())
-  title     String
-  descricao String
+model Service {
+  id          Int    @id @default(autoincrement())
+  title       String
+  description String
 
-  catalogoId Int?
-  Catalogo   Catalogo? @relation(fields: [catalogoId], references: [id])
+  catalogId Int?
+  Catalog   Catalog? @relation(fields: [catalogId], references: [id])
 }
 
 model Ticket {
   id     Int    @id @default(autoincrement())
   ticket String @unique @default(uuid())
 
-  titulo     String
-  tipo       String
-  prioridade String
-  atendente  String
-  fila       String
-  detalhe    String
-  data       String
+  title    String
+  type     String
+  status   String
+  priority String
+  date     String
 
   userId Int
+  detail Detail[]
+}
+
+model Detail {
+  id       Int @id @default(autoincrement())
+  ticketId Int
+
+  title     String
+  attendant String
+  queue     String
+  detalhe   String
+  date      String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
 }

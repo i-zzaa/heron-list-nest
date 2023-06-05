@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-import { CatalogoController } from './catalogo/catalogo.controller';
-import { CatalogoService } from './catalogo/catalogo.service';
-import { ServicoController } from './servico/servico.controller';
+import { CatalogController } from './catalog/catalog.controller';
+import { CatalogService } from './catalog/catalog.service';
+import { ServiceController } from './service/service.controller';
 
 import { TicketController } from './ticket/ticket.controller';
-import { ServicoService } from './servico/servico.service';
+import { ServiceService } from './service/service.service';
 import { TicketService } from './ticket/ticket.service';
 import { PrismaService } from './prisma.service';
 
@@ -17,15 +17,15 @@ import * as cors from 'cors';
   imports: [],
   controllers: [
     TicketController,
-    ServicoController,
-    CatalogoController,
+    ServiceController,
+    CatalogController,
 
     AppController,
   ],
   providers: [
     TicketService,
-    ServicoService,
-    CatalogoService,
+    ServiceService,
+    CatalogService,
 
     PrismaService,
     AppService,

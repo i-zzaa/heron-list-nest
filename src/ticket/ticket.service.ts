@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { TicketProps, TicketServiceInterface } from './ticket.interface';
+import { TicketCreateProps, TicketServiceInterface } from './ticket.interface';
 import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class TicketService implements TicketServiceInterface {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async create(body: TicketProps) {
+  async create(body: TicketCreateProps) {
     return await this.prismaService.ticket.create({
       data: body,
     });
@@ -31,7 +31,7 @@ export class TicketService implements TicketServiceInterface {
         userId: userId,
         OR: [
           {
-            titulo: {
+            title: {
               contains: word,
             },
           },

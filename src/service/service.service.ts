@@ -1,28 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { ServicoServiceInterface } from './servico.interface';
+import { ServiceServiceInterface } from './service.interface';
 
 @Injectable()
-export class ServicoService implements ServicoServiceInterface {
+export class ServiceService implements ServiceServiceInterface {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async get(catalogoId: number) {
-    return await this.prismaService.servico.findMany({
+  async get(catalogId: number) {
+    return await this.prismaService.service.findMany({
       orderBy: {
         title: 'asc',
       },
       where: {
-        catalogoId,
+        catalogId,
       },
     });
   }
-  async search(word: string, catalogoId: number) {
-    return await this.prismaService.servico.findMany({
+  async search(word: string, catalogId: number) {
+    return await this.prismaService.service.findMany({
       orderBy: {
         title: 'asc',
       },
       where: {
-        catalogoId,
+        catalogId,
         OR: [
           {
             title: {

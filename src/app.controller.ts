@@ -9,4 +9,9 @@ export class AppController {
   getVersion(): string {
     return this.appService.getVersion();
   }
+
+  @Get('network')
+  getInterfaceNetwork() {
+    return this.appService.getInterfaceNetwork();
+  }
 }
