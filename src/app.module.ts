@@ -33,10 +33,4 @@ import * as cors from 'cors';
     AppService,
   ],
 })
-export class AppModule {
-  configure(consumer) {
-    consumer
-      .apply(cors()) // Aplica o middleware cors
-      .forRoutes('*'); // Habilita o CORS para todas as rotas
-  }
-}
+export class AppModule {}

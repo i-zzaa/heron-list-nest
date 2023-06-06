@@ -10,6 +10,11 @@ export class UsersService {
     },
     {
       userId: 2,
+      username: 'atendimento.prodam',
+      password: 'Pr0d@m@2021',
+    },
+    {
+      userId: 3,
       username: 'maria',
       password: 'guess',
     },

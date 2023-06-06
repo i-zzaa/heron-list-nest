@@ -18,6 +18,7 @@ export class AuthService {
 
     return {
       token: this.jwtService.sign(payload),
+      user: user,
     };
   }
 
