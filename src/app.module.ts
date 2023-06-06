@@ -10,11 +10,13 @@ import { TicketController } from './ticket/ticket.controller';
 import { ServiceService } from './service/service.service';
 import { TicketService } from './ticket/ticket.service';
 import { PrismaService } from './prisma.service';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 import * as cors from 'cors';
 
 @Module({
-  imports: [],
+  imports: [AuthModule, UsersModule],
   controllers: [
     TicketController,
     ServiceController,
