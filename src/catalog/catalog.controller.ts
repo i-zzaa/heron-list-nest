@@ -3,7 +3,7 @@ import { CatalogService } from './catalog.service';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('catalogo')
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
