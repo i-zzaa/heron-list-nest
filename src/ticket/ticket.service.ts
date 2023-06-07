@@ -12,7 +12,7 @@ export class TicketService implements TicketServiceInterface {
     });
   }
 
-  async get(userId: number) {
+  async get() {
     // return await this.prismaService.ticket.findMany({
     //   orderBy: {
     //     ticket: 'asc',

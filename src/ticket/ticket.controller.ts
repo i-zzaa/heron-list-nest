@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Request,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { TicketCreateProps } from './ticket.interface';
 import { AuthGuard } from '@nestjs/passport';
@@ -8,9 +16,9 @@ import { AuthGuard } from '@nestjs/passport';
 export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
-  @Get(':userId')
-  get(@Param('userId') userId: number) {
-    return this.ticketService.get(userId);
+  @Get()
+  get(@Request() req: any) {
+    return this.ticketService.get();
   }
 
   @Post()
