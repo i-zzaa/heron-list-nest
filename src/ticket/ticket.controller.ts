@@ -17,7 +17,7 @@ export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
   @Get()
-  get(@Request() req: any) {
+  get() {
     return this.ticketService.get();
   }
 
