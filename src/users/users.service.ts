@@ -16,8 +16,8 @@ export class UsersService {
     },
     {
       userId: 2,
-      username: 'atendimento.prodam',
-      password: 'Pr0d@m@2021',
+      username: 'root.localhost',
+      password: '123456',
     },
     {
       userId: 3,
