@@ -1,14 +1,14 @@
 import {
-  Request,
   Controller,
   Get,
   Post,
   Param,
   Body,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
-import { TicketCreateProps } from './ticket.interface';
+import { TicketCreateProps, TicketGetProps } from './ticket.interface';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('ticket')
@@ -17,8 +17,8 @@ export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
   @Get()
-  get() {
-    return this.ticketService.get();
+  get(@Query() query: TicketGetProps) {
+    return this.ticketService.get(query);
   }
 
   @Post()
@@ -26,8 +26,8 @@ export class TicketController {
     return this.ticketService.create(body);
   }
 
-  @Get(':search/:userId')
-  search(@Param('search') search: string, @Param('userId') userId: number) {
-    return this.ticketService.search(search, userId);
+  @Get('search/:search')
+  search(@Param('search') search: string) {
+    return this.ticketService.search(search);
   }
 }

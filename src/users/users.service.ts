@@ -3,10 +3,7 @@ import { Client } from 'nestjs-soap';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @Inject(process.env.SOAP_CLIENT_NAME)
-    private readonly soapService: Client,
-  ) {}
+  constructor() {} // private readonly soapService: Client, // @Inject(process.env.SOAP_CLIENT_NAME)
 
   private readonly users = [
     {

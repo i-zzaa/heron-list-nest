@@ -53,6 +53,16 @@ export class TicketCreateProps {
   readonly userId: number;
 }
 
+export class TicketGetProps {
+  @IsString()
+  @IsNotEmpty()
+  readonly pageSize: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly currentPage: string;
+}
+
 export abstract class TicketServiceInterface {
   abstract create(body: TicketCreateProps);
   abstract get(userId: number);
