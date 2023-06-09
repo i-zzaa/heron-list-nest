@@ -1,9 +1,9 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AutheticatedGuard } from 'src/auth/autheticated.guard';
 
 @Controller('catalogo')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AutheticatedGuard)
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 

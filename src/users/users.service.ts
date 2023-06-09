@@ -3,7 +3,7 @@ import { Client } from 'nestjs-soap';
 
 @Injectable()
 export class UsersService {
-  constructor() {} // private readonly soapService: Client, // @Inject(process.env.SOAP_CLIENT_NAME)
+  // constructor() {} // private readonly soapService: Client, // @Inject(process.env.SOAP_CLIENT_NAME)
 
   private readonly users = [
     {
@@ -24,6 +24,8 @@ export class UsersService {
   ];
 
   async findOne(username: string, password: string): Promise<any | undefined> {
+    console.log('loooooog');
+
     return this.users.find((user: any) => user.username === username);
     // return new Promise((resolve, reject) => {
     //   this.soapService.TicketConnector(

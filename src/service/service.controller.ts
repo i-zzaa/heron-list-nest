@@ -1,9 +1,9 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ServiceService } from './service.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AutheticatedGuard } from 'src/auth/autheticated.guard';
 
 @Controller('servicos')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AutheticatedGuard)
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 

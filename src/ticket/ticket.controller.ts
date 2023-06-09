@@ -9,10 +9,10 @@ import {
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { TicketCreateProps, TicketGetProps } from './ticket.interface';
-import { AuthGuard } from '@nestjs/passport';
+import { AutheticatedGuard } from 'src/auth/autheticated.guard';
 
 @Controller('ticket')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AutheticatedGuard)
 export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
