@@ -24,8 +24,6 @@ export class UsersService {
   ];
 
   async findOne(username: string, password: string): Promise<any | undefined> {
-    console.log('loooooog');
-
     return this.users.find((user: any) => user.username === username);
     // return new Promise((resolve, reject) => {
     //   this.soapService.TicketConnector(
