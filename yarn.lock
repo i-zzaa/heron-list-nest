@@ -735,6 +735,14 @@
     "@types/jsonwebtoken" "9.0.1"
     jsonwebtoken "9.0.0"
 
+"@nestjs/microservices@^9.4.2":
+  version "9.4.2"
+  resolved "https://registry.npmjs.org/@nestjs/microservices/-/microservices-9.4.2.tgz#fa318e88fa1dadcbd64fdad7a182f00a963edf0b"
+  integrity sha512-06VlJJS+QyyF5rS6WnMi6POdlGoEHEyvaOuySUm7QKfRILVUOqxcB6ANsKNNv2VPmRSLab/pYTpaQiEGazzRYA==
+  dependencies:
+    iterare "1.2.1"
+    tslib "2.5.2"
+
 "@nestjs/passport@^9.0.3":
   version "9.0.3"
   resolved "https://registry.npmjs.org/@nestjs/passport/-/passport-9.0.3.tgz#4df0e6de3176e04a5770cb432e58f129c8e49f9e"
@@ -5236,6 +5244,11 @@ tslib@2.4.1, tslib@^2.1.0:
   version "2.4.1"
   resolved "https://registry.npmjs.org/tslib/-/tslib-2.4.1.tgz"
   integrity sha512-tGyy4dAjRIEwI7BzsB0lynWgOpfqjUdq91XXAlIWD2OwKBH7oCl/GZG/HT4BOHrTlPMOASlMQ7veyTqpmRcrNA==
+
+tslib@2.5.2:
+  version "2.5.2"
+  resolved "https://registry.npmjs.org/tslib/-/tslib-2.5.2.tgz#1b6f07185c881557b0ffa84b111a0106989e8338"
+  integrity sha512-5svOrSA2w3iGFDs1HibEVBGbDrAY82bFQ3HZ3ixB+88nsbsWQoKqDRb5UBYAUPEzbBn6dAp5gRNXglySbx1MlA==
 
 tslib@^1.8.1, tslib@^1.9.0:
   version "1.14.1"

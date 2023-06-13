@@ -3,7 +3,9 @@ import { Client } from 'nestjs-soap';
 
 @Injectable()
 export class UsersService {
-  constructor() {} // private readonly soapService: Client, // @Inject(process.env.SOAP_CLIENT_NAME)
+  constructor(
+    @Inject(process.env.SOAP_CLIENT_NAME) private readonly soapClient: Client,
+  ) {} // private readonly soapService: Client, // @Inject(process.env.SOAP_CLIENT_NAME)
 
   private readonly users = [
     {
@@ -24,18 +26,21 @@ export class UsersService {
   ];
 
   async findOne(username: string, password: string): Promise<any | undefined> {
-    return this.users.find((user: any) => user.username === username);
-    // return new Promise((resolve, reject) => {
-    //   this.soapService.TicketConnector(
-    //     { CustomerUserLogin: username, Password: password },
-    //     (err: any, res: any) => {
-    //       if (res) {
-    //         resolve(res);
-    //       } else {
-    //         reject(err);
-    //       }
-    //     },
-    //   );
-    // });
+    // return this.users.find((user: any) => user.username === username);
+    return new Promise((resolve) => {
+      this.soapClient.SessionCreate(
+        {
+          CustomerUserLogin: username,
+          Password: password,
+        },
+        (_, res: any) => {
+          if (res) {
+            resolve(res);
+          } else {
+            throw new Error('Error SOAP');
+          }
+        },
+      );
+    });
   }
 }
