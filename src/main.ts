@@ -22,7 +22,10 @@ async function bootstrap() {
   app.use(passport.session());
 
   app.enableCors({
-    origin: 'http://127.0.0.1:5173',
+    origin: [
+      'http://127.0.0.1:5173',
+      'https://fbuots.hospedagemelastica.com.br/',
+    ],
     credentials: true,
   });
 
