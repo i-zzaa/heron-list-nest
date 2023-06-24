@@ -37,7 +37,7 @@ model Ticket {
   priority String
   date     String
 
-  userId Int
+  userId DateTime
   detail Detail[]
 }
 
@@ -52,4 +52,29 @@ model Detail {
   date      String
 
   ticket Ticket @relation(fields: [ticketId], references: [id])
+}
+
+model customer_user {
+  id                Int      @id @default(autoincrement())
+  login             String
+  email             String
+  customer_id       String
+  pw                String
+  title             String
+  first_name        String
+  last_name         String
+  phone             String
+  fax               String
+  mobile            String
+  street            String
+  zip               String
+  city              String
+  country           String
+  comments          String
+  telegram_username String
+  valid_id          String
+  create_time       DateTime
+  create_by         Int
+  change_time       String
+  change_by         Int
 }

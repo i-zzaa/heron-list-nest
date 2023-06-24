@@ -1,16 +1,12 @@
 import { Module } from '@nestjs/common';
 import { UsersService } from './users.service';
 
-import { SoapModule } from 'nestjs-soap';
+import { OtrsModule } from 'src/otrs/otrs.module';
+import { PrismaService } from 'src/prisma.service';
 
 @Module({
-  imports: [
-    SoapModule.register({
-      clientName: process.env.SOAP_CLIENT_NAME,
-      uri: process.env.SOAP_BASE_URL,
-    }),
-  ],
-  providers: [UsersService],
+  imports: [OtrsModule],
+  providers: [UsersService, PrismaService],
   exports: [UsersService],
 })
 export class UsersModule {}

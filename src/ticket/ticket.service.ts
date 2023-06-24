@@ -191,9 +191,9 @@ export class TicketService implements TicketServiceInterface {
   constructor(private readonly prismaService: PrismaService) {}
 
   async create(body: TicketCreateProps) {
-    return await this.prismaService.ticket.create({
-      data: body,
-    });
+    // return await this.prismaService.ticket.create({
+    //   data: body,
+    // });
   }
 
   async get({ pageSize, currentPage }: any) {
