@@ -10,49 +10,32 @@ datasource db {
   referentialIntegrity = "prisma"
 }
 
-model Catalog {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String
-  icon        String
-  services    Service[]
-}
+// model Ticket {
+//   id     Int    @id @default(autoincrement())
+//   ticket String @unique @default(uuid())
 
-model Service {
-  id          Int    @id @default(autoincrement())
-  title       String
-  description String
+//   title    String
+//   type     String
+//   status   String
+//   priority String
+//   date     String
 
-  catalogId Int?
-  Catalog   Catalog? @relation(fields: [catalogId], references: [id])
-}
+//   userId DateTime
+//   detail Detail[]
+// }
 
-model Ticket {
-  id     Int    @id @default(autoincrement())
-  ticket String @unique @default(uuid())
+// model Detail {
+//   id       Int @id @default(autoincrement())
+//   ticketId Int
 
-  title    String
-  type     String
-  status   String
-  priority String
-  date     String
+//   title     String
+//   attendant String
+//   queue     String
+//   detalhe   String
+//   date      String
 
-  userId DateTime
-  detail Detail[]
-}
-
-model Detail {
-  id       Int @id @default(autoincrement())
-  ticketId Int
-
-  title     String
-  attendant String
-  queue     String
-  detalhe   String
-  date      String
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
-}
+//   ticket Ticket @relation(fields: [ticketId], references: [id])
+// }
 
 model customer_user {
   id                Int      @id @default(autoincrement())
@@ -77,4 +60,2070 @@ model customer_user {
   create_by         Int
   change_time       String
   change_by         Int
+}
+
+model service {
+  id                    Int                     @id @default(autoincrement())
+  name                  String
+  valid_id              String
+  comments              String
+  create_time           String
+  create_by             Int
+  change_time           String
+  change_by             DateTime
+  type_id               String
+  criticality           String
+  service_preferences   service_preferences[]
+  personal_services     personal_services[]
+  service_customer_user service_customer_user[]
+  service_sla           service_sla[]
+  ticket                ticket[]
+}
+
+model service_preferences {
+  id Int @id @default(autoincrement())
+
+  service_id        Int
+  preferences_key   String
+  preferences_value String
+
+  service service @relation(fields: [service_id], references: [id])
+}
+
+model service_sla {
+  id Int @id @default(autoincrement())
+
+  service_id Int
+  sla_id     Int
+
+  service service @relation(fields: [service_id], references: [id])
+  sla     sla     @relation(fields: [sla_id], references: [id])
+}
+
+model sla {
+  id                     Int           @id @default(autoincrement())
+  name                   String
+  calendar_name          String
+  first_response_time    Int
+  first_response_notify  Int
+  update_time            Int
+  update_notify          Int
+  solution_time          Int
+  solution_notify        Int
+  valid_id               Int
+  comments               String
+  create_time            DateTime
+  create_by              Int
+  change_time            DateTime
+  change_by              Int
+  type_id                Int
+  min_time_bet_incidents Int
+  service_sla            service_sla[]
+  ticket                 ticket[]
+}
+
+model personal_services {
+  id Int @id @default(autoincrement())
+
+  service_id Int
+  user_id    Int
+
+  service service @relation(fields: [service_id], references: [id])
+  users   users   @relation(fields: [user_id], references: [id])
+}
+
+model service_customer_user {
+  id Int @id @default(autoincrement())
+
+  service_id          Int
+  customer_user_login String
+  create_time         DateTime
+  create_by           Int
+
+  service service @relation(fields: [service_id], references: [id])
+  users   users   @relation(fields: [customer_user_login], references: [login])
+}
+
+model users {
+  id          Int      @id @default(autoincrement())
+  login       String   @unique
+  pw          String
+  title       String
+  first_name  String
+  last_name   String
+  valid_id    String
+  create_time DateTime
+  create_by   Int
+  change_time String
+  change_by   Int
+
+  personal_services     personal_services[]
+  service_customer_user service_customer_user[]
+  ticket                ticket[]                @relation("userTickets")
+  ticketsResponsable    ticket[]                @relation("responsibleTickets")
+  queue                 queue[]
+  ticket_lock_type      ticket_lock_type[]
+  ticket_type           ticket_type[]
+  ticket_priority       ticket_priority[]
+  ticket_state          ticket_state[]
+  follow_up_possible    follow_up_possible[]
+  permission_groups     permission_groups[]
+  valid                 valid[]
+  salutation            salutation[]
+  signature             signature[]
+  system_address        system_address[]
+}
+
+model ticket {
+  id                       Int      @id @default(autoincrement())
+  tn                       String
+  title                    String
+  queue_id                 Int
+  ticket_lock_id           Int
+  type_id                  Int
+  service_id               Int
+  sla_id                   Int
+  user_id                  Int
+  responsible_user_id      Int
+  ticket_priority_id       Int
+  ticket_state_id          Int
+  customer_id              String
+  customer_user_id         String
+  timeout                  Int
+  until_time               Int
+  escalation_time          Int
+  escalation_update_time   Int
+  escalation_response_time Int
+  escalation_solution_time Int
+  archive_flag             Int
+  create_time              DateTime
+  create_by                Int
+  change_time              DateTime
+  change_by                Int
+
+  service          service          @relation(fields: [service_id], references: [id])
+  queue            queue            @relation(fields: [queue_id], references: [id])
+  ticket_lock_type ticket_lock_type @relation(fields: [ticket_lock_id], references: [id])
+  ticket_type      ticket_type      @relation(fields: [type_id], references: [id])
+  sla              sla              @relation(fields: [sla_id], references: [id])
+  users            users            @relation("userTickets", fields: [user_id], references: [id])
+  responsible      users            @relation("responsibleTickets", fields: [responsible_user_id], references: [id])
+  ticket_priority  ticket_priority  @relation(fields: [ticket_priority_id], references: [id])
+}
+
+model queue {
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  group_id              Int
+  unlock_timeout        Int
+  first_response_time   Int
+  first_response_notify Int
+  update_time           Int
+  update_notify         Int
+  solution_time         Int
+  solution_notify       Int
+  system_address_id     Int
+  calendar_name         String
+  default_sign_key      String
+  salutation_id         Int
+  signature_id          Int
+  follow_up_id          Int
+  follow_up_lock        Int
+  comments              String
+  valid_id              Int
+  create_time           DateTime
+  create_by             Int
+  change_time           DateTime
+  change_by             Int
+  ticket                ticket[]
+
+  follow_up_possible follow_up_possible @relation(fields: [follow_up_id], references: [id])
+  permission_groups  permission_groups  @relation(fields: [group_id], references: [id])
+  valid              valid              @relation(fields: [valid_id], references: [id])
+  salutation         salutation         @relation(fields: [salutation_id], references: [id])
+  system_address     system_address     @relation(fields: [system_address_id], references: [id])
+  signature          signature?         @relation(fields: [signature_id], references: [id])
+
+  users   users? @relation(fields: [usersId], references: [id])
+  usersId Int?
+}
+
+model ticket_lock_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  ticket      ticket[]
+  valid       valid    @relation(fields: [valid_id], references: [id])
+  users       users    @relation(fields: [create_by], references: [id])
+}
+
+model ticket_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  ticket      ticket[]
+  valid       valid    @relation(fields: [valid_id], references: [id])
+  users       users    @relation(fields: [create_by], references: [id])
+}
+
+model ticket_priority {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  ticket      ticket[]
+  valid       valid    @relation(fields: [valid_id], references: [id])
+  users       users    @relation(fields: [create_by], references: [id])
+}
+
+model ticket_state {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  type_id     Int
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  valid       valid    @relation(fields: [valid_id], references: [id])
+  users       users    @relation(fields: [create_by], references: [id])
+}
+
+model follow_up_possible {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  queue       queue[]
+  valid       valid    @relation(fields: [valid_id], references: [id])
+  users       users    @relation(fields: [create_by], references: [id])
+}
+
+model permission_groups {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  queue       queue[]
+  valid       valid    @relation(fields: [valid_id], references: [id])
+  users       users    @relation(fields: [create_by], references: [id])
+}
+
+model valid {
+  id          Int      @id @default(autoincrement())
+  name        String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  queue       queue[]
+  users       users    @relation(fields: [create_by], references: [id])
+
+  ticket_lock_type   ticket_lock_type[]
+  ticket_type        ticket_type[]
+  ticket_priority    ticket_priority[]
+  ticket_state       ticket_state[]
+  follow_up_possible follow_up_possible[]
+  permission_groups  permission_groups[]
+  salutation         salutation[]
+  signature          signature[]
+  system_address     system_address[]
+}
+
+model salutation {
+  id           Int      @id @default(autoincrement())
+  name         String
+  text         String
+  content_type String
+  comments     String
+  valid_id     Int
+  create_time  DateTime
+  create_by    Int
+  change_time  DateTime
+  change_by    Int
+  queue        queue[]
+  valid        valid    @relation(fields: [valid_id], references: [id])
+  users        users    @relation(fields: [create_by], references: [id])
+}
+
+model signature {
+  id           Int      @id @default(autoincrement())
+  name         String
+  text         String
+  content_type String
+  comments     String
+  valid_id     Int
+  create_time  DateTime
+  create_by    Int
+  change_time  DateTime
+  change_by    Int
+  queue        queue[]
+  valid        valid    @relation(fields: [valid_id], references: [id])
+  users        users    @relation(fields: [create_by], references: [id])
+}
+
+model system_address {
+  id          Int      @id @default(autoincrement())
+  value0      String
+  value1      String
+  value2      String
+  value3      String
+  queue_id    Int
+  comments    Int
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+
+  queue queue[]
+  valid valid   @relation(fields: [valid_id], references: [id])
+  users users   @relation(fields: [create_by], references: [id])
+}
+
+model communication_log_obj_lookup {
+  id                          Int    @id @default(autoincrement())
+  communication_log_object_id Int
+  object_type                 String
+  object_id                   Int
+}
+
+model communication_log_object_entry {
+  id                          Int      @id @default(autoincrement())
+  communication_log_object_id Int
+  log_key                     String
+  log_value                   String
+  priority                    String
+  create_time                 DateTime
+}
+
+model communication_log_object {
+  id                 Int      @id @default(autoincrement())
+  insert_fingerprint String
+  communication_id   Int
+  object_type        String
+  status             String
+  start_time         DateTime
+  end_time           DateTime
+}
+
+model communication_log {
+  id                 Int      @id @default(autoincrement())
+  insert_fingerprint String
+  transport          String
+  direction          String
+  status             String
+  account_type       String
+  account_id         String
+  start_time         DateTime
+  end_time           DateTime
+}
+
+model link_relation {
+  id               Int      @id @default(autoincrement())
+  source_object_id Int
+  source_key       String
+  target_object_id Int
+  target_key       String
+  type_id          Int
+  state_id         Int
+  create_time      DateTime
+  create_by        Int
+}
+
+model link_object {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model link_state {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model link_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model acl {
+  id               Int      @id @default(autoincrement())
+  name             String
+  comments         String
+  description      String
+  valid_id         Int
+  stop_after_match Int
+  config_match     String
+  config_change    String
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model acl_sync {
+  id          Int      @id @default(autoincrement())
+  acl_id      String
+  sync_state  String
+  create_time DateTime
+  change_time DateTime
+}
+
+model acl_ticket_attribute_relations {
+  id          Int      @id @default(autoincrement())
+  filename    String
+  attribute_1 String
+  attribute_2 String
+  acl_data    String
+  priority    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model article {
+  id                         Int      @id @default(autoincrement())
+  ticket_id                  Int
+  article_sender_type_id     Int
+  communication_channel_id   Int
+  is_visible_for_customer    Int
+  search_index_needs_rebuild Int
+  insert_fingerprint         String
+  create_time                DateTime
+  create_by                  Int
+  change_time                DateTime
+  change_by                  Int
+}
+
+model article_data_mime {
+  id               Int      @id @default(autoincrement())
+  article_id       Int
+  a_from           String
+  a_reply_to       String
+  a_to             String
+  a_cc             String
+  a_bcc            String
+  a_subject        String
+  a_message_id     String
+  a_message_id_md5 String
+  a_in_reply_to    String
+  a_references     String
+  a_content_type   String
+  a_body           String
+  incoming_time    Int
+  content_path     String
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model article_data_mime_attachment {
+  id                  Int      @id @default(autoincrement())
+  article_id          Int
+  filename            String
+  content_size        String
+  content_type        String
+  content_id          String
+  content_alternative String
+  disposition         String
+  content             String
+  create_time         DateTime
+  create_by           Int
+  change_time         DateTime
+  change_by           Int
+}
+
+model article_data_mime_plain {
+  id          Int      @id @default(autoincrement())
+  article_id  Int
+  body        String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model article_data_mime_send_error {
+  id          Int      @id @default(autoincrement())
+  article_id  Int
+  message_id  String
+  log_message String
+  create_time DateTime
+}
+
+model article_data_otrs_chat {
+  id                    Int      @id @default(autoincrement())
+  article_id            Int
+  chat_participant_id   String
+  chat_participant_name String
+  chat_participant_type String
+  message_text          String
+  system_generated      Int
+  create_time           DateTime
+}
+
+model article_flag {
+  id            Int      @id @default(autoincrement())
+  article_id    Int
+  article_key   String
+  article_value String
+  create_time   DateTime
+  create_by     Int
+}
+
+model article_search_index {
+  id            Int    @id @default(autoincrement())
+  ticket_id     Int
+  article_id    Int
+  article_key   String
+  article_value String
+}
+
+model article_sender_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model auto_response {
+  id                Int      @id @default(autoincrement())
+  name              String
+  text0             String
+  text1             String
+  type_id           Int
+  system_address_id Int
+  content_type      String
+  comments          String
+  valid_id          Int
+  create_time       DateTime
+  create_by         Int
+  change_time       DateTime
+  change_by         Int
+}
+
+model auto_response_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model calendar {
+  id                  Int      @id @default(autoincrement())
+  group_id            Int
+  name                String
+  salt_string         String
+  color               String
+  ticket_appointments String
+  valid_id            Int
+  create_time         DateTime
+  create_by           Int
+  change_time         DateTime
+  change_by           Int
+}
+
+model calendar_appointment {
+  id                         Int      @id @default(autoincrement())
+  parent_id                  Int
+  calendar_id                Int
+  unique_id                  String
+  title                      String
+  description                String
+  location                   String
+  start_time                 DateTime
+  end_time                   DateTime
+  all_day                    Int
+  notify_time                DateTime
+  notify_template            String
+  notify_custom              String
+  notify_custom_unit_count   Int
+  notify_custom_unit         String
+  notify_custom_unit_point   String
+  notify_custom_date         DateTime
+  team_id                    String
+  resource_id                String
+  recurring                  Int
+  recur_type                 String
+  recur_freq                 String
+  recur_count                Int
+  recur_interval             Int
+  recur_until                DateTime
+  recur_id                   DateTime
+  recur_exclude              String
+  ticket_appointment_rule_id String
+  create_time                DateTime
+  create_by                  Int
+  change_time                DateTime
+  change_by                  Int
+}
+
+model calendar_appointment_plugin {
+  id             Int      @id @default(autoincrement())
+  appointment_id Int
+  plugin_key     String
+  config         String
+  create_time    DateTime
+  create_by      Int
+  change_time    DateTime
+  change_by      Int
+}
+
+model calendar_appointment_ticket {
+  id             Int    @id @default(autoincrement())
+  calendar_id    Int
+  ticket_id      Int
+  rule_id        String
+  appointment_id Int
+}
+
+model change_cab {
+  id               Int    @id @default(autoincrement())
+  change_id        Int
+  user_id          Int
+  customer_user_id String
+}
+
+model change_cip_allocate {
+  id          Int      @id @default(autoincrement())
+  category_id Int
+  impact_id   Int
+  priority_id Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model change_condition {
+  id                     Int      @id @default(autoincrement())
+  change_id              Int
+  name                   String
+  expression_conjunction String
+  comments               String
+  valid_id               Int
+  create_time            DateTime
+  create_by              Int
+  change_time            DateTime
+  change_by              Int
+}
+
+model change_history {
+  id           Int      @id @default(autoincrement())
+  change_id    Int
+  workorder_id Int
+  type_id      Int
+  content_new  String
+  content_old  String
+  fieldname    String
+  create_time  DateTime
+  create_by    Int
+}
+
+model change_history_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model change_item {
+  id                  Int      @id @default(autoincrement())
+  change_number       String
+  title               String
+  description         String
+  description_plain   String
+  justification       String
+  justification_plain String
+  change_state_id     Int
+  change_manager_id   Int
+  change_builder_id   Int
+  category_idV        Int
+  impact_id           Int
+  priority_id         Int
+  requested_time      DateTime
+  create_time         DateTime
+  create_by           Int
+  change_time         DateTime
+  change_by           Int
+}
+
+model change_notification {
+  id                Int    @id @default(autoincrement())
+  name              String
+  item_attribute    String
+  event_id          Int
+  valid_id          Int
+  comments          String
+  notification_rule String
+}
+
+model change_notification_grps {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model change_notification_message {
+  id                Int    @id @default(autoincrement())
+  notification_id   Int
+  subject           String
+  text              String
+  content_type      String
+  language          String
+  notification_type String
+}
+
+model change_number_counter {
+  id          Int      @id @default(autoincrement())
+  counter     Int
+  counter_uid String
+  create_time DateTime
+}
+
+model change_state_machine {
+  id            Int @id @default(autoincrement())
+  state_id      Int
+  next_state_id Int
+}
+
+model change_template {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  content     String
+  type_id     Int
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model change_template_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model change_workorder {
+  id                 Int      @id @default(autoincrement())
+  change_id          Int
+  workorder_number   Int
+  title              String
+  instruction        String
+  instruction_plain  String
+  report             String
+  report_plain       String
+  workorder_state_id Int
+  workorder_type_id  Int
+  workorder_agent_id Int
+  planned_start_time DateTime
+  planned_end_time   DateTime
+  actual_start_time  DateTime
+  actual_end_time    DateTime
+  planned_effort     Int
+  accounted_time     Int
+  create_time        DateTime
+  create_by          Int
+  change_time        DateTime
+  change_by          Int
+}
+
+model cip_allocate {
+  id          Int      @id @default(autoincrement())
+  criticality String
+  impact      String
+  priority_id Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model cloud_service_config {
+  id          Int      @id @default(autoincrement())
+  name        String
+  config      String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model communication_channel {
+  id           Int      @id @default(autoincrement())
+  name         String
+  module       String
+  package_name String
+  channel_data String
+  valid_id     Int
+  create_time  DateTime
+  create_by    Int
+  change_time  DateTime
+  change_by    Int
+}
+
+model condition_action {
+  id            Int    @id @default(autoincrement())
+  condition_id  Int
+  action_number Int
+  object_id     Int
+  attribute_id  Int
+  operator_id   Int
+  selector      String
+  action_value  String
+}
+
+model condition_attribute {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model condition_expression {
+  id            Int    @id @default(autoincrement())
+  condition_id  Int
+  object_id     Int
+  attribute_id  Int
+  operator_id   Int
+  selector      String
+  compare_value String
+}
+
+model condition_object {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model condition_operator {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model configitem {
+  id                Int      @id @default(autoincrement())
+  configitem_number String
+  class_id          String
+  last_version_id   String
+  cur_depl_state_id String
+  cur_inci_state_id String
+  create_time       DateTime
+  create_by         String
+  change_time       DateTime
+  change_by         String
+}
+
+model configitem_counter {
+  class_id     Int    @id @default(autoincrement())
+  counter_type String
+  counter      String
+}
+
+model configitem_definition {
+  id                    Int      @id @default(autoincrement())
+  class_id              Int
+  configitem_definition String
+  version               Int
+  create_time           DateTime
+  create_by             Int
+}
+
+model configitem_history {
+  id            Int      @id @default(autoincrement())
+  configitem_id Int
+  type_id       Int
+  content       String
+  create_time   DateTime
+  create_by     Int
+}
+
+model configitem_history_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model configitem_version {
+  id            Int      @id @default(autoincrement())
+  configitem_id Int
+  name          String
+  definition_id Int
+  depl_state_id Int
+  inci_state_id Int
+  create_time   DateTime
+  create_by     Int
+}
+
+model customer_company {
+  customer_id Int      @id @default(autoincrement())
+  name        String
+  street      String
+  zip         String
+  city        String
+  country     String
+  url         String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model customer_preferences {
+  user_id           Int    @id @default(autoincrement())
+  preferences_key   String
+  preferences_value String
+}
+
+model customer_user_customer {
+  id          Int      @id @default(autoincrement())
+  user_id     String
+  customer_id String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model dynamic_field {
+  id             Int      @id @default(autoincrement())
+  internal_field Int
+  name           String
+  label          String
+  field_order    Int
+  field_type     String
+  object_type    String
+  config         String
+  valid_id       Int
+  create_time    DateTime
+  create_by      Int
+  change_time    DateTime
+  change_by      Int
+}
+
+model dynamic_field_obj_id_name {
+  object_id   Int    @id @default(autoincrement())
+  object_name String
+  object_type String
+}
+
+model dynamic_field_value {
+  id         Int      @id @default(autoincrement())
+  field_id   Int
+  object_id  Int
+  value_text String
+  value_date DateTime
+  value_int  Int
+}
+
+model faq_attachment {
+  id               Int      @id @default(autoincrement())
+  faq_id           Int
+  filename         String
+  content_size     String
+  content_type     String
+  content          String
+  inlineattachment Int
+  created          DateTime
+  created_by       Int
+  changed          DateTime
+  changed_by       Int
+}
+
+model faq_category {
+  id         Int      @id @default(autoincrement())
+  parent_id  Int
+  name       String
+  comments   String
+  valid_id   Int
+  created    DateTime
+  created_by Int
+  changed    DateTime
+  changed_by Int
+}
+
+model faq_category_group {
+  id          Int      @id @default(autoincrement())
+  category_id Int
+  group_id    Int
+  created     DateTime
+  created_by  Int
+  changed     DateTime
+  changed_by  Int
+}
+
+model faq_history {
+  id         Int      @id @default(autoincrement())
+  name       String
+  item_id    Int
+  created    DateTime
+  created_by Int
+  changed    DateTime
+  changed_by Int
+}
+
+model faq_item {
+  id            Int      @id @default(autoincrement())
+  f_number      String
+  f_subject     String
+  f_name        String
+  f_language_id Int
+  state_id      Int
+  category_id   Int
+  approved      Int
+  valid_id      Int
+  content_type  String
+  f_keywords    String
+  f_field1      String
+  f_field2      String
+  f_field3      String
+  f_field4      String
+  f_field5      String
+  f_field6      String
+  created       DateTime
+  created_by    Int
+  changed       DateTime
+  changed_by    Int
+}
+
+model faq_language {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model faq_log {
+  id         Int      @id @default(autoincrement())
+  item_id    Int
+  interface  String
+  ip         String
+  user_agent String
+  created    DateTime
+}
+
+model faq_state {
+  id      Int    @id @default(autoincrement())
+  name    String
+  type_id Int
+}
+
+model faq_state_type {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model faq_voting {
+  id         Int      @id @default(autoincrement())
+  created_by String
+  item_id    Int
+  interface  String
+  ip         String
+  rate       Int
+  created    DateTime
+}
+
+model fks_feriados {
+  id           Int      @id @default(autoincrement())
+  dt_feriado   DateTime
+  name_feriado String
+}
+
+model fks_kpi {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  object_type String
+  config      String
+  min_value   Int
+  max_value   Int
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model fks_kpi_group {
+  id       Int @id @default(autoincrement())
+  group_id Int
+  kpi_id   Int
+}
+
+model form_draft {
+  id          Int      @id @default(autoincrement())
+  object_type String
+  object_id   Int
+  action      String
+  title       String
+  content     String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model general_catalog {
+  id                    Int      @id @default(autoincrement())
+  general_catalog_class String
+  name                  String
+  valid_id              Int
+  comments              String
+  create_time           DateTime
+  create_by             Int
+  change_time           DateTime
+  change_by             Int
+}
+
+model general_catalog_preferences {
+  id                 Int    @id @default(autoincrement())
+  general_catalog_id Int
+  pref_key           String
+  pref_value         String
+}
+
+model generic_agent_jobs {
+  id        Int    @id @default(autoincrement())
+  job_name  String
+  job_key   String
+  job_value String
+}
+
+model gi_debugger_entry {
+  id                 Int      @id @default(autoincrement())
+  communication_id   String
+  communication_type String
+  remote_ip          String
+  webservice_id      Int
+  create_time        DateTime
+}
+
+model gi_debugger_entry_content {
+  id                   Int      @id @default(autoincrement())
+  gi_debugger_entry_id Int
+  debug_level          String
+  subject              String
+  content              String
+  create_time          DateTime
+}
+
+model gi_webservice_config {
+  id          Int      @id @default(autoincrement())
+  name        String
+  config      String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model gi_webservice_config_history {
+  id          Int      @id @default(autoincrement())
+  config_id   Int
+  config      String
+  config_md5  String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model group_customer {
+  id                 Int      @id @default(autoincrement())
+  customer_id        String
+  group_id           Int
+  permission_key     String
+  permission_value   Int
+  permission_context String
+  create_time        DateTime
+  create_by          Int
+  change_time        DateTime
+  change_by          Int
+}
+
+model group_customer_user {
+  id               Int      @id @default(autoincrement())
+  user_id          String
+  group_id         Int
+  permission_key   String
+  permission_value Int
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model group_role {
+  role_id          Int      @id @default(autoincrement())
+  group_id         Int
+  permission_key   String
+  permission_value Int
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model group_user {
+  user_id          Int      @id @default(autoincrement())
+  group_id         Int
+  permission_key   String
+  permission_value Int
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model imexport_format {
+  id          Int    @id @default(autoincrement())
+  template_id Int
+  data_key    String
+  data_value  String
+}
+
+model imexport_mapping {
+  id          Int @id @default(autoincrement())
+  template_id Int
+  position    Int
+}
+
+model imexport_mapping_format {
+  id         Int    @id @default(autoincrement())
+  mapping_id Int
+  data_key   String
+  data_value String
+}
+
+model imexport_mapping_object {
+  id         Int    @id @default(autoincrement())
+  mapping_id Int
+  data_key   String
+  data_value String
+}
+
+model imexport_object {
+  id         Int    @id @default(autoincrement())
+  mapping_id Int
+  data_key   String
+  data_value String
+}
+
+model imexport_search {
+  id          Int    @id @default(autoincrement())
+  template_id Int
+  data_key    String
+  data_value  String
+}
+
+model imexport_template {
+  id              Int      @id @default(autoincrement())
+  imexport_object String
+  imexport_format String
+  name            String
+  valid_id        Int
+  comments        String
+  create_time     DateTime
+  create_by       Int
+  change_time     DateTime
+  change_by       Int
+}
+
+model mail_account {
+  id                     Int      @id @default(autoincrement())
+  login                  String
+  pw                     String
+  host                   String
+  account_type           String
+  queue_id               Int
+  trusted                Int
+  imap_folder            String
+  comments               String
+  valid_id               Int
+  create_time            DateTime
+  create_by              Int
+  change_time            DateTime
+  change_by              Int
+  oauth2_token_config_id Int
+  authentication_type    String
+}
+
+model mail_queue {
+  id                 Int      @id @default(autoincrement())
+  insert_fingerprint String
+  article_id         Int
+  attempts           Int
+  sender             String
+  recipient          String
+  raw_message        String
+  due_time           DateTime
+  last_smtp_code     Int
+  last_smtp_message  String
+  create_time        DateTime
+}
+
+model mention {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  ticket_id   Int
+  article_id  Int
+  create_time DateTime
+}
+
+model notification_event {
+  id          Int      @id @default(autoincrement())
+  name        String
+  valid_id    Int
+  comments    String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model notification_event_item {
+  notification_id Int    @id @default(autoincrement())
+  event_key       String
+  event_value     String
+}
+
+model notification_event_message {
+  id              Int    @id @default(autoincrement())
+  notification_id Int
+  subject         String
+  text            String
+  content_type    String
+  language        String
+}
+
+model oauth2_token {
+  id                            Int      @id @default(autoincrement())
+  token_config_id               Int
+  authorization_code            String
+  token                         String
+  token_expiration_date         DateTime
+  refresh_token                 String
+  refresh_token_expiration_date DateTime
+  error_message                 String
+  error_description             String
+  error_code                    String
+  create_time                   DateTime
+  create_by                     Int
+  change_time                   DateTime
+  change_by                     Int
+  dbcrud_uuid                   String
+}
+
+model oauth2_token_config {
+  id          Int      @id @default(autoincrement())
+  name        String
+  config      String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+  dbcrud_uuid String
+}
+
+model package_repository {
+  id             Int      @id @default(autoincrement())
+  name           String
+  version        String
+  vendor         String
+  install_status String
+  filename       String
+  content_type   String
+  content        String
+  create_time    DateTime
+  create_by      Int
+  change_time    DateTime
+  change_by      Int
+}
+
+model personal_queues {
+  user_id  Int @id @default(autoincrement())
+  queue_id Int
+}
+
+model pm_activity {
+  id          Int      @id @default(autoincrement())
+  entity_id   String
+  name        String
+  config      String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model pm_activity_dialog {
+  id          Int      @id @default(autoincrement())
+  entity_id   String
+  name        String
+  config      String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model pm_entity_sync {
+  id          Int      @id @default(autoincrement())
+  entity_type String
+  entity_id   String
+  sync_state  String
+  create_time DateTime
+  change_time DateTime
+}
+
+model pm_process {
+  id              Int      @id @default(autoincrement())
+  entity_id       String
+  name            String
+  state_entity_id String
+  layout          String
+  config          String
+  create_time     DateTime
+  create_by       Int
+  change_time     DateTime
+  change_by       Int
+}
+
+model pm_transition {
+  id          Int      @id @default(autoincrement())
+  entity_id   String
+  name        String
+  config      String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model pm_transition_action {
+  id          Int      @id @default(autoincrement())
+  entity_id   String
+  name        String
+  config      String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model postmaster_filter {
+  id      Int    @id @default(autoincrement())
+  f_name  String
+  f_stop  Int
+  f_type  String
+  f_key   String
+  f_value String
+  f_not   Int
+}
+
+model process_id {
+  id             Int    @id @default(autoincrement())
+  process_name   String
+  process_id     String
+  process_host   String
+  process_create Int
+  process_change Int
+}
+
+model queue_auto_response {
+  id               Int      @id @default(autoincrement())
+  queue_id         Int
+  auto_response_id Int
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model queue_preferences {
+  id                Int    @id @default(autoincrement())
+  queue_id          Int
+  preferences_key   String
+  preferences_value String
+}
+
+model queue_standard_template {
+  id                   Int      @id @default(autoincrement())
+  queue_id             Int
+  standard_template_id Int
+  create_time          DateTime
+  create_by            Int
+  change_time          DateTime
+  change_by            Int
+}
+
+model role_user {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  role_id     Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model roles {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model scheduler_future_task {
+  id             Int      @id @default(autoincrement())
+  ident          Int
+  execution_time DateTime
+  name           String
+  task_type      String
+  task_data      String
+  attempts       Int
+  lock_key       Int
+  lock_time      DateTime
+  create_time    DateTime
+}
+
+model scheduler_task {
+  id               Int      @id @default(autoincrement())
+  ident            Int
+  name             String
+  task_type        String
+  task_data        String
+  attempts         Int
+  lock_key         Int
+  lock_time        DateTime
+  lock_update_time DateTime
+  create_time      DateTime
+}
+
+model search_profile {
+  id            Int    @id @default(autoincrement())
+  login         String
+  profile_name  String
+  profile_type  String
+  profile_key   String
+  profile_value String
+}
+
+model sessions {
+  id         Int    @id @default(autoincrement())
+  session_id String
+  data_key   String
+  data_value String
+  serialized Int
+}
+
+model sla_preferences {
+  sla_id            Int    @id @default(autoincrement())
+  preferences_key   String
+  preferences_value String
+}
+
+model smime_keys {
+  id              Int      @id @default(autoincrement())
+  key_hash        String
+  key_type        String
+  file_name       String
+  email_address   String
+  expiration_date DateTime
+  fingerprint     String
+  subject         String
+  create_time     DateTime
+  change_time     DateTime
+  create_by       Int
+  change_by       Int
+}
+
+model smime_signer_cert_relations {
+  id               Int      @id @default(autoincrement())
+  cert_hash        String
+  cert_fingerprint String
+  ca_hash          String
+  ca_fingerprint   String
+  create_time      DateTime
+  create_by        Int
+  change_time      DateTime
+  change_by        Int
+}
+
+model standard_attachment {
+  id           Int      @id @default(autoincrement())
+  name         String
+  content_type String
+  content      String
+  filename     String
+  comments     String
+  valid_id     Int
+  create_time  DateTime
+  create_by    Int
+  change_time  DateTime
+  change_by    Int
+}
+
+model standard_template {
+  id            Int      @id @default(autoincrement())
+  name          String
+  text          String
+  content_type  String
+  template_type String
+  comments      String
+  valid_id      Int
+  create_time   DateTime
+  create_by     Int
+  change_time   DateTime
+  change_by     Int
+}
+
+model standard_template_attachment {
+  id                     Int      @id @default(autoincrement())
+  standard_attachment_id Int
+  standard_template_id   Int
+  create_time            DateTime
+  create_by              Int
+  change_time            DateTime
+  change_by              Int
+}
+
+model survey {
+  id                   Int      @id @default(autoincrement())
+  surveynumber         String
+  title                String
+  introduction         String
+  description          String
+  notification_sender  String
+  notification_subject String
+  notification_body    String
+  status               String
+  send_conditions      String
+  create_time          DateTime
+  create_by            Int
+  change_time          DateTime
+  change_by            Int
+}
+
+model survey_answer {
+  id          Int      @id @default(autoincrement())
+  question_id Int
+  answer      String
+  position    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model survey_question {
+  id              Int      @id @default(autoincrement())
+  survey_id       Int
+  question        String
+  question_type   String
+  position        Int
+  answer_required Int
+  create_time     DateTime
+  create_by       Int
+  change_time     DateTime
+  change_by       Int
+}
+
+model survey_queue {
+  id        Int @id @default(autoincrement())
+  survey_id Int
+  queue_id  Int
+}
+
+model survey_request {
+  id                Int      @id @default(autoincrement())
+  ticket_id         Int
+  survey_id         Int
+  valid_id          Int
+  public_survey_key String
+  send_to           String
+  send_time         DateTime
+  vote_time         DateTime
+  create_time       DateTime
+}
+
+model survey_vote {
+  id          Int      @id @default(autoincrement())
+  request_id  Int
+  question_id Int
+  vote_value  String
+  create_time DateTime
+}
+
+model sysconfig_default {
+  id                         Int      @id @default(autoincrement())
+  name                       String
+  description                String
+  navigation                 String
+  is_invisible               Int
+  is_readonly                Int
+  is_required                Int
+  is_valid                   Int
+  has_configlevel            Int
+  user_modification_possible Int
+  user_modification_active   Int
+  user_preferences_group     String
+  xml_content_raw            String
+  xml_content_parsed         String
+  xml_filename               String
+  effective_value            String
+  is_dirty                   Int
+  exclusive_lock_guid        String
+  exclusive_lock_user_id     Int
+  exclusive_lock_expiry_time DateTime
+  create_time                DateTime
+  create_by                  Int
+  change_time                DateTime
+  change_by                  Int
+}
+
+model sysconfig_default_version {
+  id                         Int      @id @default(autoincrement())
+  sysconfig_default_id       Int
+  name                       String
+  description                String
+  navigation                 String
+  is_invisible               Int
+  is_readonly                Int
+  is_required                Int
+  is_valid                   Int
+  has_configlevel            Int
+  user_modification_possible Int
+  user_modification_active   Int
+  user_preferences_group     String
+  xml_content_raw            String
+  xml_content_parsed         String
+  xml_filename               String
+  effective_value            String
+  create_time                DateTime
+  create_by                  Int
+  change_time                DateTime
+  change_by                  Int
+}
+
+model sysconfig_deployment {
+  id              Int      @id @default(autoincrement())
+  comments        String
+  user_id         Int
+  effective_value String
+  create_time     DateTime
+  create_by       Int
+}
+
+model sysconfig_deployment_lock {
+  id                         Int      @id @default(autoincrement())
+  exclusive_lock_guid        String
+  exclusive_lock_user_id     Int
+  exclusive_lock_expiry_time DateTime
+}
+
+model sysconfig_modified {
+  id                       Int      @id @default(autoincrement())
+  sysconfig_default_id     Int
+  name                     String
+  user_id                  Int
+  is_valid                 Int
+  user_modification_active Int
+  effective_value          String
+  is_dirty                 Int
+  reset_to_default         Int
+  create_time              DateTime
+  create_by                Int
+  change_time              DateTime
+  change_by                Int
+}
+
+model sysconfig_modified_version {
+  id                           Int      @id @default(autoincrement())
+  sysconfig_default_version_id Int
+  name                         String
+  user_id                      Int
+  is_valid                     Int
+  user_modification_active     Int
+  effective_value              String
+  reset_to_default             Int
+  create_time                  DateTime
+  create_by                    Int
+  change_time                  DateTime
+  change_by                    Int
+}
+
+model system_data {
+  id          Int      @id @default(autoincrement())
+  data_key    String
+  data_value  String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model system_maintenance {
+  id                 Int      @id @default(autoincrement())
+  start_date         Int
+  stop_date          Int
+  comments           String
+  login_message      String
+  show_login_message Int
+  notify_message     String
+  valid_id           Int
+  create_time        DateTime
+  create_by          Int
+  change_time        DateTime
+  change_by          Int
+}
+
+model ticket_flag {
+  id           Int      @id @default(autoincrement())
+  ticket_id    Int
+  ticket_key   String
+  ticket_value String
+  create_time  DateTime
+  create_by    Int
+}
+
+model ticket_history {
+  id              Int      @id @default(autoincrement())
+  name            String
+  history_type_id Int
+  ticket_id       Int
+  article_id      Int
+  type_id         Int
+  queue_id        Int
+  owner_id        Int
+  priority_id     Int
+  state_id        Int
+  create_time     DateTime
+  create_by       Int
+  change_time     DateTime
+  change_by       Int
+}
+
+model ticket_history_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  valid_id    Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model ticket_index {
+  id          Int      @id @default(autoincrement())
+  ticket_id   Int
+  queue_id    Int
+  queue       String
+  group_id    Int
+  s_lock      String
+  s_state     String
+  create_time DateTime
+}
+
+model ticket_lock_index {
+  ticket_id Int @id @default(autoincrement())
+}
+
+model ticket_loop_protection {
+  id        Int    @id @default(autoincrement())
+  sent_to   String
+  sent_date String
+}
+
+model ticket_number_counter {
+  id          Int      @id @default(autoincrement())
+  counter     Int
+  counter_uid String
+  create_time DateTime
+}
+
+model ticket_state_type {
+  id          Int      @id @default(autoincrement())
+  name        String
+  comments    String
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model ticket_watcher {
+  id          Int      @id @default(autoincrement())
+  ticket_id   Int
+  user_id     Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model time_accounting {
+  id          Int      @id @default(autoincrement())
+  ticket_id   Int
+  article_id  Int
+  time_unit   Int
+  create_time DateTime
+  create_by   Int
+  change_time DateTime
+  change_by   Int
+}
+
+model time_accounting_action {
+  id     Int    @id @default(autoincrement())
+  action String
+  status String
+}
+
+model time_accounting_project {
+  id          Int    @id @default(autoincrement())
+  project     String
+  description String
+  status      String
+}
+
+model time_accounting_table {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  project_id Int
+  action_id  Int
+  remark     String
+  time_start DateTime
+  time_end   DateTime
+  period     Int
+  created    DateTime
+}
+
+model time_accounting_user {
+  id             Int    @id @default(autoincrement())
+  user_id        Int
+  description    String
+  show_overtime  Int
+  create_project Int
+  allow_skip     Int
+  calendar       Int
+}
+
+model time_accounting_user_period {
+  id                Int      @id @default(autoincrement())
+  user_id           Int
+  preference_period Int
+  date_start        DateTime
+  date_end          DateTime
+  weekly_hours      Int
+  leave_days        Int
+  overtime          Int
+  status            String
+}
+
+model user_preferences {
+  id                Int    @id @default(autoincrement())
+  user_id           Int
+  preferences_key   Int
+  preferences_value String
+}
+
+model virtual_fs {
+  id          Int      @id @default(autoincrement())
+  filename    String
+  backend     String
+  backend_key String
+  create_time DateTime
+}
+
+model virtual_fs_db {
+  id          Int      @id @default(autoincrement())
+  filename    String
+  content     String
+  create_time DateTime
+}
+
+model virtual_fs_preferences {
+  id                Int    @id @default(autoincrement())
+  virtual_fs_id     Int
+  preferences_key   String
+  preferences_value String
+}
+
+model web_upload_cache {
+  id               Int    @id @default(autoincrement())
+  form_id          String
+  filename         String
+  content_id       String
+  content_size     String
+  content_type     String
+  disposition      String
+  content          String
+  create_time_unix Int
+}
+
+model xml_storage {
+  id                Int    @id @default(autoincrement())
+  xml_type          String
+  xml_key           String
+  xml_content_key   String
+  xml_content_value String
 }

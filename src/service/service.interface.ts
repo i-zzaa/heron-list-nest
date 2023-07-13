@@ -1,10 +1,17 @@
 export interface ServiceProps {
   id: number;
+  cod?: string;
+  name: string;
+}
+
+export interface ServiceResponse {
+  id: number;
+  cod?: string;
   title: string;
-  description: string;
 }
 
 export abstract class ServiceServiceInterface {
-  abstract get(catalogId: number): Promise<ServiceProps[]>;
-  abstract search(word: string, catalogId: number): Promise<ServiceProps[]>;
+  abstract getAll(): Promise<ServiceProps[]>;
+  abstract get(cod: string): Promise<ServiceResponse[]>;
+  abstract search(word: string, catalogCod: string): Promise<ServiceResponse[]>;
 }

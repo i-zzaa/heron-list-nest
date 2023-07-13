@@ -1,11 +1,16 @@
 export interface CatalogProps {
   id?: number;
-  title: string;
-  description: string;
-  icon: string;
+  general_catalog_class?: string;
+  name?: string;
+  valid_id?: string;
+  comments?: string;
+  create_time?: string;
+  create_by?: number;
+  change_time?: string;
+  change_by?: number;
 }
 
 export abstract class CatalogServiceInterface {
-  abstract get(): Promise<CatalogProps[]>;
-  abstract search(word: string): Promise<CatalogProps[]>;
+  abstract get(): Promise<any[]>;
+  abstract search(word: string): Promise<any[]>;
 }

@@ -1,36 +1,79 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { ServiceServiceInterface } from './service.interface';
+import { ServiceProps, ServiceServiceInterface } from './service.interface';
 
 @Injectable()
 export class ServiceService implements ServiceServiceInterface {
   constructor(private readonly prismaService: PrismaService) {}
-
-  async get(catalogId: number) {
+  async getAll() {
     return await this.prismaService.service.findMany({
-      orderBy: {
-        title: 'asc',
+      select: {
+        id: true,
+        name: true,
       },
-      where: {
-        catalogId,
+      orderBy: {
+        name: 'asc',
       },
     });
   }
-  async search(word: string, catalogId: number) {
-    return await this.prismaService.service.findMany({
+
+  async get(cod: string) {
+    const response: ServiceProps[] = await this.prismaService.service.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
       orderBy: {
-        title: 'asc',
+        name: 'asc',
       },
       where: {
-        catalogId,
+        name: {
+          contains: cod,
+        },
+      },
+    });
+
+    return await Promise.all(
+      response.map((catalog: ServiceProps) => {
+        const split = catalog.name.split('::');
+
+        return {
+          cod: `${split[0]}::${split[1]}::${split[2]}::${split[3]}`,
+          title: split[4],
+          id: catalog.id,
+        };
+      }),
+    );
+  }
+  async search(word: string, catalogCod: string) {
+    const response: ServiceProps[] = await this.prismaService.service.findMany({
+      orderBy: {
+        name: 'asc',
+      },
+      where: {
+        name: {
+          contains: catalogCod,
+        },
         OR: [
           {
-            title: {
+            name: {
               contains: word,
             },
           },
         ],
       },
     });
+
+    return await Promise.all(
+      response.map((catalog: ServiceProps) => {
+        const split = catalog.name.split('::');
+
+        return {
+          cod: split[0] + split[1] + split[2] + split[3],
+          title: split[4],
+          id: catalog.id,
+        };
+      }),
+    );
   }
 }
