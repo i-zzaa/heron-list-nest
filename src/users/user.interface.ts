@@ -1,5 +1,5 @@
 export interface UserProps {
   first_name?: string;
-  username?: string;
+  login?: string;
   id: number;
 }

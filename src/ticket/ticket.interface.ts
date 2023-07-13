@@ -7,7 +7,7 @@ export interface DetailProps {
   title: string;
   attendant: string;
   queue: string;
-  detalhe: string;
+  detail: string;
   date: string;
 }
 
@@ -65,6 +65,6 @@ export class TicketGetProps {
 
 export abstract class TicketServiceInterface {
   abstract create(body: TicketCreateProps);
-  abstract get(userId: number);
+  abstract get(pag: any, userId: number);
   abstract search(word: string, userId: number);
 }

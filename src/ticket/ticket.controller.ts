@@ -6,6 +6,7 @@ import {
   Body,
   UseGuards,
   Query,
+  Request,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { TicketCreateProps, TicketGetProps } from './ticket.interface';
@@ -17,8 +18,8 @@ export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
   @Get()
-  get(@Query() query: TicketGetProps) {
-    return this.ticketService.get(query);
+  get(@Query() query: TicketGetProps, @Request() req: any) {
+    return this.ticketService.get(query, req.user.sub);
   }
 
   @Post()
