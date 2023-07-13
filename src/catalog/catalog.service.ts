@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CatalogServiceInterface } from './catalog.interface';
 import { ServiceService } from 'src/service/service.service';
-import { ServiceProps } from 'src/service/service.interface';
-import { removeStringRepeted } from 'src/util/util';
+import { setIconCatalog } from 'src/util/util';
 
 @Injectable()
 export class CatalogService implements CatalogServiceInterface {
@@ -13,21 +12,30 @@ export class CatalogService implements CatalogServiceInterface {
   ) {}
 
   async get() {
-    const service: ServiceProps[] = await this.serviceService.getAll();
-    const clearArr = await Promise.all(removeStringRepeted(service, 'name'));
+    const service = await this.serviceService.getAll();
+    const arrUnique = new Set();
+    const categoryList = [];
 
-    return await Promise.all(
-      clearArr.map((catalog: ServiceProps) => {
-        const split = catalog.name.split('::');
+    for (const catalog of service) {
+      const split = catalog.name.split('::');
 
-        return {
-          cod: `${split[0]}::${split[1]}::${split[2]}`,
-          title: split[2],
+      if (split.length === 2 && !arrUnique.has(split[1])) {
+        const item = setIconCatalog(catalog);
+
+        arrUnique.add(split[1]);
+        categoryList.push({
+          cod: `${split[0]}::${split[1]}::`,
+          title: split[1],
           id: catalog.id,
-          description: split[3],
-        };
-      }),
-    );
+          icon: item.icon,
+        });
+      }
+    }
+
+    // Ordenar por title em ordem ascendente
+    categoryList.sort((a, b) => a.title.localeCompare(b.title));
+
+    return categoryList;
   }
 
   async search(word: string) {

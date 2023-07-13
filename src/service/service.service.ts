@@ -33,17 +33,28 @@ export class ServiceService implements ServiceServiceInterface {
       },
     });
 
-    return await Promise.all(
-      response.map((catalog: ServiceProps) => {
-        const split = catalog.name.split('::');
+    const arrUnique = new Set();
+    const serviceList = [];
 
-        return {
-          cod: `${split[0]}::${split[1]}::${split[2]}::${split[3]}`,
-          title: split[4],
-          id: catalog.id,
-        };
-      }),
-    );
+    for (const service of response) {
+      const split = service.name.split('::');
+
+      if (!arrUnique.has(split[2])) {
+        arrUnique.add(split[2]);
+        serviceList.push({
+          cod: `${split[0]}::${split[1]}::${split[2]}`,
+          title: split[2],
+          id: service.id,
+          icon: 'PhBrowsers',
+          // description: '', //split[3],
+        });
+      }
+    }
+
+    // Ordenar por title em ordem ascendente
+    serviceList.sort((a, b) => a.title.localeCompare(b.title));
+
+    return serviceList;
   }
   async search(word: string, catalogCod: string) {
     const response: ServiceProps[] = await this.prismaService.service.findMany({

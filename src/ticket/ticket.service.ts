@@ -55,11 +55,9 @@ export class TicketService implements TicketServiceInterface {
       },
     });
 
-    console.log('userId', userId);
-
     const data = await Promise.all(
       response.map((ticket: any) => {
-        setIconStatus(ticket);
+        const item = setIconStatus(ticket);
         const date = formatDate(ticket.create_time);
 
         return {
@@ -74,6 +72,8 @@ export class TicketService implements TicketServiceInterface {
           queue: ticket.queue.name,
           date,
           userId: userId,
+          color: item.color,
+          icon: item.icon,
 
           detail: [
             {
