@@ -1,5 +1,5 @@
 {
-  "name": "heron-list-nestjs",
+  "name": "portal-api",
   "version": "0.0.2",
   "description": "",
   "author": "",
@@ -48,7 +48,6 @@
     "qs": "^6.11.2",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.2.0",
-    "soap": "^1.0.0",
     "uuid": "^9.0.0",
     "yarn": "^1.22.19"
   },
