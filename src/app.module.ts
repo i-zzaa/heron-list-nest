@@ -40,15 +40,7 @@ import { CategoryController } from './category/category.controller';
 export class AppModule {
   configure(consumer) {
     consumer
-      .apply(
-        cors({
-          origin: [
-            'http://127.0.0.1:5173',
-            'http://192.168.15.113:5173',
-            'https://fbuots.hospedagemelastica.com.br/',
-          ],
-        }),
-      ) // Aplica o middleware cors
+      .apply(cors()) // Aplica o middleware cors
       .forRoutes('*'); // Habilita o CORS para todas as rotas
   }
 }
