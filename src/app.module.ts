@@ -40,7 +40,11 @@ import { CategoryController } from './category/category.controller';
 export class AppModule {
   configure(consumer) {
     consumer
-      .apply(cors('*')) // Aplica o middleware cors
+      .apply(
+        cors({
+          origin: '*',
+        }),
+      ) // Aplica o middleware cors
       .forRoutes('*'); // Habilita o CORS para todas as rotas
   }
 }
