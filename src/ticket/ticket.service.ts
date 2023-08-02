@@ -85,6 +85,7 @@ export class TicketService implements TicketServiceInterface {
               queue: '',
               detalhe: '',
               date: '',
+              status: ticket.ticket_state.name,
             },
           ],
         };

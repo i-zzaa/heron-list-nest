@@ -7,13 +7,16 @@ import { AuthGuard } from '@nestjs/passport';
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Get()
-  get() {
-    return this.categoryService.get();
+  @Get(':catalogCod')
+  get(@Param('catalogCod') catalogCod: string) {
+    return this.categoryService.get(catalogCod);
   }
 
-  @Get(':search')
-  search(@Param('search') search: string) {
-    return this.categoryService.search(search);
+  @Get(':search/:catalogCod')
+  search(
+    @Param('search') search: string,
+    @Param('catalogCod') catalogCod: string,
+  ) {
+    return this.categoryService.search(search, catalogCod);
   }
 }
