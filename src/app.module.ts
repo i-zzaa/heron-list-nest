@@ -14,6 +14,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 
 import * as cors from 'cors';
+import { CategoryService } from './category/category.service';
+import { CategoryController } from './category/category.controller';
 
 @Module({
   imports: [AuthModule, UsersModule],
@@ -21,6 +23,7 @@ import * as cors from 'cors';
     TicketController,
     ServiceController,
     CatalogController,
+    CategoryController,
 
     AppController,
   ],
@@ -28,6 +31,7 @@ import * as cors from 'cors';
     TicketService,
     ServiceService,
     CatalogService,
+    CategoryService,
 
     PrismaService,
     AppService,
