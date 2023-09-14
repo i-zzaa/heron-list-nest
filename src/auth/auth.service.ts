@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { UserProps } from 'src/users/user.interface';
 import { JwtService } from '@nestjs/jwt';
-import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
+
+import { UserProps } from 'src/user/user.interface';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
+    private userService: UserService,
     private jwtService: JwtService,
   ) {}
 
@@ -15,31 +16,27 @@ export class AuthService {
     const payload = {
       sub: user.id,
       username: user.login,
-      id: user.id,
     };
 
     return {
       token: this.jwtService.sign(payload),
       user: {
-        username: user.first_name,
+        username: user.login,
         id: user.id,
       },
     };
   }
 
-  async validateUser(username: string, password: string): Promise<any> {
+  async validateUser(login: string, password: string): Promise<any> {
     try {
-      const user = await this.usersService.findUserAuth(username);
+      const user = await this.userService.findUserAuth(login);
 
       if (!user) return null;
 
-      const hashedPassword = crypto
-        .createHash('sha256')
-        .update(password)
-        .digest('hex');
+      const checkPassword = bcrypt.compareSync(password.toString(), user.senha);
 
-      if (user && user.pw === hashedPassword) {
-        const { pw, ...result } = user;
+      if (user && checkPassword) {
+        const { senha, ...result } = user;
         return result;
       }
     } catch (error) {
