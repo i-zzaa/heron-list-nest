@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { DEVICE, DeviceProps, moneyFormat } from 'src/util/util';
 import { UserProps } from './user.interface';
+import { moneyFormat } from 'src/util/util';
 
 @Injectable()
 export class UserService {
