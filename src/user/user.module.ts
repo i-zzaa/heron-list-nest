@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { UsersService } from './user.service';
+import { UserService } from './user.service';
 
 import { SoapModule } from 'nestjs-soap';
 
