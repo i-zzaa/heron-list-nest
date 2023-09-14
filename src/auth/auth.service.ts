@@ -23,6 +23,8 @@ export class AuthService {
       user: {
         username: user.login,
         id: user.id,
+        permissoes: user.permissoes,
+        perfil: user.perfil,
       },
     };
   }
