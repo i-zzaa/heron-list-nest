@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { DEVICE, DeviceProps, moneyFormat } from 'src/util/util';
+import { moneyFormat } from 'src/util/util';
 import { UserProps } from './user.interface';
+import * as bcrypt from 'bcryptjs';
+import { ID_PERFIL_TERAPEUTA } from 'src/terapeuta/terapeuta.interface';
+import { messageError } from 'src/util/message.response';
 
 @Injectable()
 export class UserService {
@@ -162,5 +165,226 @@ export class UserService {
         login: login,
       },
     });
+  }
+
+  async search(word: string) {
+    return await this.prismaService.usuario.findMany({
+      select: {
+        id: true,
+        nome: true,
+        login: true,
+        perfil: true,
+        permissoes: {
+          select: {
+            permissaoId: true,
+          },
+        },
+      },
+      where: {
+        OR: [
+          {
+            nome: {
+              contains: word,
+            },
+          },
+          {
+            login: { contains: word },
+          },
+        ],
+        NOT: {
+          perfil: {
+            nome: {
+              in: ['developer', 'Developer'],
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async create(body: any) {
+    body.senha = bcrypt.hashSync('12345678', 8);
+
+    const user: UserProps = await this.prismaService.usuario.create({
+      select: {
+        nome: true,
+        login: true,
+        id: true,
+        perfil: true,
+      },
+      data: {
+        nome: body.nome.toUpperCase(),
+        login: body.login.toLowerCase(),
+        perfilId: body.perfilId,
+        senha: body.senha,
+        permissoes: {
+          create: [
+            ...body.permissoesId.map((id: number) => {
+              return {
+                permissaoId: id,
+              };
+            }),
+          ],
+        },
+      },
+    });
+
+    if (body.perfilId === ID_PERFIL_TERAPEUTA.id) {
+      await this.prismaService.terapeuta.create({
+        data: {
+          usuarioId: user.id,
+          especialidadeId: body.especialidadeId,
+          fazDevolutiva: body.devolutiva,
+          cargaHoraria: JSON.stringify(body.cargaHoraria),
+        },
+      });
+
+      await this.prismaService.terapeutaOnFuncao.createMany({
+        data: [
+          ...body.comissao.map((comissao: any) => {
+            const formatComissao =
+              typeof comissao.valor === 'string'
+                ? comissao.valor.split('R$')[1]
+                : comissao.valor.toString();
+
+            return {
+              terapeutaId: user.id,
+              funcaoId: comissao.funcaoId,
+              comissao: formatComissao,
+              tipo: comissao.tipo,
+            };
+          }),
+        ],
+      });
+    }
+
+    if (!user) return messageError();
+    delete user.senha;
+    return user;
+  }
+
+  async update(body: any) {
+    if (!body.ativo) {
+      return await this.prismaService.usuario.update({
+        data: {
+          ativo: false,
+        },
+        where: {
+          id: body.id,
+        },
+      });
+    }
+
+    if (body?.permissoesId) {
+      await this.prismaService.usuarioOnPermissao.deleteMany({
+        where: {
+          usuarioId: body.id,
+        },
+      });
+
+      await this.prismaService.usuarioOnPermissao.createMany({
+        data: [
+          ...body.permissoesId.map((permissao: number) => {
+            return {
+              permissaoId: permissao,
+              usuarioId: body.id,
+            };
+          }),
+        ],
+      });
+    }
+
+    if (body.perfilId === ID_PERFIL_TERAPEUTA.id) {
+      //Terapeuta
+
+      if (body?.comissao?.length) {
+        await this.prismaService.terapeutaOnFuncao.deleteMany({
+          where: {
+            terapeutaId: body.id,
+          },
+        });
+
+        await this.prismaService.terapeutaOnFuncao.createMany({
+          data: [
+            ...body.comissao.map((comissao: any) => {
+              const formatComissao =
+                typeof comissao.valor === 'string'
+                  ? comissao.valor.split('R$')[1]
+                  : comissao.valor.toString();
+
+              return {
+                terapeutaId: body.id,
+                funcaoId: comissao.funcaoId,
+                comissao: formatComissao,
+                tipo: comissao.tipo,
+              };
+            }),
+          ],
+        });
+      }
+
+      await this.prismaService.terapeuta.update({
+        data: {
+          especialidadeId: body.especialidadeId,
+          fazDevolutiva: body.devolutiva,
+          cargaHoraria: JSON.stringify(body.cargaHoraria),
+        },
+        where: {
+          usuarioId: body.id,
+        },
+      });
+    }
+
+    const user = await this.prismaService.usuario.update({
+      select: {
+        nome: true,
+        login: true,
+        perfil: true,
+        ativo: true,
+      },
+      data: {
+        nome: body.nome,
+        login: body.login,
+        perfilId: Number(body.perfilId),
+        ativo: body.ativo,
+      },
+      where: {
+        id: body.id,
+      },
+    });
+
+    return user;
+  }
+
+  async updatePassword(userId: number) {
+    const senha = bcrypt.hashSync('12345678', 8);
+    const user = await this.prismaService.usuario.update({
+      data: {
+        senha: senha,
+      },
+      where: {
+        id: Number(userId),
+      },
+    });
+
+    return user;
+  }
+
+  async updatePasswordLogin(login: string, data: any) {
+    const senha = bcrypt.hashSync(data.senha.toString(), 8);
+
+    const user = await this.prismaService.usuario.update({
+      data: {
+        senha: senha,
+      },
+      where: {
+        login,
+      },
+    });
+
+    return {};
   }
 }
