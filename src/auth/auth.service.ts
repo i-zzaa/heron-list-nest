@@ -18,13 +18,18 @@ export class AuthService {
       username: user.login,
     };
 
+    const permissoes = await Promise.all(
+      user.permissoes?.map(({ permissao }: any) => permissao.cod),
+    );
+
     return {
-      token: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload),
       user: {
-        username: user.login,
+        login: user.login,
         id: user.id,
-        permissoes: user.permissoes,
+        permissoes: permissoes,
         perfil: user.perfil,
+        nome: user.nome,
       },
     };
   }
@@ -37,7 +42,7 @@ export class AuthService {
 
       const checkPassword = bcrypt.compareSync(password.toString(), user.senha);
 
-      if (user && checkPassword) {
+      if (user && checkPassword && user.ativo) {
         const { senha, ...result } = user;
         return result;
       }

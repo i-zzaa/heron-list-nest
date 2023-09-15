@@ -12,8 +12,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { UserService } from './user.service';
 import { UserRequestProps } from './user.interface';
 
-// @UseGuards(AuthGuard('local'))
-@Controller('')
+@UseGuards(AuthGuard('jwt'))
+@Controller('usuarios')
 export class UserController {
   constructor(private userService: UserService) {}
 
@@ -27,7 +27,7 @@ export class UserController {
     return await this.userService.update(body);
   }
 
-  @Get('usuarios')
+  @Get()
   async getAll(@Request() req: any) {
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 10;

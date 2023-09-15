@@ -50,4 +50,16 @@ export class PacienteController {
   async delete(@Param() id: number) {
     return await this.pacienteService.delete(id);
   }
+
+  @Get('dashboard')
+  async getPatientsActived() {
+    return await this.pacienteService.getPatientsActived();
+  }
 }
+
+// app.get('/pacientes', auth, patientController.get);
+// app.get('/pacientes/dashboard', auth, patientController.getPatientsActived);
+// app.post('/pacientes', auth, patientController.create);
+// app.put('/pacientes', auth, patientController.update);
+// app.get('/pacientes/especialidades', auth, patientController.getEspecialidades);
+// app.put('/paciente/desabilitar', auth, patientController.disabled);

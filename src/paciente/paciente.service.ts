@@ -253,4 +253,25 @@ export class PacienteService {
   formatLocalidade = (item: any) => {
     return `${item.casa} - ${item.sala}`;
   };
+
+  async getPatientsActived() {
+    return await this.prismaService.paciente.findMany({
+      select: {
+        nome: true,
+        telefone: true,
+        responsavel: true,
+        statusPaciente: {
+          select: {
+            nome: true,
+          },
+        },
+      },
+      where: {
+        disabled: false,
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
+  }
 }

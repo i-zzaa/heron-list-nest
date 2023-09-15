@@ -6,30 +6,47 @@ import {
   Body,
   Request,
   Put,
-  Delete,
-  Param,
+  Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissaoService } from './permissao.service';
 import { PermissaoProps } from './permissao.interface';
+import { responseError, responseSuccess } from 'src/util/response';
 
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 @Controller('permissao')
 export class PermissaoController {
   constructor(private permissaoService: PermissaoService) {}
 
-  @Get()
-  async dropdown(@Request() req: any) {
-    return await this.permissaoService.getPermissaoUser(req.headers.login);
+  @Get('dropdown')
+  async dropdown(@Request() req: any, @Response() response: any) {
+    try {
+      const data = await this.permissaoService.getPermissaoUser(
+        req.headers.login,
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
   @Post()
-  async create(@Body() body: PermissaoProps) {
-    return await this.permissaoService.create(body);
+  async create(@Body() body: PermissaoProps, @Response() response: any) {
+    try {
+      const data = await this.permissaoService.create(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
   @Put()
-  async put(@Body() body: PermissaoProps) {
-    return await this.permissaoService.update(body);
+  async put(@Body() body: PermissaoProps, @Response() response: any) {
+    try {
+      const data = await this.permissaoService.update(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 }
