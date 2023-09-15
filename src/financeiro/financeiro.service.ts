@@ -19,7 +19,10 @@ import moment from 'moment';
 
 @Injectable()
 export class FinanceiroService {
-  constructor(private readonly agendaService: AgendaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly agendaService: AgendaService,
+  ) {}
 
   async paciente(body: FinancialProps) {
     // filtra eventos por terapeuta no peridodo

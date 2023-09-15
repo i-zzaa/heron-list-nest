@@ -13,7 +13,6 @@ import { FREQUENCIA } from 'src/frequencia/frequencia.interface';
 import * as bcrypt from 'bcryptjs';
 import moment from 'moment';
 import { VagaService } from 'src/vaga/vaga.service';
-import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 
 @Injectable()
 export class AgendaService {
@@ -898,44 +897,6 @@ export class AgendaService {
     } catch (error) {
       console.log(error);
     }
-  }
-
-  async removeEvents(
-    pacienteId: number,
-    statusPacienteCod: string,
-    especialidadeIds: number[],
-  ) {
-    let modalidade = '';
-
-    switch (statusPacienteCod) {
-      case STATUS_PACIENT_COD.queue_avaliation:
-      case STATUS_PACIENT_COD.avaliation:
-      case STATUS_PACIENT_COD.queue_devolutiva:
-        modalidade = 'Avaliação';
-        break;
-      case STATUS_PACIENT_COD.devolutiva:
-        modalidade = 'Devolutiva';
-        break;
-      case STATUS_PACIENT_COD.queue_therapy:
-        modalidade = 'Terapia';
-        break;
-    }
-
-    const modalidadeDB = await this.prismaService.modalidade.findFirst({
-      where: {
-        nome: modalidade,
-      },
-    });
-
-    return await this.prismaService.calendario.deleteMany({
-      where: {
-        pacienteId,
-        especialidadeId: {
-          in: especialidadeIds,
-        },
-        modalidadeId: modalidadeDB?.id,
-      },
-    });
   }
 
   async getFilterFinancialPaciente({
