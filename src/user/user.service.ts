@@ -143,4 +143,24 @@ export class UserService {
 
     return { data, pagination };
   }
+
+  async getUser(login: string) {
+    return await this.prismaService.usuario.findUniqueOrThrow({
+      select: {
+        id: true,
+        nome: true,
+        login: true,
+        perfil: true,
+        ativo: true,
+        permissoes: {
+          select: {
+            permissao: true,
+          },
+        },
+      },
+      where: {
+        login: login,
+      },
+    });
+  }
 }
