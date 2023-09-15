@@ -12,6 +12,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AgendaService } from './agenda.service';
 import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { DEVICE } from 'src/util/util';
+import { messageError } from 'src/util/message.response';
 
 // @UseGuards(AuthGuard('jwt'))
 @Controller('evento')
@@ -27,10 +28,12 @@ export class AgendaController {
     @Param('end') end: string,
     @Request() req: any,
   ) {
-    console.log('aqui');
-
     let inicioDoMes = start;
     let ultimoDiaDoMes = end;
+
+    if (!req.headers.login) {
+      return messageError();
+    }
 
     if (Boolean(req.terapeutaId)) {
       return await this.terapeutaService.getAvailableTimes(

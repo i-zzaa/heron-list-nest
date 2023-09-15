@@ -9,6 +9,7 @@ export const DELETE_UPDATE = 'Excluido com sucesso!';
 export const ERROR_CREATE = 'Erro na criação!';
 export const ERROR_DELETE = 'Erro na exclusão!';
 export const ERROR_UPDATE = 'Erro na atualização!';
+export const ERROR = 'Erro na requisição!';
 
 export const messageErrorLogin = () => ({
   status: false,
@@ -35,4 +36,9 @@ export const messageUpdate = (data: any) => ({
 export const messageDelete = (data: any) => ({
   message: SUCCESS_UPDATE,
   ...data,
+});
+
+export const messageError = () => ({
+  message: ERROR,
+  data: [],
 });
