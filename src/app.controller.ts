@@ -18,7 +18,6 @@ export class AppController {
   @Get('intervalo/dropdown')
   async intervaloDropdown(@Response() response: any) {
     try {
-      console.log('aqui');
       const data = await this.appService.intervaloDropdown();
       responseSuccess(response, data);
     } catch (error) {
