@@ -23,7 +23,6 @@ export class StatusEventoController {
   @Get('dropdown')
   async dropdown(@Response() response: any) {
     try {
-      console.log('aqui');
       const data = await this.statusEvento.dropdown();
       responseSuccess(response, data);
     } catch (error) {
