@@ -34,6 +34,19 @@ export class PermissaoService {
     return Promise.all(permissoes.map(({ permissao }: any) => permissao.cod));
   }
 
+  async getAll() {
+    return await this.prismaService.permissao.findMany({
+      select: {
+        id: true,
+        cod: true,
+        descricao: true,
+      },
+      orderBy: {
+        cod: 'asc',
+      },
+    });
+  }
+
   async search(word: string) {
     return await this.prismaService.permissao.findMany({
       select: {

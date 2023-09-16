@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UseGuards } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { StatusEventosProps } from './status-evento.interface';
+import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
 export class StatusEventoService {

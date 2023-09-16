@@ -8,44 +8,78 @@ import {
   Param,
   Post,
   Put,
+  Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { LocalidadeService } from './localidade.service';
 import { LocalidadeProps } from './localidade.interface';
+import { responseError, responseSuccess } from 'src/util/response';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('localidade')
 export class LocalidadeController {
   constructor(private localidadeService: LocalidadeService) {}
 
   @Get()
-  async getAll(@Request() req: any) {
-    const page = Number(req.query.page) || 1;
-    const pageSize = Number(req.query.pageSize) || 10;
+  async getAll(@Request() req: any, @Response() response: any) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const pageSize = Number(req.query.pageSize) || 10;
 
-    return await this.localidadeService.getAll(page, pageSize);
+      const data = await await this.localidadeService.getAll(page, pageSize);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
-  // @UseGuards(AuthGuard('jwt'))
+  @Get(':search')
+  async search(@Param('search') search: string, @Response() response: any) {
+    try {
+      const data = await this.localidadeService.search(search);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Get('dropdown')
-  async dropdown() {
-    return await this.localidadeService.dropdown();
+  async dropdown(@Response() response: any) {
+    try {
+      const data = await this.localidadeService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
-  // @UseGuards(AuthGuard('jwt'))
   @Post()
-  async create(@Body() body: LocalidadeProps) {
-    return await this.localidadeService.create(body);
+  async create(@Body() body: LocalidadeProps, @Response() response: any) {
+    try {
+      const data = await this.localidadeService.create(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
-  // @UseGuards(AuthGuard('jwt'))
   @Put()
-  async put(@Body() body: LocalidadeProps) {
-    return await this.localidadeService.update(body);
+  async put(@Body() body: LocalidadeProps, @Response() response: any) {
+    try {
+      const data = await this.localidadeService.update(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
-  // @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
-  async delete(@Param() id: number) {
-    return await this.localidadeService.delete(id);
+  async delete(@Param() id: number, @Response() response: any) {
+    try {
+      const data = await this.localidadeService.delete(id);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 }
