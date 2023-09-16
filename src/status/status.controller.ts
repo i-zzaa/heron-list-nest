@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { StatusService } from './status.service';
@@ -32,8 +33,8 @@ export class StatusController {
   }
 
   @Get('dropdown')
-  async dropdown() {
-    return await this.statusService.dropdown();
+  async dropdown(@Query('statusPacienteCod') statusPacienteCod: string) {
+    return await this.statusService.dropdown(statusPacienteCod);
   }
 
   @Post()

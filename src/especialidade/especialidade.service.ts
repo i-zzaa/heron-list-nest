@@ -14,7 +14,6 @@ export class EspecialidadeService {
       orderBy: {
         nome: 'asc',
       },
-      where: {},
     });
   }
 

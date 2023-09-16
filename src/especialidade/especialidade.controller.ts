@@ -19,20 +19,20 @@ import { responseSuccess, responseError } from 'src/util/response';
 export class EspecialidadeController {
   constructor(private especialidadeService: EspecialidadeService) {}
 
-  @Get(':search')
-  async search(@Param('search') search: string, @Response() response: any) {
+  @Get('/dropdown')
+  async dropdown(@Response() response: any) {
     try {
-      const data = this.especialidadeService.search(search);
+      const data = await this.especialidadeService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
     }
   }
 
-  @Get('dropdown')
-  async getAll(@Response() response: any) {
+  @Get(':search')
+  async search(@Param('search') search: string, @Response() response: any) {
     try {
-      const data = await this.especialidadeService.dropdown();
+      const data = this.especialidadeService.search(search);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
