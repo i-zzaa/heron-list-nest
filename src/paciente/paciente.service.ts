@@ -1,8 +1,13 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
-import { calculaIdade, formatadataPadraoBD } from 'src/util/format-date';
+import {
+  calculaIdade,
+  dateFormatYYYYMMDD,
+  formatadataPadraoBD,
+} from 'src/util/format-date';
 import { moneyFormat } from 'src/util/util';
+import { PatientCreate, PatientProps } from './paciente.interface';
 
 @Injectable()
 export class PacienteService {
@@ -226,10 +231,51 @@ export class PacienteService {
     });
   }
 
-  async create(body: any) {
-    return await this.prismaService.localidade.create({
-      data: body,
+  async create(body: PatientCreate) {
+    const dataContato =
+      body?.dataContato ||
+      body?.dataVoltouAba ||
+      dateFormatYYYYMMDD(new Date());
+
+    const tipoSessaoId = body?.tipoSessaoId || 2;
+    const naFila = body.statusPacienteCod !== STATUS_PACIENT_COD.crud_therapy; // CRIAR NA FILA TRUE SEMPRE QUE NAO FOR DA TELA  CADASTRO DO PACIENTE
+
+    const paciente: any = await this.prismaService.paciente.create({
+      data: {
+        nome: body.nome.toUpperCase(),
+        telefone: body.telefone,
+        responsavel: body.responsavel.toUpperCase(),
+        disabled: false,
+        convenioId: body.convenioId,
+        dataNascimento: body.dataNascimento,
+        statusPacienteCod: body.statusPacienteCod,
+        statusId: body?.statusId,
+        tipoSessaoId: tipoSessaoId,
+        carteirinha: body.carteirinha,
+        vaga: {
+          create: {
+            dataContato: dataContato,
+            observacao: body?.observacao,
+            naFila: naFila,
+            periodoId: body.periodoId,
+            especialidades: {
+              create: [
+                ...body.sessao.map((sessao: any) => {
+                  return {
+                    especialidadeId: sessao.especialidadeId,
+                    valor: sessao.valor.split('R$ ')[1],
+                    km: sessao.km.toString(),
+                    agendado: false, // se for 2, é para cadastrar como nao agendado
+                    dataAgendado: '',
+                  };
+                }),
+              ],
+            },
+          },
+        },
+      },
     });
+    return paciente;
   }
 
   async update(body: any) {
