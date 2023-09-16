@@ -1,5 +1,5 @@
-import moment from 'moment';
-import momentBusinessDays from 'moment-business-days';
+import * as moment from 'moment';
+import * as momentBusinessDays from 'moment-business-days';
 
 export const FERIADOS = [
   '01-01-2022',
@@ -12,13 +12,13 @@ export const FERIADOS = [
   '15-11-2022',
   '25-12-2022',
 ];
-// momentBusinessDays.updateLocale('pt', {
-//   holidays: FERIADOS,
-//   holidayFormat: 'YYYY-MM-DD',
-//   workingWeekdays: [1, 2, 3, 4, 5, 6],
-// });
+momentBusinessDays.updateLocale('pt', {
+  holidays: FERIADOS,
+  holidayFormat: 'YYYY-MM-DD',
+  workingWeekdays: [1, 2, 3, 4, 5, 6],
+});
 
-// moment.locale('pt-BR');
+moment.locale('pt-BR');
 
 export const momentBusiness = momentBusinessDays;
 
@@ -163,7 +163,7 @@ export const calculaData = (data1: any, data2: any) => {
   return diff.asDays();
 };
 
-export const calculaIdade = (dataNascimento: Date) => {
+export const calculaIdade = (dataNascimento: string) => {
   const idade = moment(dataNascimento, 'YYYYMMDD').fromNow();
   return idade.replace('há', '');
 };

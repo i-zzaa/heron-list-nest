@@ -16,10 +16,43 @@ import { PacienteService } from './paciente.service';
 import { PatientProps } from './paciente.interface';
 import { responseSuccess, responseError } from 'src/util/response';
 
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 @Controller('paciente')
 export class PacienteController {
   constructor(private pacienteService: PacienteService) {}
+
+  @Post('filtro')
+  async filtro(@Request() req: any, @Response() response: any) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const pageSize = Number(req.query.pageSize) || 10;
+
+      const data = await this.pacienteService.filterSinglePatients(
+        req.body,
+        page,
+        pageSize,
+      );
+
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('dropdown')
+  async dropdown(
+    @Query('statusPacienteCods') statusPacienteCods: string,
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.pacienteService.dropdown(statusPacienteCods);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+
+    return;
+  }
 
   @Get()
   async getAll(@Request() req: any, @Response() response: any) {
@@ -38,16 +71,6 @@ export class PacienteController {
   async search(@Param('search') search: string, @Response() response: any) {
     try {
       const data = await this.pacienteService.search(search);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
-  @Get('dropdown')
-  async dropdown(@Response() response: any) {
-    try {
-      const data = await this.pacienteService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
@@ -96,11 +119,15 @@ export class PacienteController {
 
   @Get('especialidades')
   async getPatientsEspecialidades(
-    @Query() query: any,
+    @Query('statusPacienteCod') statusPacienteCod: any,
+    @Query('pacienteId') pacienteId: any,
     @Response() response: any,
   ) {
     try {
-      const data = await this.pacienteService.getPatientsEspcialidades(query);
+      const data = await this.pacienteService.getPatientsEspcialidades(
+        statusPacienteCod,
+        pacienteId,
+      );
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

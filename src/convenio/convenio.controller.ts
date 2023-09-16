@@ -20,7 +20,7 @@ export class ConvenioController {
   constructor(private convenioService: ConvenioService) {}
 
   @Get('dropdown')
-  async getAll(@Response() response: any) {
+  async dropdown(@Response() response: any) {
     try {
       const data = await this.convenioService.dropdown();
       responseSuccess(response, data);

@@ -177,19 +177,22 @@ export class PacienteService {
     }
   }
 
-  async dropdown() {
-    return this.prismaService.localidade.findMany({
+  async dropdown(statusPacienteCod: string) {
+    const statusPacienteCods =
+      this.setFilterstatusPacienteCod(statusPacienteCod);
+
+    return await this.prismaService.paciente.findMany({
       select: {
         id: true,
-        casa: true,
-        sala: true,
-        ativo: true,
-      },
-      orderBy: {
-        casa: 'asc',
+        nome: true,
       },
       where: {
-        ativo: true,
+        statusPacienteCod: {
+          in: statusPacienteCods,
+        },
+      },
+      orderBy: {
+        nome: 'asc',
       },
     });
   }
@@ -250,10 +253,6 @@ export class PacienteService {
     });
   }
 
-  formatLocalidade = (item: any) => {
-    return `${item.casa} - ${item.sala}`;
-  };
-
   async getPatientsActived() {
     return await this.prismaService.paciente.findMany({
       select: {
@@ -275,7 +274,10 @@ export class PacienteService {
     });
   }
 
-  async getPatientsEspcialidades(query: any) {
+  async getPatientsEspcialidades(
+    statusPacienteCod: string,
+    pacienteId: number,
+  ) {
     const vagas: any = await this.prismaService.paciente.findFirstOrThrow({
       select: {
         vaga: {
@@ -286,15 +288,14 @@ export class PacienteService {
               },
               where: {
                 agendado:
-                  query.statusPacienteCod ===
-                  STATUS_PACIENT_COD.queue_devolutiva,
+                  statusPacienteCod === STATUS_PACIENT_COD.queue_devolutiva,
               },
             },
           },
         },
       },
       where: {
-        id: Number(query.pacienteId),
+        id: pacienteId,
       },
     });
 
@@ -339,5 +340,153 @@ export class PacienteService {
         id: id,
       },
     });
+  }
+
+  setFilterstatusPacienteCod(statusPacienteCod: string) {
+    switch (statusPacienteCod) {
+      case STATUS_PACIENT_COD.queue_avaliation:
+        return [
+          STATUS_PACIENT_COD.queue_avaliation,
+          STATUS_PACIENT_COD.avaliation,
+        ];
+      case STATUS_PACIENT_COD.queue_therapy:
+        return [
+          STATUS_PACIENT_COD.queue_therapy,
+          // STATUS_PACIENT_COD.therapy,
+          STATUS_PACIENT_COD.devolutiva,
+        ];
+      case STATUS_PACIENT_COD.therapy:
+        return [
+          STATUS_PACIENT_COD.queue_avaliation,
+          STATUS_PACIENT_COD.queue_devolutiva,
+          STATUS_PACIENT_COD.queue_therapy,
+
+          STATUS_PACIENT_COD.therapy,
+          STATUS_PACIENT_COD.avaliation,
+          STATUS_PACIENT_COD.devolutiva,
+          STATUS_PACIENT_COD.crud_therapy,
+        ];
+      case STATUS_PACIENT_COD.avaliation:
+        return [STATUS_PACIENT_COD.avaliation];
+
+      case STATUS_PACIENT_COD.crud_therapy:
+        return [STATUS_PACIENT_COD.therapy, STATUS_PACIENT_COD.crud_therapy];
+
+      case STATUS_PACIENT_COD.queue_devolutiva:
+        return [
+          STATUS_PACIENT_COD.queue_devolutiva,
+          STATUS_PACIENT_COD.devolutiva,
+        ];
+      case STATUS_PACIENT_COD.devolutiva:
+        return [STATUS_PACIENT_COD.devolutiva];
+    }
+  }
+
+  async filterSinglePatients(body: any, page: number, pageSize: number) {
+    switch (body.statusPacienteCod) {
+      case STATUS_PACIENT_COD.queue_avaliation:
+        return this.filterPatients(
+          page,
+          pageSize,
+          [STATUS_PACIENT_COD.queue_avaliation, STATUS_PACIENT_COD.avaliation],
+          body,
+        );
+      case STATUS_PACIENT_COD.queue_devolutiva:
+      case STATUS_PACIENT_COD.devolutiva:
+        if (body?.isDevolutiva) {
+          return this.filterPatients(
+            page,
+            pageSize,
+            [STATUS_PACIENT_COD.devolutiva],
+            body,
+          );
+        }
+        return this.filterPatients(
+          page,
+          pageSize,
+          [STATUS_PACIENT_COD.queue_devolutiva],
+          body,
+        );
+      default:
+        return this.filterPatients(
+          page,
+          pageSize,
+          [body.statusPacienteCod],
+          body,
+        );
+    }
+  }
+
+  async filterPatients(
+    page: number,
+    pageSize: number,
+    statusPacienteCod: string[],
+    body: any,
+  ) {
+    const [data, totalItems] = await Promise.all([
+      this.prismaService.paciente.findMany({
+        select: {
+          id: true,
+          nome: true,
+          telefone: true,
+          responsavel: true,
+          dataNascimento: true,
+          convenio: true,
+          disabled: true,
+          statusPacienteCod: true,
+          carteirinha: true,
+          tipoSessao: true,
+          status: true,
+          vaga: {
+            include: {
+              periodo: true,
+              especialidades: {
+                include: {
+                  especialidade: true,
+                },
+              },
+            },
+          },
+        },
+        where: {
+          statusPacienteCod: {
+            in: statusPacienteCod,
+          },
+          disabled: body.disabled,
+          convenioId: body.convenios,
+          tipoSessaoId: body.tipoSessoes,
+          statusId: body.status,
+          vaga: {
+            pacienteId: body.pacientes,
+            periodoId: body.periodos,
+            // naFila: body.naFila,
+            devolutiva: body.devolutiva,
+            especialidades: {
+              some: {
+                especialidadeId: body.especialidades,
+              },
+            },
+          },
+        },
+        orderBy: {
+          vaga: {
+            dataContato: 'asc',
+          },
+        },
+      }),
+      this.prismaService.paciente.count(),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
+
+    const pacientes: any = data.length ? await this.formatPatients(data) : [];
+
+    const pagination = {
+      currentPage: page,
+      pageSize,
+      totalPages,
+    };
+
+    return { data: pacientes, pagination };
   }
 }

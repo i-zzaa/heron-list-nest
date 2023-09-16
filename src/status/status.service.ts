@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { StatusProps } from './status.interface';
+import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 
 @Injectable()
 export class StatusService {
@@ -35,13 +36,20 @@ export class StatusService {
     return { data, pagination };
   }
 
-  async dropdown() {
+  async dropdown(statusPacienteCod: string) {
     return this.prismaService.status.findMany({
       select: {
         id: true,
         nome: true,
       },
-      where: {},
+      where: {
+        NOT: {
+          nome:
+            statusPacienteCod === STATUS_PACIENT_COD.queue_avaliation
+              ? 'Voltou ABA'
+              : '',
+        },
+      },
       orderBy: {
         nome: 'asc',
       },
