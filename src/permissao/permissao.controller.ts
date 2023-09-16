@@ -19,11 +19,9 @@ export class PermissaoController {
   constructor(private permissaoService: PermissaoService) {}
 
   @Get('dropdown')
-  async dropdown(@Request() req: any, @Response() response: any) {
+  async dropdown(@Response() response: any) {
     try {
-      const data = await this.permissaoService.getPermissaoUser(
-        req.headers.login,
-      );
+      const data = await this.permissaoService.getAll();
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

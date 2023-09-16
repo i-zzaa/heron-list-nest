@@ -13,7 +13,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { StatusEventoService } from './status-evento.service';
 import { StatusEventosProps } from './status-evento.interface';
 
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 @Controller('status-eventos')
 export class StatusEventoController {
   constructor(private statusEvento: StatusEventoService) {}

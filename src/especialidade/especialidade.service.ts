@@ -10,6 +10,7 @@ export class EspecialidadeService {
       select: {
         id: true,
         nome: true,
+        cor: true,
       },
       orderBy: {
         nome: 'asc',
