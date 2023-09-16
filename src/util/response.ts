@@ -3,5 +3,5 @@ export const responseSuccess = (response: any, data: any) => {
 };
 
 export const responseError = (response: any) => {
-  return response.status(401).json({ messsage: 'Erro na conexão!' });
+  return response.status(401).json({ message: 'Erro na conexão!' });
 };

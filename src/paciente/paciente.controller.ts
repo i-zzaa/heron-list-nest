@@ -13,13 +13,23 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PacienteService } from './paciente.service';
-import { PatientProps } from './paciente.interface';
+import { PatientCreate, PatientProps } from './paciente.interface';
 import { responseSuccess, responseError } from 'src/util/response';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('paciente')
 export class PacienteController {
   constructor(private pacienteService: PacienteService) {}
+
+  @Post()
+  async create(@Body() body: PatientCreate, @Response() response: any) {
+    try {
+      const data = await this.pacienteService.create(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
 
   @Put()
   async update(@Body() body: PatientProps, @Response() response: any) {
@@ -81,16 +91,6 @@ export class PacienteController {
   async search(@Param('search') search: string, @Response() response: any) {
     try {
       const data = await this.pacienteService.search(search);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
-  @Post()
-  async create(@Body() body: PatientProps, @Response() response: any) {
-    try {
-      const data = await this.pacienteService.create(body);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

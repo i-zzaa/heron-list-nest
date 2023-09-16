@@ -47,7 +47,7 @@ export const HOURS = [
   '20:00',
 ];
 
-export const dateFormatYYYYMMDD = (date: string) =>
+export const dateFormatYYYYMMDD = (date: Date | string) =>
   moment(date).format('YYYY-MM-DD');
 
 export function getDatesBetween(start: string, end: string) {

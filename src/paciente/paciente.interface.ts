@@ -1,28 +1,30 @@
 export interface PatientProps {
-  id: number;
+  id?: number;
   nome: string;
   carteirinha: string;
   telefone: string;
   responsavel: string;
   dataNascimento: string;
   convenioId: number;
-  statusId: number;
   statusPacienteCod: string;
 }
+
 interface Sessao {
+  especialidade: string;
   valor: string;
   especialidadeId: number;
-  vagaId: number;
+  km: string;
 }
-interface PatientQueueAvaliationPropsProps extends PatientProps {
+
+export interface PatientCreate extends PatientProps {
   dataContato?: string;
   dataVoltouAba?: string;
   periodoId: number;
   pacienteId: number;
   tipoSessaoId?: number;
-  especialidades: any;
+  especialidades: number[];
   statusId: number;
   observacao: string;
   naFila: boolean;
-  sessao: any;
+  sessao: Sessao[];
 }
