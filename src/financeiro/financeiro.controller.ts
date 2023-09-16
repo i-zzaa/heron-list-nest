@@ -1,29 +1,30 @@
-import {
-  Controller,
-  UseGuards,
-  Get,
-  Post,
-  Body,
-  Request,
-  Put,
-  Delete,
-  Param,
-} from '@nestjs/common';
+import { Controller, UseGuards, Post, Body, Response } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FinanceiroService } from './financeiro.service';
+import { responseSuccess, responseError } from 'src/util/response';
 
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 @Controller('financiero')
 export class FinanceiroController {
   constructor(private financeiroService: FinanceiroService) {}
 
   @Post('terapeuta')
-  async terapeuta(@Body() body: any) {
-    return await this.financeiroService.terapeuta(body);
+  async terapeuta(@Body() body: any, @Response() response: any) {
+    try {
+      const data = await this.financeiroService.terapeuta(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
   @Post('paciente')
-  async paciente(@Body() body: any) {
-    return await this.financeiroService.paciente(body);
+  async paciente(@Body() body: any, @Response() response: any) {
+    try {
+      const data = await this.financeiroService.paciente(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 }
