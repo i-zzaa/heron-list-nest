@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 import { calculaIdade } from 'src/util/format-date';
@@ -271,6 +271,72 @@ export class PacienteService {
       },
       orderBy: {
         nome: 'asc',
+      },
+    });
+  }
+
+  async getPatientsEspcialidades(query: any) {
+    const vagas: any = await this.prismaService.paciente.findFirstOrThrow({
+      select: {
+        vaga: {
+          include: {
+            especialidades: {
+              include: {
+                especialidade: true,
+              },
+              where: {
+                agendado:
+                  query.statusPacienteCod ===
+                  STATUS_PACIENT_COD.queue_devolutiva,
+              },
+            },
+          },
+        },
+      },
+      where: {
+        id: Number(query.pacienteId),
+      },
+    });
+
+    const TerapeutaService = require('src/terapeuta/terapeuta.service');
+
+    const terapeutaService = new TerapeutaService();
+
+    const terapeutasAll = await terapeutaService.getTerapeutaEspecialidade();
+    const especialidades: any = await Promise.all(
+      vagas.vaga.especialidades.map(
+        ({ especialidade: { id, cor, nome } }: any) => {
+          const terapeutas = terapeutasAll.filter((terapeuta: any) => {
+            if (terapeuta.especialidadeId === id) {
+              return {
+                nome: terapeuta.nome,
+                id: terapeuta.id,
+              };
+            }
+          });
+
+          return {
+            especialidade: {
+              id,
+              nome,
+              cor,
+            },
+            terapeutas,
+          };
+        },
+      ),
+    );
+
+    return especialidades;
+  }
+
+  async updateDisabled({ id, disabled }: any) {
+    await this.prismaService.paciente.update({
+      data: {
+        disabled: disabled,
+      },
+      where: {
+        id: id,
       },
     });
   }
