@@ -73,9 +73,30 @@ export class TerapeutaService {
 
   constructor(
     private readonly prismaService: PrismaService,
-    @Inject(forwardRef(() => AgendaService))
     private readonly agendaService: AgendaService,
   ) {}
+
+  async dropdown() {
+    const user = await this.prismaService.usuario.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+      where: {
+        ativo: true,
+        AND: {
+          perfil: {
+            nome: 'Terapeuta',
+          },
+        },
+      },
+    });
+
+    return user;
+  }
 
   async getAll() {
     const user = await this.prismaService.usuario.findMany({
