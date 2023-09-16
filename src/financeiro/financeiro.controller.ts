@@ -4,7 +4,7 @@ import { FinanceiroService } from './financeiro.service';
 import { responseSuccess, responseError } from 'src/util/response';
 
 @UseGuards(AuthGuard('jwt'))
-@Controller('financiero')
+@Controller('financeiro')
 export class FinanceiroController {
   constructor(private financeiroService: FinanceiroService) {}
 
@@ -14,6 +14,8 @@ export class FinanceiroController {
       const data = await this.financeiroService.terapeuta(body);
       responseSuccess(response, data);
     } catch (error) {
+      console.log(error);
+
       responseError(response);
     }
   }
