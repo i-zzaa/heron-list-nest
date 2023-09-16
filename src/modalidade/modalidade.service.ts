@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { ModalidadeProps } from './modalidade.interface';
+import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 
 @Injectable()
 export class ModalidadeService {
@@ -38,15 +39,33 @@ export class ModalidadeService {
     return { data, pagination };
   }
 
-  async dropdown() {
-    return this.prismaService.modalidade.findMany({
+  async dropdown(statusPacienteCod: string) {
+    let ids = [];
+    switch (statusPacienteCod) {
+      case STATUS_PACIENT_COD.queue_avaliation:
+        ids = [1];
+        break;
+      case STATUS_PACIENT_COD.queue_devolutiva:
+        ids = [2];
+        break;
+      case STATUS_PACIENT_COD.queue_therapy:
+      case STATUS_PACIENT_COD.devolutiva:
+        ids = [3];
+        break;
+      default:
+        ids = [1, 2, 3];
+        break;
+    }
+
+    return await this.prismaService.modalidade.findMany({
       select: {
         id: true,
         nome: true,
-        ativo: true,
       },
       where: {
-        ativo: true,
+        id: {
+          in: ids,
+        },
       },
       orderBy: {
         nome: 'asc',

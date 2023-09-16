@@ -405,7 +405,7 @@ export class TerapeutaService {
     return device === DEVICE.mobile ? mobileArray : webArray;
   }
 
-  async getTerapeutaEspecialidade() {
+  async getTerapeutaByEspecialidade() {
     const user = await this.prismaService.terapeuta.findMany({
       select: {
         usuarioId: true,
@@ -420,6 +420,38 @@ export class TerapeutaService {
           id: terapeuta.usuario.id,
           nome: terapeuta.usuario.nome,
           especialidadeId: terapeuta.especialidade.id,
+        };
+      }),
+    );
+
+    return list;
+  }
+  async getTerapeutaByEspecialidadeDropdown(especialidade: string) {
+    const terapeuta = await this.prismaService.terapeuta.findMany({
+      select: {
+        usuarioId: true,
+        usuario: true,
+      },
+      where: {
+        especialidade: {
+          nome: especialidade,
+        },
+        usuario: {
+          ativo: true,
+        },
+      },
+      orderBy: {
+        usuario: {
+          nome: 'asc',
+        },
+      },
+    });
+
+    const list = await Promise.all(
+      terapeuta.map((terapeuta: any) => {
+        return {
+          id: terapeuta.usuario.id,
+          nome: terapeuta.usuario.nome,
         };
       }),
     );

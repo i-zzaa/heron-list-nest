@@ -50,6 +50,44 @@ export class PacienteService {
     }
   }
 
+  async getPacienteEspecialidade(
+    statusPacienteCod: string,
+    pacienteId: number,
+  ) {
+    const paciente = await this.prismaService.paciente.findUniqueOrThrow({
+      select: {
+        emAtendimento: true,
+        vaga: {
+          include: {
+            especialidades: {
+              include: {
+                especialidade: true,
+              },
+              where: {
+                agendado:
+                  statusPacienteCod === STATUS_PACIENT_COD.queue_devolutiva,
+              },
+            },
+          },
+        },
+      },
+      where: {
+        id: pacienteId,
+      },
+    });
+
+    const result = await Promise.all(
+      paciente.vaga.especialidades.map((especialidade: any) => {
+        return {
+          id: especialidade.especialidade.id,
+          nome: especialidade.especialidade.nome,
+        };
+      }),
+    );
+
+    return result;
+  }
+
   async getPatientsQueue(
     page: number,
     pageSize: number,
@@ -446,7 +484,7 @@ export class PacienteService {
 
     const terapeutaService = new TerapeutaService();
 
-    const terapeutasAll = await terapeutaService.getTerapeutaEspecialidade();
+    const terapeutasAll = await terapeutaService.getTerapeutaByEspecialidade();
     const especialidades: any = await Promise.all(
       vagas.vaga.especialidades.map(
         ({ especialidade: { id, cor, nome } }: any) => {

@@ -13,7 +13,12 @@ export class FuncaoService {
         select: {
           id: true,
           nome: true,
-          especialidade: true,
+          especialidade: {
+            select: {
+              id: true,
+              nome: true,
+            },
+          },
           ativo: true,
         },
         orderBy: {
@@ -51,6 +56,31 @@ export class FuncaoService {
         ativo: true,
       },
     });
+  }
+
+  async getTerapeutaByFuncaoDropdown(terapeutaId: number) {
+    const funcoes = await this.prismaService.terapeutaOnFuncao.findMany({
+      select: {
+        funcao: true,
+      },
+      where: {
+        terapeutaId: terapeutaId,
+      },
+      orderBy: {
+        funcao: {
+          nome: 'asc',
+        },
+      },
+    });
+
+    return await Promise.all(
+      funcoes.map(({ funcao }: any) => {
+        return {
+          id: funcao.id,
+          nome: funcao.nome,
+        };
+      }),
+    );
   }
 
   async search(word: string) {
