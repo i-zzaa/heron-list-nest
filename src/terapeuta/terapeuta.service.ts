@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import moment from 'moment';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma.service';
@@ -73,6 +73,7 @@ export class TerapeutaService {
 
   constructor(
     private readonly prismaService: PrismaService,
+    @Inject(forwardRef(() => AgendaService))
     private readonly agendaService: AgendaService,
   ) {}
 
@@ -381,5 +382,27 @@ export class TerapeutaService {
     );
 
     return device === DEVICE.mobile ? mobileArray : webArray;
+  }
+
+  async getTerapeutaEspecialidade() {
+    const user = await this.prismaService.terapeuta.findMany({
+      select: {
+        usuarioId: true,
+        usuario: true,
+        especialidade: true,
+      },
+    });
+
+    const list = await Promise.all(
+      user.map((terapeuta: any) => {
+        return {
+          id: terapeuta.usuario.id,
+          nome: terapeuta.usuario.nome,
+          especialidadeId: terapeuta.especialidade.id,
+        };
+      }),
+    );
+
+    return list;
   }
 }
