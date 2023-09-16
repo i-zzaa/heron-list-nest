@@ -29,6 +29,7 @@ import { TerapeutaModule } from './terapeuta/terapeuta.module';
   imports: [
     AuthModule,
     UserModule,
+    TerapeutaModule,
     AgendaModule,
     VagaModule,
     TipoSessaoModule,
