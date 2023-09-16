@@ -9,10 +9,12 @@ import { UserModule } from 'src/user/user.module';
 import { VagaModule } from 'src/vaga/vaga.module';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { AgendaModule } from 'src/agenda/agenda.module';
+import { UserService } from 'src/user/user.service';
 
 @Module({
   providers: [TerapeutaService, PrismaService, AgendaService],
   exports: [TerapeutaService],
   controllers: [TerapeutaController],
+  imports: [],
 })
 export class TerapeutaModule {}

@@ -23,6 +23,7 @@ import { VagaModule } from './vaga/vaga.module';
 import { StatusEventoModule } from './status-evento/status-evento.module';
 import { PeriodoModule } from './periodo/periodo.module';
 import { StatusModule } from './status/status.module';
+import { TerapeutaModule } from './terapeuta/terapeuta.module';
 
 @Module({
   imports: [
