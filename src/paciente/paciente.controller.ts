@@ -61,17 +61,37 @@ export class PacienteController {
 
   @Get('dropdown')
   async dropdown(
-    @Query('statusPacienteCods') statusPacienteCods: string,
+    @Query('statusPacienteCod') statusPacienteCod: string,
     @Response() response: any,
   ) {
     try {
-      const data = await this.pacienteService.dropdown(statusPacienteCods);
+      const data = await this.pacienteService.dropdown(statusPacienteCod);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
     }
 
     return;
+  }
+
+  @Get('especialidade/dropdown')
+  async getPacienteEspecialidade(
+    @Query('statusPacienteCod') statusPacienteCod: string,
+    @Query('pacienteId') pacienteId: number,
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.pacienteService.getPacienteEspecialidade(
+        statusPacienteCod,
+        Number(pacienteId),
+      );
+
+      responseSuccess(response, data);
+    } catch (error) {
+      console.log(error);
+
+      responseError(response);
+    }
   }
 
   @Get()

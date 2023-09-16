@@ -10,7 +10,6 @@ export class FrequenciaService {
       select: {
         id: true,
         nome: true,
-        ativo: true,
       },
       orderBy: {
         nome: 'asc',

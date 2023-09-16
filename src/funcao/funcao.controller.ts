@@ -9,6 +9,7 @@ import {
   Delete,
   Param,
   Request,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FuncaoService } from './funcao.service';
@@ -19,6 +20,31 @@ import { responseSuccess, responseError } from 'src/util/response';
 @Controller('funcao')
 export class FuncaoController {
   constructor(private funcaoService: FuncaoService) {}
+
+  @Get('dropdown')
+  async dropdown(@Response() response: any) {
+    try {
+      const data = await this.funcaoService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('terapeuta/dropdown')
+  async getFuncaoByTerapeuta(
+    @Query('terapeutaId') terapeutaId: number,
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.funcaoService.getTerapeutaByFuncaoDropdown(
+        Number(terapeutaId),
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
 
   @Get()
   async getAll(@Request() req: any, @Response() response: any) {
@@ -37,16 +63,6 @@ export class FuncaoController {
   async search(@Param('search') search: string, @Response() response: any) {
     try {
       const data = await this.funcaoService.search(search);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
-  @Get('dropdown')
-  async dropdown(@Response() response: any) {
-    try {
-      const data = await this.funcaoService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

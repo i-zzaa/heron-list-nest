@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Get, Response } from '@nestjs/common';
+import { Controller, UseGuards, Get, Response, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TerapeutaService } from './terapeuta.service';
 import { responseError, responseSuccess } from 'src/util/response';
@@ -12,6 +12,22 @@ export class TerapeutaController {
   async dropdown(@Response() response: any) {
     try {
       const data = await this.terapeutaService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('especialidade/dropdown')
+  async getTerapeutaByEspecialidade(
+    @Query('especialidade') especialidade: string,
+    @Response() response: any,
+  ) {
+    try {
+      const data =
+        await this.terapeutaService.getTerapeutaByEspecialidadeDropdown(
+          especialidade,
+        );
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

@@ -39,7 +39,7 @@ export class LocalidadeService {
   }
 
   async dropdown() {
-    return this.prismaService.localidade.findMany({
+    const localidade = await this.prismaService.localidade.findMany({
       select: {
         id: true,
         casa: true,
@@ -53,6 +53,15 @@ export class LocalidadeService {
         ativo: true,
       },
     });
+
+    return await Promise.all(
+      localidade.map((item: any) => {
+        return {
+          id: item.id,
+          nome: this.formatLocalidade(item),
+        };
+      }),
+    );
   }
 
   async search(word: string) {

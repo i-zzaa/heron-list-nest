@@ -20,6 +20,16 @@ import { responseError, responseSuccess } from 'src/util/response';
 export class LocalidadeController {
   constructor(private localidadeService: LocalidadeService) {}
 
+  @Get('dropdown')
+  async dropdown(@Response() response: any) {
+    try {
+      const data = await this.localidadeService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Get()
   async getAll(@Request() req: any, @Response() response: any) {
     try {
@@ -37,16 +47,6 @@ export class LocalidadeController {
   async search(@Param('search') search: string, @Response() response: any) {
     try {
       const data = await this.localidadeService.search(search);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
-  @Get('dropdown')
-  async dropdown(@Response() response: any) {
-    try {
-      const data = await this.localidadeService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
