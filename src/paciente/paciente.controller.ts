@@ -21,6 +21,16 @@ import { responseSuccess, responseError } from 'src/util/response';
 export class PacienteController {
   constructor(private pacienteService: PacienteService) {}
 
+  @Put()
+  async update(@Body() body: PatientProps, @Response() response: any) {
+    try {
+      const data = await this.pacienteService.update(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Post('filtro')
   async filtro(@Request() req: any, @Response() response: any) {
     try {
@@ -87,16 +97,6 @@ export class PacienteController {
     }
   }
 
-  @Put()
-  async update(@Body() body: PatientProps, @Response() response: any) {
-    try {
-      const data = await this.pacienteService.update(body);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
   @Delete(':id')
   async delete(@Param() id: number, @Response() response: any) {
     try {
@@ -134,7 +134,7 @@ export class PacienteController {
     }
   }
 
-  @Get('desabilitar')
+  @Put('desabilitar')
   async updateDisabled(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.pacienteService.updateDisabled(body);

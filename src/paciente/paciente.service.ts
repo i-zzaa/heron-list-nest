@@ -1,7 +1,7 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
-import { calculaIdade } from 'src/util/format-date';
+import { calculaIdade, formatadataPadraoBD } from 'src/util/format-date';
 import { moneyFormat } from 'src/util/util';
 
 @Injectable()
@@ -233,16 +233,113 @@ export class PacienteService {
   }
 
   async update(body: any) {
-    return await this.prismaService.localidade.update({
-      data: {
-        casa: body.casa,
-        sala: body.sala,
-        ativo: body.ativo,
-      },
-      where: {
-        id: Number(body.id),
-      },
-    });
+    switch (body.statusPacienteCod) {
+      case STATUS_PACIENT_COD.queue_avaliation:
+      case STATUS_PACIENT_COD.queue_therapy:
+      case STATUS_PACIENT_COD.crud_therapy:
+        return this.updatePatient(body);
+      case STATUS_PACIENT_COD.queue_devolutiva:
+        return this.updatePatient({
+          ...body,
+          dataVoltouAba: formatadataPadraoBD(new Date()),
+          tipoSessaoId: 3,
+          statusPacienteCod: STATUS_PACIENT_COD.queue_therapy,
+        });
+      default:
+        break;
+    }
+  }
+
+  async updatePatient(body: any) {
+    try {
+      const [, , especialidades] = await this.prismaService.$transaction([
+        this.prismaService.paciente.update({
+          data: {
+            nome: body.nome.toUpperCase(),
+            telefone: body.telefone,
+            responsavel: body.responsavel.toUpperCase(),
+            convenioId: body.convenioId,
+            dataNascimento: body.dataNascimento,
+            tipoSessaoId: body.tipoSessaoId,
+            statusId: body.statusId,
+            carteirinha: body.carteirinha,
+            statusPacienteCod: body.statusPacienteCod,
+            vaga: {
+              update: {
+                periodoId: body.periodoId,
+                observacao: body.observacao,
+                dataContato: body.dataContato ? body.dataContato : '',
+                dataVoltouAba: body.dataVoltouAba || '',
+              },
+            },
+          },
+          where: {
+            id: body.id,
+          },
+        }),
+        this.prismaService.vagaOnEspecialidade.deleteMany({
+          where: {
+            vagaId: body.vagaId,
+            agendado: false,
+            NOT: {
+              especialidadeId: {
+                in: body.especialidades,
+              },
+            },
+          },
+        }),
+        this.prismaService.vagaOnEspecialidade.findMany({
+          select: {
+            especialidadeId: true,
+            valor: true,
+            km: true,
+          },
+          where: {
+            vagaId: body.vagaId,
+          },
+        }),
+      ]);
+
+      const arrEspecialidade = especialidades.map(
+        (especialidade: any) => especialidade.especialidadeId,
+      );
+
+      await Promise.all(
+        body.sessao.map(async (especialidade: any) => {
+          const formatSessao =
+            typeof especialidade.valor === 'string'
+              ? especialidade.valor.split('R$')[1]
+              : especialidade.valor;
+
+          if (!arrEspecialidade.includes(especialidade.especialidadeId)) {
+            await this.prismaService.vagaOnEspecialidade.create({
+              data: {
+                vagaId: body.vagaId,
+                agendado: false,
+                especialidadeId: especialidade.especialidadeId,
+                valor: formatSessao,
+              },
+            });
+          } else {
+            await this.prismaService.vagaOnEspecialidade.updateMany({
+              data: {
+                vagaId: body.vagaId,
+                agendado: false,
+                valor: formatSessao,
+              },
+              where: {
+                vagaId: body.vagaId,
+                especialidadeId: especialidade.especialidadeId,
+              },
+            });
+          }
+        }),
+      );
+
+      return [];
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   async delete(id: number) {
