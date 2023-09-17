@@ -33,4 +33,19 @@ export class TerapeutaController {
       responseError(response);
     }
   }
+
+  @Get('paciente/dropdown')
+  async getPacienteByTerapeuta(
+    @Query('terapeutaId') terapeutaId: number,
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.terapeutaService.getPacienteByTerapeutaDropdown(
+        Number(terapeutaId),
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
 }

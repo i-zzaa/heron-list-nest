@@ -1,5 +1,5 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
-import moment from 'moment';
+import * as moment from 'moment';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma.service';
 import {
@@ -290,7 +290,7 @@ export class TerapeutaService {
         const horariosTerapeuta = cargaHoraria[dayOfWeek];
 
         await Promise.all(
-          HOURS.map(async (h) => {
+          HOURS?.map(async (h) => {
             const strDate = `${day}T${h}:00`;
             const date = moment(strDate);
 
@@ -457,5 +457,29 @@ export class TerapeutaService {
     );
 
     return list;
+  }
+  async getPacienteByTerapeutaDropdown(terapeutaId: number) {
+    const agenda = await this.prismaService.calendario.findMany({
+      select: {
+        paciente: true,
+      },
+      where: {
+        terapeutaId: terapeutaId,
+      },
+      orderBy: {
+        paciente: {
+          nome: 'asc',
+        },
+      },
+    });
+
+    return await Promise.all(
+      agenda.map((evento: any) => {
+        return {
+          id: evento.paciente.id,
+          nome: evento.paciente.nome,
+        };
+      }),
+    );
   }
 }

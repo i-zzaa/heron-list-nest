@@ -39,7 +39,7 @@ export class AgendaController {
         return messageError();
       }
 
-      if (Boolean(req.terapeutaId)) {
+      if (Boolean(req.query.terapeutaId)) {
         const data = await this.terapeutaService.getAvailableTimes(
           inicioDoMes,
           ultimoDiaDoMes,
@@ -59,6 +59,8 @@ export class AgendaController {
         responseSuccess(response, data);
       }
     } catch (error) {
+      console.log(error);
+
       responseError(response);
     }
   }
