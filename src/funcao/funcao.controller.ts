@@ -45,6 +45,20 @@ export class FuncaoController {
       responseError(response);
     }
   }
+  @Get('especialidade/dropdown')
+  async getFuncaoByEspecialidadeDropdown(
+    @Query('especialidade') especialidade: string,
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.funcaoService.getFuncaoByEspecialidadeDropdown(
+        especialidade,
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
 
   @Get()
   async getAll(@Request() req: any, @Response() response: any) {

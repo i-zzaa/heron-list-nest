@@ -13,6 +13,8 @@ import { FREQUENCIA } from 'src/frequencia/frequencia.interface';
 import * as bcrypt from 'bcryptjs';
 import moment from 'moment';
 import { VagaService } from 'src/vaga/vaga.service';
+import { BaixaService } from 'src/baixa/baixa.service';
+import { PacienteService } from 'src/paciente/paciente.service';
 
 @Injectable()
 export class AgendaService {
@@ -22,6 +24,7 @@ export class AgendaService {
     private readonly localidadadeService: LocalidadeService,
     private readonly frequenciaService: FrequenciaService,
     private readonly vagaService: VagaService,
+    private readonly baixaService: BaixaService,
   ) {}
 
   formatEvent(event: any) {
@@ -178,7 +181,7 @@ export class AgendaService {
     const filter: any = {};
     Object.keys(query).map((key: string) => (filter[key] = Number(query[key])));
 
-    const eventos = await this.prismaService.calendario.findMany({
+    const eventos: any = await this.prismaService.calendario.findMany({
       select: {
         id: true,
         groupId: true,
@@ -229,6 +232,7 @@ export class AgendaService {
           select: {
             nome: true,
             id: true,
+            cobrar: true,
           },
         },
         frequencia: {
@@ -261,10 +265,14 @@ export class AgendaService {
             },
           },
         ],
+        // pacienteId: Number(query?.pacientes),
+        // statusEventosId: Number(query?.statusEventos),
       },
     });
 
-    const eventosFormat = await this.formatEvents(eventos, login);
+    const eventosFormat = Boolean(eventos)
+      ? await this.formatEvents(eventos, login)
+      : [];
     return eventosFormat;
   }
 
@@ -642,11 +650,20 @@ export class AgendaService {
       where: { groupId: body.groupId },
     });
 
+    if (body.statusEventos.cobrar) {
+      this.baixaService.create({
+        pacienteId: body.paciente.id,
+        terapeutaId: body.terapeuta.id,
+        localidadeId: body.localidade.id,
+        statusEventosId: body.statusEventos.id,
+      });
+    }
+
     switch (true) {
       case eventoSalvo.length === 0:
         throw new Error('Não existe evento desse groupo!');
       case eventoSalvo.length === 1:
-        return this.updateEventoUnicoGrupo(body, login);
+        return await this.updateEventoUnicoGrupo(body, login);
       case eventoSalvo.length >= 2:
         const data = this.formatEvent(body);
 

@@ -24,6 +24,7 @@ import { StatusEventoModule } from './status-evento/status-evento.module';
 import { PeriodoModule } from './periodo/periodo.module';
 import { StatusModule } from './status/status.module';
 import { TerapeutaModule } from './terapeuta/terapeuta.module';
+import { BaixaModule } from './baixa/baixa.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { TerapeutaModule } from './terapeuta/terapeuta.module';
     StatusEventoModule,
     PeriodoModule,
     StatusModule,
+    BaixaModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],
