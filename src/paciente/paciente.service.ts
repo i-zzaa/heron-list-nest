@@ -50,6 +50,17 @@ export class PacienteService {
     }
   }
 
+  async getConvenio(pacienteId: number) {
+    return await this.prismaService.paciente.findUniqueOrThrow({
+      select: {
+        convenio: true,
+      },
+      where: {
+        id: pacienteId,
+      },
+    });
+  }
+
   async getPacienteEspecialidade(
     statusPacienteCod: string,
     pacienteId: number,

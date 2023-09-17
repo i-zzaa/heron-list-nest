@@ -205,6 +205,74 @@ export class UserService {
     });
   }
 
+  async createTerapeuta(body: any, id: number) {
+    await this.prismaService.terapeuta.create({
+      data: {
+        usuarioId: id,
+        especialidadeId: body.especialidadeId,
+        fazDevolutiva: body.devolutiva,
+        cargaHoraria: JSON.stringify(body.cargaHoraria),
+      },
+    });
+
+    await this.prismaService.terapeutaOnFuncao.createMany({
+      data: [
+        ...body.comissao.map((comissao: any) => {
+          const formatComissao =
+            typeof comissao.valor === 'string'
+              ? comissao.valor.split('R$')[1]
+              : comissao.valor.toString();
+
+          return {
+            terapeutaId: id,
+            funcaoId: comissao.funcaoId,
+            comissao: formatComissao,
+            tipo: comissao.tipo,
+          };
+        }),
+      ],
+    });
+  }
+
+  async updateTerapeuta(body: any) {
+    if (body?.comissao?.length) {
+      await this.prismaService.terapeutaOnFuncao.deleteMany({
+        where: {
+          terapeutaId: body.id,
+        },
+      });
+
+      await this.prismaService.terapeutaOnFuncao.createMany({
+        data: [
+          ...body.comissao.map((comissao: any) => {
+            const formatComissao =
+              typeof comissao.valor === 'string'
+                ? comissao.valor.split('R$')[1]
+                : comissao.valor.toString();
+
+            return {
+              terapeutaId: body.id,
+              funcaoId: comissao.funcaoId,
+              comissao: formatComissao,
+              tipo: comissao.tipo,
+            };
+          }),
+        ],
+      });
+    }
+
+    await this.prismaService.terapeuta.update({
+      data: {
+        especialidadeId: body.especialidadeId,
+        fazDevolutiva: body.devolutiva,
+        cargaHoraria: JSON.stringify(body.cargaHoraria),
+      },
+      where: {
+        usuarioId: body.id,
+      },
+    });
+  }
+
   async create(body: any) {
     body.senha = bcrypt.hashSync('12345678', 8);
 
@@ -233,32 +301,7 @@ export class UserService {
     });
 
     if (body.perfilId === ID_PERFIL_TERAPEUTA.id) {
-      await this.prismaService.terapeuta.create({
-        data: {
-          usuarioId: user.id,
-          especialidadeId: body.especialidadeId,
-          fazDevolutiva: body.devolutiva,
-          cargaHoraria: JSON.stringify(body.cargaHoraria),
-        },
-      });
-
-      await this.prismaService.terapeutaOnFuncao.createMany({
-        data: [
-          ...body.comissao.map((comissao: any) => {
-            const formatComissao =
-              typeof comissao.valor === 'string'
-                ? comissao.valor.split('R$')[1]
-                : comissao.valor.toString();
-
-            return {
-              terapeutaId: user.id,
-              funcaoId: comissao.funcaoId,
-              comissao: formatComissao,
-              tipo: comissao.tipo,
-            };
-          }),
-        ],
-      });
+      await this.createTerapeuta(body, user.id);
     }
 
     if (!user) return messageError();
@@ -299,43 +342,17 @@ export class UserService {
 
     if (body.perfilId === ID_PERFIL_TERAPEUTA.id) {
       //Terapeuta
-
-      if (body?.comissao?.length) {
-        await this.prismaService.terapeutaOnFuncao.deleteMany({
-          where: {
-            terapeutaId: body.id,
-          },
-        });
-
-        await this.prismaService.terapeutaOnFuncao.createMany({
-          data: [
-            ...body.comissao.map((comissao: any) => {
-              const formatComissao =
-                typeof comissao.valor === 'string'
-                  ? comissao.valor.split('R$')[1]
-                  : comissao.valor.toString();
-
-              return {
-                terapeutaId: body.id,
-                funcaoId: comissao.funcaoId,
-                comissao: formatComissao,
-                tipo: comissao.tipo,
-              };
-            }),
-          ],
-        });
-      }
-
-      await this.prismaService.terapeuta.update({
-        data: {
-          especialidadeId: body.especialidadeId,
-          fazDevolutiva: body.devolutiva,
-          cargaHoraria: JSON.stringify(body.cargaHoraria),
-        },
+      const terapeuta = await this.prismaService.terapeuta.findUnique({
         where: {
           usuarioId: body.id,
         },
       });
+
+      if (!!terapeuta) {
+        await this.updateTerapeuta(body);
+      } else {
+        await this.createTerapeuta(body, body.id);
+      }
     }
 
     const user = await this.prismaService.usuario.update({

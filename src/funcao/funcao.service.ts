@@ -82,6 +82,22 @@ export class FuncaoService {
       }),
     );
   }
+  async getFuncaoByEspecialidadeDropdown(especialidade: string) {
+    return await this.prismaService.funcao.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+      where: {
+        especialidade: {
+          nome: especialidade,
+        },
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
+  }
 
   async search(word: string) {
     return await this.prismaService.funcao.findMany({

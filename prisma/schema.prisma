@@ -40,6 +40,7 @@ model Paciente {
   createdAt         DateTime            @default(now())
   updateAt          DateTime            @default(now())
   pacienteHistorico PacienteHistorico[]
+  Baixa             Baixa[]
 }
 
 model StatusPaciente {
@@ -127,6 +128,7 @@ model Usuario {
   calendario Calendario[]
   terapeuta  Terapeuta?
   permissoes UsuarioOnPermissao[]
+  Baixa      Baixa[]
 }
 
 model Perfil {
@@ -143,6 +145,7 @@ model Localidade {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @default(now())
   calendario Calendario[]
+  Baixa      Baixa[]
 }
 
 model StatusEventos {
@@ -153,6 +156,7 @@ model StatusEventos {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @default(now())
   calendario Calendario[]
+  Baixa      Baixa[]
 }
 
 model Frequencia {
@@ -207,6 +211,7 @@ model Terapeuta {
   calendario    Calendario[]
 
   funcoes TerapeutaOnFuncao[]
+  Baixa   Baixa[]
 }
 
 model TerapeutaOnFuncao {
@@ -286,6 +291,25 @@ model PacienteHistorico {
   historico  Json
 
   paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Baixa {
+  id              Int     @id @default(autoincrement())
+  pacienteId      Int
+  terapeutaId     Int
+  statusEventosId Int
+  usuarioId       Int?
+  localidadeId    Int
+  baixa           Boolean @default(false)
+
+  paciente   Paciente      @relation(fields: [pacienteId], references: [id])
+  terapeuta  Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
+  status     StatusEventos @relation(fields: [statusEventosId], references: [id])
+  usuario    Usuario?      @relation(fields: [usuarioId], references: [id])
+  localidade Localidade    @relation(fields: [localidadeId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())

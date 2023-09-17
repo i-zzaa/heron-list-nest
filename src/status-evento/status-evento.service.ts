@@ -46,7 +46,6 @@ export class StatusEventoService {
         id: true,
         nome: true,
         cobrar: true,
-        ativo: true,
       },
       where: {
         ativo: true,
