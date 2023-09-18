@@ -8,12 +8,15 @@ import {
   Param,
   Post,
   Put,
+  Response,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TipoSessaoService } from './tipo-sessao.service';
 import { TipoSessaoProps } from './tipo-sessao.interface';
+import { responseSuccess, responseError } from 'src/util/response';
 
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 @Controller('tipo-sessao')
 export class TipoSessaoController {
   constructor(private tipoSessaoService: TipoSessaoService) {}
@@ -27,8 +30,13 @@ export class TipoSessaoController {
   }
 
   @Get('dropdown')
-  async dropdown() {
-    return await this.tipoSessaoService.dropdown();
+  async dropdown(@Response() response: any) {
+    try {
+      const data = await this.tipoSessaoService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 
   @Post()

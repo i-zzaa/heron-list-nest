@@ -37,7 +37,7 @@ export class UserService {
     return user;
   }
 
-  async getUsers(page: number, pageSize: number): Promise<any | undefined> {
+  async getAll(page: number, pageSize: number): Promise<any | undefined> {
     const skip = (page - 1) * pageSize;
 
     const [usuarios, totalItems] = await Promise.all([
@@ -273,6 +273,21 @@ export class UserService {
     });
   }
 
+  async removeTerapeuta(usuarioId: number) {
+    return await Promise.all([
+      this.prismaService.terapeuta.delete({
+        where: {
+          usuarioId,
+        },
+      }),
+      this.prismaService.terapeutaOnFuncao.deleteMany({
+        where: {
+          terapeutaId: usuarioId,
+        },
+      }),
+    ]);
+  }
+
   async create(body: any) {
     body.senha = bcrypt.hashSync('12345678', 8);
 
@@ -340,19 +355,27 @@ export class UserService {
       });
     }
 
-    if (body.perfilId === ID_PERFIL_TERAPEUTA.id) {
-      //Terapeuta
-      const terapeuta = await this.prismaService.terapeuta.findUnique({
-        where: {
-          usuarioId: body.id,
-        },
-      });
+    // verifica tem terapeuta criada
+    const terapeuta = await this.prismaService.terapeuta.findUnique({
+      where: {
+        usuarioId: body.id,
+      },
+    });
 
-      if (!!terapeuta) {
-        await this.updateTerapeuta(body);
-      } else {
-        await this.createTerapeuta(body, body.id);
-      }
+    switch (body.perfilId) {
+      case ID_PERFIL_TERAPEUTA.id:
+        if (!!terapeuta) {
+          await this.updateTerapeuta(body);
+        } else {
+          await this.createTerapeuta(body, body.id);
+        }
+        break;
+
+      default:
+        if (!!terapeuta) {
+          await this.removeTerapeuta(body.id);
+        }
+        break;
     }
 
     const user = await this.prismaService.usuario.update({

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
+import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 
 @Injectable()
 export class TipoSessaoService {
@@ -38,6 +39,11 @@ export class TipoSessaoService {
       select: {
         id: true,
         nome: true,
+      },
+      where: {
+        NOT: {
+          nome: 'Terapia',
+        },
       },
       orderBy: {
         nome: 'asc',
