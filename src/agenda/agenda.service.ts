@@ -5,6 +5,7 @@ import { UserService } from 'src/user/user.service';
 import {
   dateSubtractDay,
   formatDateTime,
+  getDatesWhiteEvents,
   getPrimeiroDoMes,
 } from 'src/util/format-date';
 import { CalendarioCreateParam, ObjProps } from './agenda.interface';
@@ -15,6 +16,7 @@ import moment from 'moment';
 import { VagaService } from 'src/vaga/vaga.service';
 import { BaixaService } from 'src/baixa/baixa.service';
 import { PacienteService } from 'src/paciente/paciente.service';
+import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 
 @Injectable()
 export class AgendaService {
@@ -1133,4 +1135,61 @@ export class AgendaService {
 
     return eventos;
   };
+
+  async getEventsMessage(dataInicio: string, datatFim: string) {
+    const eventosBrutos = await this.prismaService.calendario.findMany({
+      select: {
+        dataInicio: true,
+        dataFim: true,
+        paciente: true,
+        statusEventos: true,
+        modalidade: true,
+        diasFrequencia: true,
+        intervalo: true,
+      },
+      where: {
+        AND: [
+          {
+            OR: [
+              {
+                dataFim: '',
+              },
+              {
+                dataFim: {
+                  gte: dataInicio,
+                },
+              },
+            ],
+          },
+          {
+            dataInicio: {
+              lte: datatFim,
+            },
+          },
+          {
+            statusEventosId: STATUS_EVENTOS_ID.avisar,
+          },
+        ],
+      },
+    });
+
+    const eventos: any = [];
+    await Promise.all(
+      eventosBrutos.map((event: any) => {
+        const dataFimParam = event?.dataFim || datatFim;
+
+        const newEvents = getDatesWhiteEvents(
+          event?.diasFrequencia.split(','),
+          event.dataInicio,
+          dataFimParam,
+          event.intervalo.id,
+          event,
+        );
+
+        eventos.push(...newEvents);
+      }),
+    );
+
+    return eventos;
+  }
 }

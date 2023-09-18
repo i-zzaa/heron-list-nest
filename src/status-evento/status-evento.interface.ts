@@ -4,3 +4,7 @@ export interface StatusEventosProps {
   ativo: boolean;
   cobrar: boolean;
 }
+
+export enum STATUS_EVENTOS_ID {
+  avisar = 1,
+}
