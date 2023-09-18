@@ -310,9 +310,13 @@ export class PacienteService {
             especialidades: {
               create: [
                 ...body.sessao.map((sessao: any) => {
+                  const valor = sessao.valor.split('R$')[1];
+
+                  console.log(valor);
+
                   return {
                     especialidadeId: sessao.especialidadeId,
-                    valor: sessao.valor.split('R$ ')[1],
+                    valor: valor,
                     km: sessao.km.toString(),
                     agendado: false, // se for 2, é para cadastrar como nao agendado
                     dataAgendado: '',
