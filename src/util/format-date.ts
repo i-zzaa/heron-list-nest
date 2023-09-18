@@ -251,3 +251,7 @@ export const formaTime = (duration: any) => {
     .toString()
     .padStart(2, '0')}:${duration.seconds().toString().padStart(2, '0')}`;
 };
+
+export const getDateBeforeDay = (days: number) => {
+  return momentBusinessDays().businessAdd(days).format('YYYY-MM-DD');
+};

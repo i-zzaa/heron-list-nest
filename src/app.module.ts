@@ -25,6 +25,7 @@ import { PeriodoModule } from './periodo/periodo.module';
 import { StatusModule } from './status/status.module';
 import { TerapeutaModule } from './terapeuta/terapeuta.module';
 import { BaixaModule } from './baixa/baixa.module';
+import { WhatsappModule } from './whatsApp/whatsApp.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { BaixaModule } from './baixa/baixa.module';
     PeriodoModule,
     StatusModule,
     BaixaModule,
+    WhatsappModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],
