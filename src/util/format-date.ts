@@ -255,3 +255,11 @@ export const formaTime = (duration: any) => {
 export const getDateBeforeDay = (days: number) => {
   return momentBusinessDays().businessAdd(days).format('YYYY-MM-DD');
 };
+
+export const formatDateHours = (hours: any, date: any) => {
+  const arrTime = hours.split(':');
+  return moment(date)
+    .add(arrTime[0], 'hours')
+    .add(arrTime[1], 'minutes')
+    .format('DD/MM/YY HH:mm');
+};

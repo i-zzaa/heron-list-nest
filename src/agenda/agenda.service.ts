@@ -1146,6 +1146,17 @@ export class AgendaService {
         modalidade: true,
         diasFrequencia: true,
         intervalo: true,
+        localidade: true,
+        terapeuta: {
+          select: {
+            usuario: {
+              select: {
+                nome: true,
+              },
+            },
+          },
+        },
+        start: true,
       },
       where: {
         AND: [
