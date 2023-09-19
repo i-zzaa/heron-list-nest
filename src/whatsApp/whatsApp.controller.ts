@@ -11,7 +11,7 @@ import {
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { WhatsappService } from './whatsapp.service';
+import { WhatsappService } from './whatsApp.service';
 import { responseError, responseSuccess } from 'src/util/response';
 
 @UseGuards(AuthGuard('jwt'))
