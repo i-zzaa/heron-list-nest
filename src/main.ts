@@ -2,8 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import * as cron from 'node-cron';
-import { WhatsappService } from './whatsApp/whatsapp.service';
-import { VenomBotAdapter } from './whatsApp/whatsapp.adapter';
+import { VenomBotAdapter } from 'src/whatsApp/whatsApp.adapter';
+import { WhatsappService } from 'src/whatsApp/whatsApp.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
