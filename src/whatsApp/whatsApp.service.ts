@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { VenomBotAdapter } from './whatsapp.adapter';
+import { VenomBotAdapter } from './whatsApp.adapter';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { formatDateHours, getDateBeforeDay } from 'src/util/format-date';
 

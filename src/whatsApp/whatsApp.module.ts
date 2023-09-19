@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { WhatsappService } from './whatsapp.service';
+import { WhatsappService } from './whatsApp.service';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { BaixaModule } from 'src/baixa/baixa.module';
 import { FrequenciaModule } from 'src/frequencia/frequencia.module';
@@ -8,7 +8,7 @@ import { PacienteModule } from 'src/paciente/paciente.module';
 import { UserModule } from 'src/user/user.module';
 import { VagaModule } from 'src/vaga/vaga.module';
 import { WhatsappController } from './whatsApp.controller';
-import { VenomBotAdapter } from './whatsapp.adapter';
+import { VenomBotAdapter } from './whatsApp.adapter';
 import { PrismaService } from 'src/prisma.service';
 
 @Module({
