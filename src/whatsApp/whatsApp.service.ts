@@ -1,10 +1,7 @@
-// whatsapp.service.ts
 import { Injectable } from '@nestjs/common';
 import { VenomBotAdapter } from './whatsapp.adapter';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { formatDateHours, getDateBeforeDay } from 'src/util/format-date';
-
-// const venom = require('venom-bot');
 
 @Injectable()
 export class WhatsappService {
@@ -52,15 +49,12 @@ export class WhatsappService {
     ⚠️ O cancelamento após 24h para o atendimento será cobrado.
     `;
 
-    const to = '5511994345360@c.us'; // Substitua pelo número real do destinatário
+    const to = `55${Number(phoneNumber)}@c.us`; // Substitua pelo número real do destinatário
 
     await this.venomBotAdapter.sendMessage(
       to,
       `Boa tarde, ${responsavel}!`,
       message,
     );
-
-    // Chame a função do adaptador para enviar a mensagem via WhatsApp
-    // this.whatsappAdapter.sendMessage(phoneNumber, message);
   }
 }
