@@ -8,11 +8,11 @@ import { PacienteModule } from 'src/paciente/paciente.module';
 import { UserModule } from 'src/user/user.module';
 import { VagaModule } from 'src/vaga/vaga.module';
 import { WhatsappController } from './whatsApp.controller';
-import { WhatsappAdapter } from './whatsapp.adapter';
+import { VenomBotAdapter } from './whatsapp.adapter';
 import { PrismaService } from 'src/prisma.service';
 
 @Module({
-  providers: [WhatsappService, PrismaService, WhatsappAdapter, AgendaService],
+  providers: [WhatsappService, PrismaService, VenomBotAdapter, AgendaService],
   exports: [WhatsappService],
   controllers: [WhatsappController],
   imports: [

@@ -1,13 +1,15 @@
 // whatsapp.service.ts
 import { Injectable } from '@nestjs/common';
-import { WhatsappAdapter } from './whatsapp.adapter';
+import { VenomBotAdapter } from './whatsapp.adapter';
 import { AgendaService } from 'src/agenda/agenda.service';
-import { getDateBeforeDay } from 'src/util/format-date';
+import { formatDateHours, getDateBeforeDay } from 'src/util/format-date';
+
+// const venom = require('venom-bot');
 
 @Injectable()
 export class WhatsappService {
   constructor(
-    private readonly whatsappAdapter: WhatsappAdapter,
+    private readonly venomBotAdapter: VenomBotAdapter,
     private readonly agendaService: AgendaService,
   ) {}
 
@@ -24,21 +26,40 @@ export class WhatsappService {
     );
 
     await Promise.all(
-      eventos.map(({ paciente }: any) =>
-        this.sendMessage(
-          paciente.telefone,
-          paciente.nome,
-          paciente.responsavel,
-        ),
+      eventos.map(
+        ({ paciente, terapeuta, localidade, dataInicio, start }: any) =>
+          this.sendMessage(
+            paciente.telefone,
+            paciente.nome,
+            paciente.responsavel,
+            terapeuta.usuario.nome,
+            localidade.casa + localidade.sala,
+            formatDateHours(start, dataInicio),
+          ),
       ),
     );
   }
 
-  sendMessage(
+  async sendMessage(
     phoneNumber: string,
     pacienteNome: string,
     responsavel: string,
-  ): void {
+    terapeuta: string,
+    localidade: string,
+    dataHora: string,
+  ) {
+    const message = `Passando para confirmar o horário do ${pacienteNome}.\n\nData: ${dataHora}\nLocalidade: ${localidade}\nTerapeuta: ${terapeuta}\n\n
+    ⚠️ O cancelamento após 24h para o atendimento será cobrado.
+    `;
+
+    const to = '5511994345360@c.us'; // Substitua pelo número real do destinatário
+
+    await this.venomBotAdapter.sendMessage(
+      to,
+      `Boa tarde, ${responsavel}!`,
+      message,
+    );
+
     // Chame a função do adaptador para enviar a mensagem via WhatsApp
     // this.whatsappAdapter.sendMessage(phoneNumber, message);
   }
