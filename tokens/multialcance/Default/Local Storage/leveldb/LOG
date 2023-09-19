@@ -1,4 +1,4 @@
-2023/09/19-14:41:47.635 a903 Reusing MANIFEST /Users/isaandressa/Java/biridin-api/tokens/multialcance/Default/Local Storage/leveldb/MANIFEST-000001
-2023/09/19-14:41:47.635 a903 Recovering log #4
-2023/09/19-14:41:47.635 a903 (ignoring error) /Users/isaandressa/Java/biridin-api/tokens/multialcance/Default/Local Storage/leveldb/000004.log: dropping 2797 bytes; Corruption: checksum mismatch
-2023/09/19-14:41:47.635 a903 Reusing old log /Users/isaandressa/Java/biridin-api/tokens/multialcance/Default/Local Storage/leveldb/000004.log 
+2023/09/19-14:44:41.493 8203 Reusing MANIFEST /Users/isaandressa/Java/biridin-api/tokens/multialcance/Default/Local Storage/leveldb/MANIFEST-000001
+2023/09/19-14:44:41.494 8203 Recovering log #4
+2023/09/19-14:44:41.494 8203 (ignoring error) /Users/isaandressa/Java/biridin-api/tokens/multialcance/Default/Local Storage/leveldb/000004.log: dropping 5589 bytes; Corruption: checksum mismatch
+2023/09/19-14:44:41.494 8203 Reusing old log /Users/isaandressa/Java/biridin-api/tokens/multialcance/Default/Local Storage/leveldb/000004.log 
