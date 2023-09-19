@@ -26,7 +26,7 @@ export class WhatsappService {
       eventos.map(
         ({ paciente, terapeuta, localidade, dataInicio, start }: any) =>
           this.sendMessage(
-            paciente.telefone,
+            paciente.telefone.replace(/\D/g, ''),
             paciente.nome,
             paciente.responsavel,
             terapeuta.usuario.nome,
@@ -49,7 +49,7 @@ export class WhatsappService {
     ⚠️ O cancelamento após 24h para o atendimento será cobrado.
     `;
 
-    const to = `55${Number(phoneNumber)}@c.us`; // Substitua pelo número real do destinatário
+    const to = `55${phoneNumber}@c.us`; // Substitua pelo número real do destinatário
 
     await this.venomBotAdapter.sendMessage(
       to,

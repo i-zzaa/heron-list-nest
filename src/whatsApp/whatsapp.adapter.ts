@@ -49,27 +49,29 @@ export class VenomBotAdapter {
     // Lidere com as mensagens recebidas
     this.client.onMessage(async (message: any) => {
       // Lide com a mensagem recebida aqui
-      switch (message.text) {
-        case '1':
-          break;
-        default:
-          var menu =
-            '👋 Olá, como vai? \n\nEm breve estaremos te atendendo. 🥰';
-          this.client
-            .sendText(message.from, menu)
-            .then(() => {})
-            .catch((error) => {
-              fs.writeFileSync(
-                this.logPath,
-                JSON.stringify({
-                  data: new Date(),
-                  message: message.text,
-                  from: message.from,
-                }),
-              );
-            });
+      if (!message.isGroupMsg) {
+        switch (message.text) {
+          case '1':
+            break;
+          default:
+            var menu =
+              '👋 Olá, como vai? \n\nEm breve estaremos te atendendo. 🥰';
+            this.client
+              .sendText(message.from, menu)
+              .then(() => {})
+              .catch((error) => {
+                fs.writeFileSync(
+                  this.logPath,
+                  JSON.stringify({
+                    data: new Date(),
+                    message: message.text,
+                    from: message.from,
+                  }),
+                );
+              });
 
-          break;
+            break;
+        }
       }
     });
   }
