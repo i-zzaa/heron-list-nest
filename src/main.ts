@@ -9,7 +9,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
   const whatsappService = app.get(WhatsappService);
-  await whatsappService.start();
+  process.env.NODE_ENV === 'production' && (await whatsappService.start());
 
   // Configuração da tarefa agendada para executar todos os dias às 12h
   cron.schedule('0 12 * * *', () => {

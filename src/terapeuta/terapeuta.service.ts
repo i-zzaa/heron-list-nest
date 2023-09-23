@@ -254,6 +254,7 @@ export class TerapeutaService {
       }
 
       const dataFim = ev.dataFim || endDate;
+
       const datasRecorrentes = await getDates(
         ev.diasFrequencia,
         ev.dataInicio,
@@ -288,6 +289,10 @@ export class TerapeutaService {
         const dateEvent = new Date(day);
         const dayOfWeek = weekDay[dateEvent.getDay()];
         const horariosTerapeuta = cargaHoraria[dayOfWeek];
+
+        if (!horariosTerapeuta) {
+          return;
+        }
 
         await Promise.all(
           HOURS?.map(async (h) => {
@@ -355,7 +360,7 @@ export class TerapeutaService {
                         if (
                           e.id === sessao.id &&
                           e.paciente.nome === sessao.paciente.nome &&
-                          day === sessao.date &&
+                          // day === sessao.date &&
                           e.data.start === sessao.data.start
                         ) {
                           return e;
