@@ -15,6 +15,7 @@ import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { DEVICE } from 'src/util/util';
 import { messageError } from 'src/util/message.response';
 import { responseError, responseSuccess } from 'src/util/response';
+import { getPrimeiroDoMes, getUltimoDoMes } from 'src/util/format-date';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('evento')
@@ -24,7 +25,7 @@ export class AgendaController {
     private terapeutaService: TerapeutaService,
   ) {}
 
-  @Get('filter/:start/:end')
+  @Get('filtro/:start/:end')
   async getAll(
     @Param('start') start: string,
     @Param('end') end: string,
@@ -32,14 +33,13 @@ export class AgendaController {
     @Response() response: any,
   ) {
     try {
-      let inicioDoMes = start;
-      let ultimoDiaDoMes = end;
-
       if (!req.headers.login) {
         return messageError();
       }
-
       if (Boolean(req.query.terapeutaId)) {
+        let inicioDoMes = start;
+        let ultimoDiaDoMes = end;
+
         const data = await this.terapeutaService.getAvailableTimes(
           inicioDoMes,
           ultimoDiaDoMes,
@@ -108,6 +108,8 @@ export class AgendaController {
 
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
     } catch (error) {
+      console.log(error);
+
       responseError(response);
     }
   }

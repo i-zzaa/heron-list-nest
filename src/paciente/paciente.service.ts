@@ -8,6 +8,7 @@ import {
 } from 'src/util/format-date';
 import { moneyFormat } from 'src/util/util';
 import { PatientCreate, PatientProps } from './paciente.interface';
+import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 
 @Injectable()
 export class PacienteService {
@@ -470,11 +471,33 @@ export class PacienteService {
     });
   }
 
+  async getTerapeutaByEspecialidade() {
+    const user = await this.prismaService.terapeuta.findMany({
+      select: {
+        usuarioId: true,
+        usuario: true,
+        especialidade: true,
+      },
+    });
+
+    const list = await Promise.all(
+      user.map((terapeuta: any) => {
+        return {
+          id: terapeuta.usuario.id,
+          nome: terapeuta.usuario.nome,
+          especialidadeId: terapeuta.especialidade.id,
+        };
+      }),
+    );
+
+    return list;
+  }
+
   async getPatientsEspcialidades(
     statusPacienteCod: string,
     pacienteId: number,
   ) {
-    const vagas: any = await this.prismaService.paciente.findFirstOrThrow({
+    const vagas: any = await this.prismaService.paciente.findUnique({
       select: {
         vaga: {
           include: {
@@ -491,15 +514,12 @@ export class PacienteService {
         },
       },
       where: {
-        id: pacienteId,
+        id: Number(pacienteId),
       },
     });
 
-    const TerapeutaService = require('src/terapeuta/terapeuta.service');
+    const terapeutasAll = await this.getTerapeutaByEspecialidade();
 
-    const terapeutaService = new TerapeutaService();
-
-    const terapeutasAll = await terapeutaService.getTerapeutaByEspecialidade();
     const especialidades: any = await Promise.all(
       vagas.vaga.especialidades.map(
         ({ especialidade: { id, cor, nome } }: any) => {

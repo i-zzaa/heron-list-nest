@@ -3,10 +3,13 @@ import { LocalidadeService } from 'src/localidade/localidade.service';
 import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import {
+  dateAddtDay,
   dateSubtractDay,
   formatDateTime,
+  formatadataPadraoBD,
   getDatesWhiteEvents,
   getPrimeiroDoMes,
+  transformStringInDate,
 } from 'src/util/format-date';
 import { CalendarioCreateParam, ObjProps } from './agenda.interface';
 import { FrequenciaService } from 'src/frequencia/frequencia.service';
@@ -15,7 +18,6 @@ import * as bcrypt from 'bcryptjs';
 import moment from 'moment';
 import { VagaService } from 'src/vaga/vaga.service';
 import { BaixaService } from 'src/baixa/baixa.service';
-import { PacienteService } from 'src/paciente/paciente.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 
 @Injectable()
@@ -827,8 +829,10 @@ export class AgendaService {
       where: { id: event.id },
     });
 
-    const dataInicio = moment(evento.dataInicio);
-    const dataAtual = moment(event.dataAtual);
+    console.log(evento.dataInicio);
+
+    const dataInicio = transformStringInDate(evento.dataInicio);
+    const dataAtual = transformStringInDate(event.dataAtual);
 
     const data = this.formatEvent(event);
 
@@ -838,7 +842,7 @@ export class AgendaService {
 
     if (dataInicio.isBefore(dataAtual)) {
       const usuario = await this.userService.getUser(login);
-      let dataFim = moment(event.dataAtual).add(1, 'days').format('YYYY-MM-DD');
+      let dataFim = dateAddtDay(event.dataAtual, 1);
 
       // se data de inicio já passou, for recorrente e mudar todos
       const [, eventos] = await Promise.all([
@@ -854,7 +858,7 @@ export class AgendaService {
         this.prismaService.calendario.updateMany({
           data: {
             // dataFim: dataAtual.subtract(1, 'day').format('YYYY-MM-DD'),
-            dataFim: dataAtual.subtract(1, 'day').format('YYYY-MM-DD'),
+            dataFim: dateSubtractDay(dataAtual.format('YYYY-MM-DD'), 1),
             statusEventosId: evento.statusEventosId,
           },
           where: {
@@ -899,12 +903,23 @@ export class AgendaService {
         where: { id: Number(eventId) },
       });
 
-      this.vagaService.update({
+      await this.vagaService.update({
         desagendar: [evento.especialidadeId],
         agendar: [],
-        vagaId: evento.paciente?.vaga?.id || 0,
+        vagaId: evento.paciente.vaga.id,
         pacienteId: evento.paciente.id,
         statusPacienteCod: evento.paciente.statusPacienteCod,
+      });
+
+      console.log(evento.paciente.vaga.id);
+
+      await this.prismaService.vaga.update({
+        data: {
+          naFila: true,
+        },
+        where: {
+          id: evento.paciente.vaga.id,
+        },
       });
 
       return await this.prismaService.calendario.deleteMany({

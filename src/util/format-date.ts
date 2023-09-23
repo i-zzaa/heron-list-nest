@@ -84,7 +84,8 @@ export function getDates(
   // console.log(startDate, endDate);
   // Defina a data de início e a data final como objetos moment
   const start = momentBusinessDays(startDate); //.subtract(1);
-  const end = momentBusinessDays(endDate).add(1);
+  const end = momentBusinessDays(endDate);
+  // const end = momentBusinessDays(endDate).add(1, 'days');
 
   // Defina um objeto moment para a próxima ocorrência do dia da semana especificado após a data de início
   let dataAtual = start;
@@ -92,6 +93,7 @@ export function getDates(
   // Itere enquanto a data atual for menor ou igual à data final
   while (dataAtual.isSameOrBefore(end)) {
     // Adicione a data atual à matriz de datas
+
     if (diasDaSemana.length) {
       let diasPercorridos = 1;
       diasDaSemana.map((day: string) => {
@@ -102,14 +104,14 @@ export function getDates(
         }
       });
 
-      if (diasPercorridos > 1) dataAtual.businessSubtract(diasPercorridos);
+      if (diasPercorridos > 1) dataAtual.businessSubtract(diasPercorridos - 1);
     } else {
       datas.push(dataAtual.format('YYYY-MM-DD'));
     }
 
     switch (intervaloSemana) {
       case 1:
-        dataAtual = dataAtual.businessAdd(5);
+        dataAtual = dataAtual.businessAdd(4);
         break;
       case 2:
         dataAtual = dataAtual.businessAdd(10);
@@ -141,8 +143,19 @@ export const formatDateTime = (hours: any, date: any) => {
     .format('YYYY-MM-DD HH:mm');
 };
 
+export const formatDateHours = (hours: any, date: any) => {
+  const arrTime = hours.split(':');
+  return moment(date)
+    .add(arrTime[0], 'hours')
+    .add(arrTime[1], 'minutes')
+    .format('DD/MM/YY HH:mm');
+};
+
 export const dateSubtractDay = (date: string, subDay: number) => {
   return moment(date).subtract(subDay, 'days').format('YYYY-MM-DD');
+};
+export const dateAddtDay = (date: string, subDay: number) => {
+  return moment(date).add(subDay, 'days').format('YYYY-MM-DD');
 };
 
 export const getPrimeiroDoMes = (ano: number, mes: number) => {
@@ -157,6 +170,8 @@ export const formatadataPadraoBD = (date: any) => {
   const _date = new Date(date);
   return moment(_date).format('YYYY-MM-DD');
 };
+
+export const transformStringInDate = (date: string) => moment(date);
 
 export const calculaData = (data1: any, data2: any) => {
   const dataAtual = moment(data1);
@@ -254,12 +269,4 @@ export const formaTime = (duration: any) => {
 
 export const getDateBeforeDay = (days: number) => {
   return momentBusinessDays().businessAdd(days).format('YYYY-MM-DD');
-};
-
-export const formatDateHours = (hours: any, date: any) => {
-  const arrTime = hours.split(':');
-  return moment(date)
-    .add(arrTime[0], 'hours')
-    .add(arrTime[1], 'minutes')
-    .format('DD/MM/YY HH:mm');
 };

@@ -14,7 +14,8 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { PacienteService } from './paciente.service';
 import { PatientCreate, PatientProps } from './paciente.interface';
-import { responseSuccess, responseError } from 'src/util/response';
+import { responseSuccess, responseError, MESSAGE } from 'src/util/response';
+import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('paciente')
@@ -25,7 +26,7 @@ export class PacienteController {
   async create(@Body() body: PatientCreate, @Response() response: any) {
     try {
       const data = await this.pacienteService.create(body);
-      responseSuccess(response, data);
+      responseSuccess(response, data, MESSAGE.cadastro_sucesso);
     } catch (error) {
       responseError(response);
     }
@@ -35,7 +36,7 @@ export class PacienteController {
   async update(@Body() body: PatientProps, @Response() response: any) {
     try {
       const data = await this.pacienteService.update(body);
-      responseSuccess(response, data);
+      responseSuccess(response, data, MESSAGE.atualizacao_sucesso);
     } catch (error) {
       responseError(response);
     }
@@ -94,39 +95,6 @@ export class PacienteController {
     }
   }
 
-  @Get()
-  async getAll(@Request() req: any, @Response() response: any) {
-    try {
-      const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
-      const data = await this.pacienteService.getAll(req.query, page, pageSize);
-
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
-  @Get(':search')
-  async search(@Param('search') search: string, @Response() response: any) {
-    try {
-      const data = await this.pacienteService.search(search);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
-  @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
-    try {
-      const data = await this.pacienteService.delete(id);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
-
   @Get('dashboard')
   async getPatientsActived(@Response() response: any) {
     try {
@@ -154,11 +122,44 @@ export class PacienteController {
     }
   }
 
+  @Get(':search')
+  async search(@Param('search') search: string, @Response() response: any) {
+    try {
+      const data = await this.pacienteService.search(search);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get()
+  async getAll(@Request() req: any, @Response() response: any) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const pageSize = Number(req.query.pageSize) || 10;
+      const data = await this.pacienteService.getAll(req.query, page, pageSize);
+
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Delete(':id')
+  async delete(@Param() id: number, @Response() response: any) {
+    try {
+      const data = await this.pacienteService.delete(id);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Put('desabilitar')
   async updateDisabled(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.pacienteService.updateDisabled(body);
-      responseSuccess(response, data);
+      responseSuccess(response, data, MESSAGE.desabilitado_sucesso);
     } catch (error) {
       responseError(response);
     }
