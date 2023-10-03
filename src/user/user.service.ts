@@ -115,9 +115,11 @@ export class UserService {
 
         if (usuario?.terapeuta?.funcoes) {
           usuario.comissao = usuario?.terapeuta?.funcoes.map((funcao: any) => {
+            const valor = parseFloat(funcao.comissao.replace(',', '.'));
+
             const comissao =
               funcao.tipo === 'Fixo'
-                ? moneyFormat.format(parseFloat(funcao.comissao))
+                ? moneyFormat.format(valor)
                 : funcao.comissao;
 
             return {
