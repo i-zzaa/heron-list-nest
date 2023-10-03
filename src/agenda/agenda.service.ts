@@ -766,7 +766,7 @@ export class AgendaService {
   async updateEventoRecorrentes(event: any, login: string) {
     const data = this.formatEvent(event);
 
-    let dataFim = dateSubtractDay(event.dataAtual, 1);
+    let dataFim = event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
 
     const statusEventos = event.statusEventos.nome.toLowerCase();
     const isCanceled =
