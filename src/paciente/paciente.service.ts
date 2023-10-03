@@ -29,7 +29,7 @@ export class PacienteService {
           page,
           pageSize,
           [STATUS_PACIENT_COD.queue_devolutiva],
-          false,
+          true,
         );
       case STATUS_PACIENT_COD.queue_therapy:
         return this.getPatientsQueue(page, pageSize, [
