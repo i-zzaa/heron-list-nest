@@ -169,21 +169,22 @@ export class VagaService {
 
           return isQueueAvaliation;
         case STATUS_PACIENT_COD.queue_devolutiva:
-          const [, , , isQueueDevolutiva] = await Promise.all([
+          await this.prismaService.vaga.update({
+            data: {
+              dataRetorno: dataAgendado,
+              naFila: true,
+            },
+            where: {
+              id: body.vagaId,
+            },
+          });
+
+          const [, , isQueueDevolutiva] = await Promise.all([
             this.removeEvents(
               body.pacienteId,
               body.statusPacienteCod,
               body.desagendar,
             ),
-            this.prismaService.vaga.update({
-              data: {
-                dataRetorno: dataAgendado,
-                naFila: true,
-              },
-              where: {
-                id: body.vagaId,
-              },
-            }),
 
             this.prismaService.vagaOnEspecialidade.updateMany({
               data: {
@@ -303,7 +304,7 @@ export class VagaService {
         },
       });
 
-    naFila = vagaOnEspecialidade._count.especialidadeId > 0;
+    naFila = vagaOnEspecialidade._count.especialidadeId !== 0;
 
     if (!naFila) {
       const { dataContato }: any =
@@ -319,7 +320,7 @@ export class VagaService {
       const diff = calculaData(dataAgendado, dataContato);
       await this.prismaService.vaga.update({
         data: {
-          naFila: naFila,
+          // naFila: naFila,
           dataSaiuFila: dataAgendado,
           diff: diff.toString(),
         },
