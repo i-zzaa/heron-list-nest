@@ -210,10 +210,11 @@ export class PacienteService {
 
           const sessao = await Promise.all(
             especialidades.map((especialidade: any) => {
+              const valor = parseFloat(especialidade.valor.replace(',', '.'));
               return {
                 especialidade: especialidade.especialidade.nome,
                 especialidadeId: especialidade.especialidadeId,
-                valor: moneyFormat.format(parseFloat(especialidade.valor)),
+                valor: moneyFormat.format(valor),
               };
             }),
           );

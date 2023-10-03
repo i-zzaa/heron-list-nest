@@ -31,10 +31,10 @@ export class TerapeutaService {
     },
     especialidade: {
       id: 2,
-      nome: 'Fono',
+      nome: '-',
     },
     terapeuta: {
-      nome: 'TERAPEUTA FONO',
+      nome: '-',
       id: 5,
     },
     funcao: {
@@ -42,11 +42,11 @@ export class TerapeutaService {
       id: 2,
     },
     localidade: {
-      nome: 'Casa 1 - Sala 2',
+      nome: '-',
       id: 2,
     },
     statusEventos: {
-      nome: 'Confirmar',
+      nome: '-',
       id: 1,
     },
     frequencia: {
@@ -64,6 +64,10 @@ export class TerapeutaService {
     endTime: '21:55',
     borderColor: 'green',
     backgroundColor: 'green',
+    icon: 'pi pi-calendar',
+    color: 'green',
+    disabled: true,
+    isDevolutiva: false,
     rrule: {
       freq: 'weekly',
       dtstart: '2023-02-24 20:55',
@@ -231,6 +235,9 @@ export class TerapeutaService {
             },
           ],
         },
+        orderBy: {
+          dataInicio: 'asc',
+        },
       }),
       getDatesBetween(startDate, endDate),
     ]);
@@ -316,10 +323,6 @@ export class TerapeutaService {
                 nome: terapeuta?.usuario?.nome || '',
                 id: terapeuta?.usuario?.id || '',
               },
-              localidade: { nome: 'Sem Localizacao', id: 0 },
-              statusEventos: { nome: 'Não criado', id: 0 },
-              disabled: true,
-              isDevolutiva: false,
               rrule: {
                 dtstart: date.format('YYYY-MM-DD HH:mm'),
                 until: hoursFinal.format('YYYY-MM-DD HH:mm'),
@@ -381,6 +384,9 @@ export class TerapeutaService {
                         isInPast ||
                         sessao.statusEventos.nome.includes('permanente') ||
                         sessao.statusEventos.nome == 'Atendido';
+
+                      sessao.icon = 'pi pi-calendar';
+                      sessao.color = '#FACC15';
 
                       if (Boolean(mobileArray[day])) {
                         mobileArray[day].push(sessao);
