@@ -90,7 +90,19 @@ export class UserService {
 
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
-    const data = await Promise.all(
+    const data = await this.formatUsers(usuarios);
+
+    const pagination = {
+      currentPage: page,
+      pageSize,
+      totalPages,
+    };
+
+    return { data, pagination };
+  }
+
+  async formatUsers(usuarios: any) {
+    return await Promise.all(
       usuarios.map((usuario: any) => {
         const funcoesId = usuario?.terapeuta?.funcoes.map((funcao: any) => {
           return {
@@ -139,14 +151,6 @@ export class UserService {
         };
       }),
     );
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
-
-    return { data, pagination };
   }
 
   async getUser(login: string) {
@@ -170,7 +174,7 @@ export class UserService {
   }
 
   async search(word: string) {
-    return await this.prismaService.usuario.findMany({
+    const usuarios: any = await this.prismaService.usuario.findMany({
       select: {
         id: true,
         nome: true,
@@ -178,10 +182,28 @@ export class UserService {
         perfil: true,
         ativo: true,
         permissoes: {
-          select: {
-            permissaoId: true,
+          include: {
+            permissao: true,
           },
         },
+        terapeuta: {
+          include: {
+            especialidade: {
+              select: {
+                nome: true,
+                id: true,
+              },
+            },
+            funcoes: {
+              include: {
+                funcao: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        nome: 'asc',
       },
       where: {
         OR: [
@@ -202,10 +224,11 @@ export class UserService {
           },
         },
       },
-      orderBy: {
-        createdAt: 'asc',
-      },
     });
+
+    const data = await this.formatUsers(usuarios);
+
+    return data;
   }
 
   async createTerapeuta(body: any, id: number) {
