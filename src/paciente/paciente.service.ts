@@ -143,9 +143,10 @@ export class PacienteService {
       }),
       this.prismaService.paciente.count(),
     ]);
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
+
+    const totalPages = Math.ceil(pacientes.length / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
@@ -694,9 +695,8 @@ export class PacienteService {
       this.prismaService.paciente.count(),
     ]);
 
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
     const pacientes: any = data.length ? await this.formatPatients(data) : [];
+    const totalPages = Math.ceil(pacientes.length / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
