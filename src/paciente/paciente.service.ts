@@ -140,6 +140,9 @@ export class PacienteService {
             naFila: naFila,
           },
         },
+        orderBy: {
+          nome: 'asc',
+        },
       }),
       this.prismaService.paciente.count(),
     ]);
@@ -686,10 +689,14 @@ export class PacienteService {
             },
           },
         },
+        // orderBy: {
+        //   vaga: {
+        //     dataContato: 'asc',
+        //   },
+        // },
+
         orderBy: {
-          vaga: {
-            dataContato: 'asc',
-          },
+          nome: 'asc',
         },
       }),
       this.prismaService.paciente.count(),
