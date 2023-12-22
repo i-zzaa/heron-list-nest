@@ -176,6 +176,7 @@ export class UserService {
         nome: true,
         login: true,
         perfil: true,
+        ativo: true,
         permissoes: {
           select: {
             permissaoId: true,

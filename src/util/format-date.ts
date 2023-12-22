@@ -32,6 +32,7 @@ export const weekDay = [
 ];
 
 export const HOURS = [
+  '07:00',
   '08:00',
   '09:00',
   '10:00',
