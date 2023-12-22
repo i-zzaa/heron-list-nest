@@ -246,6 +246,8 @@ export class TerapeutaService {
       throw new Error('Terapeuta não encontrado');
     }
 
+    console.log(events);
+
     const eventosFormat = await this.agendaService.formatEvents(events, login);
 
     const eventosFormatados: any = {};
