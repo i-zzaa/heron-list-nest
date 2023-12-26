@@ -106,6 +106,8 @@ export class PacienteService {
     statusPacienteCod: string[],
     naFila?: boolean,
   ) {
+    const skip = (page - 1) * pageSize;
+
     const [data, totalItems] = await Promise.all([
       this.prismaService.paciente.findMany({
         select: {
@@ -143,13 +145,15 @@ export class PacienteService {
         orderBy: {
           nome: 'asc',
         },
+        skip,
+        take: pageSize,
       }),
       this.prismaService.paciente.count(),
     ]);
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
 
-    const totalPages = Math.ceil(pacientes.length / pageSize); // Calcula o total de páginas
+    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
@@ -644,6 +648,8 @@ export class PacienteService {
     statusPacienteCod: string[],
     body: any,
   ) {
+    const skip = (page - 1) * pageSize;
+
     const [data, totalItems] = await Promise.all([
       this.prismaService.paciente.findMany({
         select: {
@@ -698,12 +704,14 @@ export class PacienteService {
         orderBy: {
           nome: 'asc',
         },
+        skip,
+        take: pageSize,
       }),
       this.prismaService.paciente.count(),
     ]);
 
     const pacientes: any = data.length ? await this.formatPatients(data) : [];
-    const totalPages = Math.ceil(pacientes.length / pageSize); // Calcula o total de páginas
+    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
