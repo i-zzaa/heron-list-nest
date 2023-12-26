@@ -144,4 +144,35 @@ export class ProgramaService {
       },
     });
   }
+
+  async dropdown() {
+    const result = await this.prismaService.programa.findMany({
+      select: {
+        id: true,
+        nome: true,
+        atividades: true,
+        ativo: true,
+      },
+      where: {
+        ativo: true,
+      },
+    });
+
+    result.map((item: any) => {
+      const atividades = JSON.parse(item.atividades);
+
+      item.children = atividades.map((ativo: any) => {
+        return {
+          label: ativo.nome,
+          key: ativo.id,
+          data: ativo.id,
+        };
+      });
+      item.key = item.id;
+      item.label = item.nome;
+      item.data = item.id;
+    });
+
+    return result;
+  }
 }

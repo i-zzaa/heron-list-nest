@@ -41,6 +41,7 @@ model Paciente {
   updateAt          DateTime            @default(now())
   pacienteHistorico PacienteHistorico[]
   Baixa             Baixa[]
+  Sessao            Sessao[]
 }
 
 model StatusPaciente {
@@ -101,6 +102,7 @@ model Especialidade {
   calendario Calendario[]
   terapeuta  Terapeuta[]
   vagas      VagaOnEspecialidade[]
+  Sessao     Sessao[]
 }
 
 model Status {
@@ -212,6 +214,7 @@ model Terapeuta {
 
   funcoes TerapeutaOnFuncao[]
   Baixa   Baixa[]
+  Sessao  Sessao[]
 }
 
 model TerapeutaOnFuncao {
@@ -266,6 +269,7 @@ model Calendario {
   frequencia    Frequencia    @relation(fields: [frequenciaId], references: [id])
   intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
   usuario       Usuario       @relation(fields: [usuarioId], references: [id])
+  Sessao        Sessao[]
 }
 
 model Permissao {
@@ -323,4 +327,25 @@ model Programa {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+  Sessao    Sessao[]
+}
+
+model Sessao {
+  id                 Int    @id @default(autoincrement())
+  resumo             String
+  pacienteId         Int
+  programaId         Int
+  atividadeId        Int?
+  calendarioId       Int
+  especialidadeId    Int
+  terapeutaUsuarioId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  paciente      Paciente      @relation(fields: [pacienteId], references: [id])
+  programa      Programa?     @relation(fields: [programaId], references: [id])
+  evento        Calendario?   @relation(fields: [calendarioId], references: [id])
+  terapeuta     Terapeuta     @relation(fields: [terapeutaUsuarioId], references: [usuarioId])
+  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
 }

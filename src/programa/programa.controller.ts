@@ -21,6 +21,16 @@ import { ProgramaService } from './programa.service';
 export class ProgramaController {
   constructor(private programaService: ProgramaService) {}
 
+  @Get('dropdown')
+  async dropdown(@Response() response: any) {
+    try {
+      const data = await this.programaService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Get()
   async getAll(@Request() req: any, @Response() response: any) {
     try {
