@@ -27,6 +27,7 @@ import { TerapeutaModule } from './terapeuta/terapeuta.module';
 import { BaixaModule } from './baixa/baixa.module';
 import { WhatsappModule } from './whatsApp/whatsApp.module';
 import { ProgramaModule } from './programa/programa.module';
+import { SessaoModule } from './sessao/sessao.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { ProgramaModule } from './programa/programa.module';
     BaixaModule,
     WhatsappModule,
     ProgramaModule,
+    SessaoModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],
