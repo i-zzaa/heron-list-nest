@@ -25,7 +25,15 @@ export class SessaoService {
           },
         },
         atividadeId: true,
-        terapeuta: true,
+        terapeuta: {
+          select: {
+            usuario: {
+              select: {
+                nome: true,
+              },
+            },
+          },
+        },
       },
       where: {
         pacienteId: Number(pacienteId),
@@ -37,6 +45,17 @@ export class SessaoService {
   async create(body: any) {
     return await this.prismaService.sessao.create({
       data: body,
+    });
+  }
+
+  async createProtocolo(body: any) {
+    return await this.prismaService.protocolo.create({
+      data: {
+        programaId: body.programaId,
+        atividadeId: body.atividadeId,
+        pacienteId: body.pacienteId,
+        terapeutaId: body.terapeutaId,
+      },
     });
   }
 
@@ -57,5 +76,25 @@ export class SessaoService {
         id: Number(id),
       },
     });
+  }
+
+  async getRepeticoes(pacienteId: number) {
+    const data = await this.prismaService.sessaoPrograma.findMany({
+      select: {
+        id: true,
+        paciente: {
+          select: {
+            nome: true,
+            responsavel: true,
+          },
+        },
+        programa: true,
+        atividadeId: true,
+      },
+      where: {
+        pacienteId: Number(pacienteId),
+      },
+    });
+    return data;
   }
 }
