@@ -61,14 +61,17 @@ export class AgendaService {
     const eventosFormat = await Promise.all(
       eventos.map((evento: any) => {
         let formated: any = {};
-        const cor =
-          evento.statusEventos.nome.includes('Cancelado') ||
-          evento.statusEventos.nome.includes('cancelado')
-            ? '#f87171'
-            : evento.especialidade.cor;
+
+        const statusEventos = evento.statusEventos.nome.toLowerCase();
+
+        const cor = statusEventos.includes('cancelado')
+          ? '#f87171'
+          : evento.especialidade.cor;
         delete evento.especialidade.cor;
 
-        evento.borderColor = `border-${evento.especialidade.nome.toLowerCase()}`;
+        evento.borderColor = statusEventos.includes('cancelado')
+          ? 'cancelado'
+          : `border-${evento.especialidade.nome.toLowerCase()}`;
 
         evento.localidade = {
           nome: this.localidadadeService.formatLocalidade(evento.localidade),
