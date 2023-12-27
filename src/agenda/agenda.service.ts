@@ -68,6 +68,8 @@ export class AgendaService {
             : evento.especialidade.cor;
         delete evento.especialidade.cor;
 
+        evento.borderColor = `border-${evento.especialidade.nome.toLowerCase()}`;
+
         evento.localidade = {
           nome: this.localidadadeService.formatLocalidade(evento.localidade),
           id: evento.localidade.id,
@@ -106,7 +108,7 @@ export class AgendaService {
               isChildren: evento.isChildren,
               startTime: evento.start,
               endTime: evento.end,
-              borderColor: cor,
+              // borderColor: cor,
               backgroundColor: cor,
               rrule: {
                 freq: 'weekly',
@@ -132,7 +134,7 @@ export class AgendaService {
               },
               title: evento.paciente.nome,
               groupId: evento.groupId,
-              borderColor: cor,
+              // borderColor: cor,
               backgroundColor: cor,
               isChildren: evento.isChildren,
               rrule: {
@@ -161,7 +163,7 @@ export class AgendaService {
               date: evento.dataInicio,
               start: formatDateTime(evento.start, evento.dataInicio),
               end: formatDateTime(evento.end, evento.dataInicio),
-              borderColor: cor,
+              // borderColor: cor,
               backgroundColor: cor,
               allDay: false,
               isChildren: evento.isChildren,
