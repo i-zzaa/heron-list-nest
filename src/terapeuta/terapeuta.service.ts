@@ -246,8 +246,6 @@ export class TerapeutaService {
       throw new Error('Terapeuta não encontrado');
     }
 
-    console.log(events);
-
     const eventosFormat = await this.agendaService.formatEvents(events, login);
 
     const eventosFormatados: any = {};
@@ -415,7 +413,15 @@ export class TerapeutaService {
       }),
     );
 
-    return device === DEVICE.mobile ? mobileArray : webArray;
+    const mobileSort = {};
+
+    Object.keys(mobileArray).map((key: string) => {
+      mobileSort[key] = mobileArray[key].sort((a, b) =>
+        a.data.start.localeCompare(b.data.start),
+      );
+    });
+
+    return device === DEVICE.mobile ? mobileSort : webArray;
   }
 
   async getTerapeutaByEspecialidade() {
