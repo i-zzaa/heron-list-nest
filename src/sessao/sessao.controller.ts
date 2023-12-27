@@ -30,6 +30,26 @@ export class SessaoController {
     }
   }
 
+  @Get('programa/:id')
+  async getRepeticoes(@Param('id') id: number, @Response() response: any) {
+    try {
+      const data = await this.sessaoService.getRepeticoes(id);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Post('protocolo')
+  async createProtocolo(@Body() body: any, @Response() response: any) {
+    try {
+      const data = await this.sessaoService.createProtocolo(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Post()
   async create(@Body() body: any, @Response() response: any) {
     try {

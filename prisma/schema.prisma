@@ -42,6 +42,7 @@ model Paciente {
   pacienteHistorico PacienteHistorico[]
   Baixa             Baixa[]
   Sessao            Sessao[]
+  SessaoPrograma    SessaoPrograma[]
 }
 
 model StatusPaciente {
@@ -212,9 +213,10 @@ model Terapeuta {
   especialidade Especialidade? @relation(fields: [especialidadeId], references: [id])
   calendario    Calendario[]
 
-  funcoes TerapeutaOnFuncao[]
-  Baixa   Baixa[]
-  Sessao  Sessao[]
+  funcoes   TerapeutaOnFuncao[]
+  Baixa     Baixa[]
+  Sessao    Sessao[]
+  Protocolo Protocolo[]
 }
 
 model TerapeutaOnFuncao {
@@ -325,27 +327,59 @@ model Programa {
   atividades Json
   ativo      Boolean @default(true)
 
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now())
+  Sessao         Sessao[]
+  SessaoPrograma SessaoPrograma[]
+  Protocolo      Protocolo[]
+}
+
+model Protocolo {
+  id          Int  @id @default(autoincrement())
+  programaId  Int
+  atividadeId Int?
+  pacienteId  Int
+  terapeutaId Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
-  Sessao    Sessao[]
+
+  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
+  programa  Programa?  @relation(fields: [programaId], references: [id])
 }
 
 model Sessao {
-  id                 Int    @id @default(autoincrement())
-  resumo             String
-  pacienteId         Int
-  programaId         Int
-  atividadeId        Int?
-  calendarioId       Int
-  especialidadeId    Int
-  terapeutaUsuarioId Int
+  id              Int    @id @default(autoincrement())
+  resumo          String
+  pacienteId      Int
+  programaId      Int
+  atividadeId     Int?
+  calendarioId    Int
+  especialidadeId Int
+  terapeutaId     Int
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
-  paciente      Paciente      @relation(fields: [pacienteId], references: [id])
-  programa      Programa?     @relation(fields: [programaId], references: [id])
-  evento        Calendario?   @relation(fields: [calendarioId], references: [id])
-  terapeuta     Terapeuta     @relation(fields: [terapeutaUsuarioId], references: [usuarioId])
-  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
+  paciente       Paciente         @relation(fields: [pacienteId], references: [id])
+  programa       Programa?        @relation(fields: [programaId], references: [id])
+  evento         Calendario?      @relation(fields: [calendarioId], references: [id])
+  terapeuta      Terapeuta        @relation(fields: [terapeutaId], references: [usuarioId])
+  especialidade  Especialidade    @relation(fields: [especialidadeId], references: [id])
+  SessaoPrograma SessaoPrograma[]
+}
+
+model SessaoPrograma {
+  id          Int      @id @default(autoincrement())
+  atividadeId Int?
+  repeticoes  Json
+  sessaoId    Int
+  programaId  Int
+  pacienteId  Int
+  sessao      Sessao   @relation(fields: [sessaoId], references: [id])
+  programa    Programa @relation(fields: [programaId], references: [id])
+  paciente    Paciente @relation(fields: [pacienteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
