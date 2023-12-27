@@ -30,10 +30,10 @@ export class SessaoController {
     }
   }
 
-  @Get('programa/:id')
-  async getRepeticoes(@Param('id') id: number, @Response() response: any) {
+  @Get('protocolo/:id')
+  async getProtocolo(@Param('id') id: number, @Response() response: any) {
     try {
-      const data = await this.sessaoService.getRepeticoes(id);
+      const data = await this.sessaoService.getProtocolo(id);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

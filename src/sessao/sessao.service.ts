@@ -51,9 +51,9 @@ export class SessaoService {
   async createProtocolo(body: any) {
     return await this.prismaService.protocolo.create({
       data: {
-        atividadeNome: body.atividadeNome,
+        atividadeNome: body.atividade.nome,
         programaId: body.programaId,
-        atividadeId: body.atividadeId,
+        atividadeId: body.atividade.id,
         pacienteId: body.pacienteId,
         terapeutaId: body.terapeutaId,
       },
@@ -79,56 +79,49 @@ export class SessaoService {
     });
   }
 
-  async getRepeticoes(pacienteId: number) {
-    const result = await this.prismaService.sessaoPrograma.findMany({
+  async getProtocolo(pacienteId: number) {
+    const result = await this.prismaService.protocolo.findMany({
       select: {
         id: true,
         paciente: true,
-        sessaoId: true,
         programa: true,
         atividadeId: true,
+        atividadeNome: true,
       },
       where: {
         pacienteId: Number(pacienteId),
       },
     });
 
+    const group = {};
     result.map((item: any, index: number) => {
-      // const atividades = JSON.parse(item.atividades);
-
-      // item.children = atividades.map((ativo: any, key: number) => {
-      //   return {
-      //     label: ativo.nome,
-      //     key: `${item.id}-${ativo.id}`,
-      //     data: ativo.nome,
-      //     id: ativo.id,
-      //   };
-      // });
-      item.key = `${item.id}`;
-      item.label = item.programa.nome;
-      item.data = item.nome;
-      item.id = item.id;
-      item.partialChecked = true;
+      if (group[item.programa.id]) {
+        group[item.programa.id].children.push({
+          label: item.atividadeNome,
+          key: `${item.id}-${item.atividadeId}`,
+          data: item.atividadeNome,
+          id: item.atividadeId,
+        });
+      } else {
+        group[item.programa.id] = {
+          key: `${item.id}`,
+          label: item.programa.nome,
+          data: item.programa.nome,
+          id: item.programa.id,
+          children: [
+            {
+              label: item.atividadeNome,
+              key: `${item.id}-${item.atividadeId}`,
+              data: item.atividadeNome,
+              id: item.atividadeId,
+            },
+          ],
+        };
+      }
     });
 
-    return result;
+    const arrayDeValores = Object.keys(group).map((key) => group[key]);
 
-    const data = await this.prismaService.sessaoPrograma.findMany({
-      select: {
-        id: true,
-        paciente: {
-          select: {
-            nome: true,
-            responsavel: true,
-          },
-        },
-        programa: true,
-        atividadeId: true,
-      },
-      where: {
-        pacienteId: Number(pacienteId),
-      },
-    });
-    return data;
+    return arrayDeValores;
   }
 }

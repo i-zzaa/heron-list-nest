@@ -43,6 +43,7 @@ model Paciente {
   Baixa             Baixa[]
   Sessao            Sessao[]
   SessaoPrograma    SessaoPrograma[]
+  Protocolo         Protocolo[]
 }
 
 model StatusPaciente {
@@ -339,14 +340,15 @@ model Protocolo {
   programaId    Int
   atividadeId   Int?
   atividadeNome String?
-  pacienteId    Int
   terapeutaId   Int?
+  pacienteId    Int
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
   terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
   programa  Programa?  @relation(fields: [programaId], references: [id])
+  paciente  Paciente   @relation(fields: [pacienteId], references: [id])
 }
 
 model Sessao {
