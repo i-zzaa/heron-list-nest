@@ -51,6 +51,7 @@ export class SessaoService {
   async createProtocolo(body: any) {
     return await this.prismaService.protocolo.create({
       data: {
+        atividadeNome: body.atividadeNome,
         programaId: body.programaId,
         atividadeId: body.atividadeId,
         pacienteId: body.pacienteId,
@@ -79,6 +80,39 @@ export class SessaoService {
   }
 
   async getRepeticoes(pacienteId: number) {
+    const result = await this.prismaService.sessaoPrograma.findMany({
+      select: {
+        id: true,
+        paciente: true,
+        sessaoId: true,
+        programa: true,
+        atividadeId: true,
+      },
+      where: {
+        pacienteId: Number(pacienteId),
+      },
+    });
+
+    result.map((item: any, index: number) => {
+      // const atividades = JSON.parse(item.atividades);
+
+      // item.children = atividades.map((ativo: any, key: number) => {
+      //   return {
+      //     label: ativo.nome,
+      //     key: `${item.id}-${ativo.id}`,
+      //     data: ativo.nome,
+      //     id: ativo.id,
+      //   };
+      // });
+      item.key = `${item.id}`;
+      item.label = item.programa.nome;
+      item.data = item.nome;
+      item.id = item.id;
+      item.partialChecked = true;
+    });
+
+    return result;
+
     const data = await this.prismaService.sessaoPrograma.findMany({
       select: {
         id: true,
