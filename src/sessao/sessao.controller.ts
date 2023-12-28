@@ -31,9 +31,25 @@ export class SessaoController {
   }
 
   @Get('protocolo/:id')
-  async getProtocolo(@Param('id') id: number, @Response() response: any) {
+  async getProtocoloByPacient(
+    @Param('id') id: number,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.sessaoService.getProtocolo(id);
+      const data = await this.sessaoService.getProtocoloByPacient(id);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('atividade/:id')
+  async getAtividadeSessaoByPacient(
+    @Param('id') id: number,
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.sessaoService.getAtividadeSessaoByPacient(id);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
@@ -44,6 +60,16 @@ export class SessaoController {
   async createProtocolo(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.sessaoService.createProtocolo(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Post('atividadeSessao')
+  async createAtividadeSessao(@Body() body: any, @Response() response: any) {
+    try {
+      const data = await this.sessaoService.createAtividadeSessao(body);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
