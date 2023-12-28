@@ -10,26 +10,24 @@ export class SessaoService {
       select: {
         id: true,
         resumo: true,
+        sessao: true,
         paciente: {
           select: {
             nome: true,
             responsavel: true,
           },
         },
-        programa: true,
         evento: {
           select: {
             especialidade: true,
             dataInicio: true,
-            terapeuta: true,
-          },
-        },
-        atividadeId: true,
-        terapeuta: {
-          select: {
-            usuario: {
+            terapeuta: {
               select: {
-                nome: true,
+                usuario: {
+                  select: {
+                    nome: true,
+                  },
+                },
               },
             },
           },
@@ -39,7 +37,35 @@ export class SessaoService {
         pacienteId: Number(pacienteId),
       },
     });
-    return data;
+
+    const result = await Promise.all(
+      data.map(async (item: any) => {
+        const sessoes = JSON.parse(item.sessao);
+        item.sessoes = await Promise.all(
+          sessoes.map((sessao: any) => {
+            sessao.children.map((children: any) => {
+              const consecutive3 =
+                children.loop[0] && children.loop[1] && children.loop[2];
+              const trueCount = children.loop.filter(
+                (child: any) => !!child,
+              ).length;
+
+              children.porcentagem = consecutive3
+                ? 100
+                : (trueCount / children.loop.length) * 100;
+
+              return children;
+            });
+
+            return sessao;
+          }),
+        );
+
+        return item;
+      }),
+    );
+
+    return result;
   }
 
   async create(body: any) {
@@ -49,14 +75,14 @@ export class SessaoService {
   }
 
   async createProtocolo(body: any) {
-    return await this.prismaService.protocolo.create({
-      data: {
-        atividadeNome: body.atividade.nome,
-        programaId: body.programaId,
-        atividadeId: body.atividade.id,
-        pacienteId: body.pacienteId,
-        terapeutaId: body.terapeutaId,
-      },
+    return await this.prismaService.protocolo.createMany({
+      data: body,
+    });
+  }
+
+  async createAtividadeSessao(body: any) {
+    return await this.prismaService.atividadeSessao.createMany({
+      data: body,
     });
   }
 
@@ -79,49 +105,68 @@ export class SessaoService {
     });
   }
 
-  async getProtocolo(pacienteId: number) {
-    const result = await this.prismaService.protocolo.findMany({
+  async getProtocoloByPacient(pacienteId: number) {
+    const result: any = await this.prismaService.protocolo.findMany({
       select: {
         id: true,
-        paciente: true,
-        programa: true,
-        atividadeId: true,
-        atividadeNome: true,
+        protocolo: true,
+        protocoloSet: true,
       },
       where: {
         pacienteId: Number(pacienteId),
       },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
 
-    const group = {};
-    result.map((item: any, index: number) => {
-      if (group[item.programa.id]) {
-        group[item.programa.id].children.push({
-          label: item.atividadeNome,
-          key: `${item.id}-${item.atividadeId}`,
-          data: item.atividadeNome,
-          id: item.atividadeId,
-        });
-      } else {
-        group[item.programa.id] = {
-          key: `${item.id}`,
-          label: item.programa.nome,
-          data: item.programa.nome,
-          id: item.programa.id,
-          children: [
-            {
-              label: item.atividadeNome,
-              key: `${item.id}-${item.atividadeId}`,
-              data: item.atividadeNome,
-              id: item.atividadeId,
-            },
-          ],
-        };
-      }
+    const last = result.at(-1);
+    return {
+      ...last,
+      protocolo: JSON.parse(last.protocolo),
+      protocoloSet: JSON.parse(last.protocoloSet),
+    };
+  }
+
+  async getAtividadeSessaoByPacient(pacienteId: number) {
+    const result: any = await this.prismaService.atividadeSessao.findMany({
+      select: {
+        id: true,
+        atividadeSessao: true,
+        atividadeSessaoSet: true,
+      },
+      where: {
+        pacienteId: Number(pacienteId),
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
 
-    const arrayDeValores = Object.keys(group).map((key) => group[key]);
+    const last = result.at(-1);
+    const atividadeSessao = JSON.parse(last.atividadeSessao);
 
-    return arrayDeValores;
+    atividadeSessao.map((task: any) => {
+      task.children.map((child: any) => {
+        child.loop = [
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+          'no value',
+        ];
+      });
+    });
+
+    return {
+      ...last,
+      atividadeSessao,
+      atividadeSessaoSet: JSON.parse(last.atividadeSessaoSet),
+    };
   }
 }

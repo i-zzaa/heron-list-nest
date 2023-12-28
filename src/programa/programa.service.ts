@@ -161,6 +161,8 @@ export class ProgramaService {
     result.map((item: any, index: number) => {
       const atividades = JSON.parse(item.atividades);
 
+      delete item.atividades;
+
       item.children = atividades.map((ativo: any, key: number) => {
         return {
           label: ativo.nome,
@@ -173,7 +175,6 @@ export class ProgramaService {
       item.label = item.nome;
       item.data = item.nome;
       item.id = item.id;
-      item.partialChecked = true;
     });
 
     return result;
