@@ -153,7 +153,8 @@ export class PacienteService {
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
 
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
+    const totalPages =
+      pacientes.length < 10 ? 1 : Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
@@ -711,7 +712,8 @@ export class PacienteService {
     ]);
 
     const pacientes: any = data.length ? await this.formatPatients(data) : [];
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
+    const totalPages =
+      pacientes.length < 10 ? 1 : Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
