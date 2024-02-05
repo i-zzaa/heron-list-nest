@@ -11,9 +11,10 @@ export class GrupoPermissaoService {
 
     const skip = (page - 1) * pageSize;
 
-    const [data, totalItems] = await Promise.all([
+    const [data, totalItems]: any = await Promise.all([
       prisma.grupoPermissao.findMany({
         select: {
+          id: true,
           nome: true,
           permissoes: {
             select: {
@@ -21,11 +22,32 @@ export class GrupoPermissaoService {
             },
           },
         },
+        where: {
+          NOT: {
+            nome: {
+              in: ['developer', 'Developer'],
+            },
+          },
+        },
         skip,
         take: pageSize,
       }),
+
       prisma.grupoPermissao.count(),
     ]);
+
+    await Promise.all(
+      data.map(async (item: any) => {
+        item.permissoesId = [];
+        await Promise.all(
+          item?.permissoes.map(({ permissao }: any) => {
+            item.permissoesId.push(permissao.id);
+          }),
+        );
+        delete item.permissoes;
+      }),
+    );
+
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
     const pagination = {
@@ -47,6 +69,13 @@ export class GrupoPermissaoService {
       },
       orderBy: {
         nome: 'asc',
+      },
+      where: {
+        NOT: {
+          nome: {
+            in: ['developer', 'Developer'],
+          },
+        },
       },
     });
   }
@@ -84,7 +113,7 @@ export class GrupoPermissaoService {
 
     const grupo = await prisma.grupoPermissao.create({
       data: {
-        nome: body.nome,
+        nome: body.nome.toUpperCase(),
       },
     });
 
@@ -114,22 +143,24 @@ export class GrupoPermissaoService {
       },
     });
 
-    await prisma.grupoPermissaoOnPermissao.deleteMany({
-      where: {
-        grupoPermissaoId: body.id,
-      },
-    });
+    if (body.permissoesId) {
+      await prisma.grupoPermissaoOnPermissao.deleteMany({
+        where: {
+          grupoPermissaoId: body.id,
+        },
+      });
 
-    await Promise.all(
-      body.permissoesId.map(async (permissaoId) => {
-        await prisma.grupoPermissaoOnPermissao.create({
-          data: {
-            grupoPermissaoId: grupo.id,
-            permissaoId: permissaoId,
-          },
-        });
-      }),
-    );
+      await Promise.all(
+        body.permissoesId.map(async (permissaoId) => {
+          await prisma.grupoPermissaoOnPermissao.create({
+            data: {
+              grupoPermissaoId: grupo.id,
+              permissaoId: permissaoId,
+            },
+          });
+        }),
+      );
+    }
 
     return grupo;
   }
