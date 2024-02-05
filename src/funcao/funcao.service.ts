@@ -6,10 +6,12 @@ export class FuncaoService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.funcao.findMany({
+      prisma.funcao.findMany({
         select: {
           id: true,
           nome: true,
@@ -30,7 +32,7 @@ export class FuncaoService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.statusEventos.count(),
+      prisma.statusEventos.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
@@ -44,7 +46,9 @@ export class FuncaoService {
   }
 
   async dropdown() {
-    return this.prismaService.funcao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.funcao.findMany({
       select: {
         id: true,
         nome: true,
@@ -59,7 +63,9 @@ export class FuncaoService {
   }
 
   async getTerapeutaByFuncaoDropdown(terapeutaId: number) {
-    const funcoes = await this.prismaService.terapeutaOnFuncao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const funcoes = await prisma.terapeutaOnFuncao.findMany({
       select: {
         funcao: true,
       },
@@ -83,7 +89,9 @@ export class FuncaoService {
     );
   }
   async getFuncaoByEspecialidadeDropdown(especialidade: string) {
-    return await this.prismaService.funcao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.funcao.findMany({
       select: {
         id: true,
         nome: true,
@@ -100,7 +108,9 @@ export class FuncaoService {
   }
 
   async search(word: string) {
-    return await this.prismaService.funcao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.funcao.findMany({
       select: {
         id: true,
         nome: true,
@@ -131,13 +141,17 @@ export class FuncaoService {
   }
 
   async create(body: any) {
-    return await this.prismaService.funcao.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.funcao.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.funcao.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.funcao.update({
       data: {
         nome: body.nome,
         especialidadeId: body.especialidadeId,
@@ -149,7 +163,9 @@ export class FuncaoService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.funcao.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.funcao.delete({
       where: {
         id: Number(id),
       },

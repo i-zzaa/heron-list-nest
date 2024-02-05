@@ -119,18 +119,20 @@ model TipoSessao {
 }
 
 model Usuario {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  login     String   @unique
-  senha     String
-  ativo     Boolean  @default(true)
-  perfilId  Int
+  id               Int     @id @default(autoincrement())
+  nome             String
+  login            String  @unique
+  senha            String
+  ativo            Boolean @default(true)
+  perfilId         Int
+  grupoPermissaoId Int?
+
   createdAt DateTime @default(now())
 
-  perfil     Perfil               @relation(fields: [perfilId], references: [id])
+  perfil     Perfil          @relation(fields: [perfilId], references: [id])
+  grupo      GrupoPermissao? @relation(fields: [grupoPermissaoId], references: [id])
   calendario Calendario[]
   terapeuta  Terapeuta?
-  permissoes UsuarioOnPermissao[]
   Baixa      Baixa[]
 }
 
@@ -275,20 +277,29 @@ model Calendario {
 }
 
 model Permissao {
-  id        Int                  @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   cod       String
   descricao String
-  usuarios  UsuarioOnPermissao[]
+
+  GrupoPermissaoOnPermissao GrupoPermissaoOnPermissao[]
 }
 
-model UsuarioOnPermissao {
-  permissaoId Int
-  usuarioId   Int
+model GrupoPermissao {
+  id         Int                         @id @default(autoincrement())
+  nome       String
+  permissoes GrupoPermissaoOnPermissao[]
+  Usuario    Usuario[]
+}
 
-  permissao Permissao? @relation(fields: [permissaoId], references: [id], onDelete: Cascade)
-  usuario   Usuario?   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+model GrupoPermissaoOnPermissao {
+  grupoPermissaoId Int @map("grupoPermissaoId")
+  permissaoId      Int @map("permissaoId")
 
-  @@id([permissaoId, usuarioId])
+  grupoPermissao GrupoPermissao @relation(fields: [grupoPermissaoId], references: [id])
+  permissao      Permissao      @relation(fields: [permissaoId], references: [id])
+
+  @@id([grupoPermissaoId, permissaoId])
+  @@map("GrupoPermissaoOnPermissao")
 }
 
 model PacienteHistorico {

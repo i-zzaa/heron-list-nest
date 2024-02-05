@@ -8,6 +8,8 @@ export class BaixaService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number, query?: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const filter: any = {};
@@ -33,7 +35,7 @@ export class BaixaService {
     });
 
     const [result, totalItems] = await Promise.all([
-      this.prismaService.baixa.findMany({
+      prisma.baixa.findMany({
         select: {
           id: true,
           paciente: {
@@ -67,7 +69,7 @@ export class BaixaService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.statusEventos.count(),
+      prisma.baixa.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize);
 
@@ -99,7 +101,9 @@ export class BaixaService {
   }
 
   async update({ id, usuarioId }: BaixaFilterProps) {
-    return await this.prismaService.baixa.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.baixa.update({
       data: {
         baixa: true,
         usuarioId: usuarioId,
@@ -111,8 +115,10 @@ export class BaixaService {
   }
 
   async create(data: BaixaCreateProps) {
+    const prisma = this.prismaService.getPrismaClient();
+
     try {
-      return await this.prismaService.baixa.create({
+      return await prisma.baixa.create({
         data: {
           ...data,
         },

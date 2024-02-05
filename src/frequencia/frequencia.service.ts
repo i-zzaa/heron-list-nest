@@ -6,7 +6,9 @@ export class FrequenciaService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    return this.prismaService.frequencia.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.frequencia.findMany({
       select: {
         id: true,
         nome: true,
@@ -21,7 +23,9 @@ export class FrequenciaService {
   }
 
   async getFrequenciaName(nome: string) {
-    return await this.prismaService.frequencia.findFirstOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.frequencia.findFirstOrThrow({
       select: {
         id: true,
         nome: true,
@@ -33,7 +37,9 @@ export class FrequenciaService {
   }
 
   async search(word: string) {
-    return await this.prismaService.frequencia.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.frequencia.findMany({
       select: {
         id: true,
         nome: true,
@@ -56,13 +62,17 @@ export class FrequenciaService {
   }
 
   async create(body: any) {
-    return await this.prismaService.frequencia.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.frequencia.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.frequencia.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.frequencia.update({
       data: {
         nome: body.nome,
         ativo: body.ativo,
@@ -74,7 +84,9 @@ export class FrequenciaService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.frequencia.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.frequencia.delete({
       where: {
         id: Number(id),
       },

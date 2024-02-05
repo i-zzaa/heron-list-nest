@@ -6,7 +6,9 @@ export class SessaoService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(pacienteId: number) {
-    const data = await this.prismaService.sessao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const data = await prisma.sessao.findMany({
       select: {
         id: true,
         resumo: true,
@@ -69,19 +71,25 @@ export class SessaoService {
   }
 
   async create(body: any) {
-    return await this.prismaService.sessao.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.sessao.create({
       data: body,
     });
   }
 
   async createProtocolo(body: any) {
-    return await this.prismaService.protocolo.createMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.protocolo.createMany({
       data: body,
     });
   }
 
   async createAtividadeSessao(body: any) {
-    return await this.prismaService.atividadeSessao.createMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.atividadeSessao.createMany({
       data: body,
     });
   }
@@ -98,7 +106,9 @@ export class SessaoService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.sessao.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.sessao.delete({
       where: {
         id: Number(id),
       },
@@ -106,7 +116,9 @@ export class SessaoService {
   }
 
   async getProtocoloByPacient(pacienteId: number) {
-    const result: any = await this.prismaService.protocolo.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const result: any = await prisma.protocolo.findMany({
       select: {
         id: true,
         protocolo: true,
@@ -129,7 +141,9 @@ export class SessaoService {
   }
 
   async getAtividadeSessaoByPacient(pacienteId: number) {
-    const result: any = await this.prismaService.atividadeSessao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const result: any = await prisma.atividadeSessao.findMany({
       select: {
         id: true,
         atividadeSessao: true,

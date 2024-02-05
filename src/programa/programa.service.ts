@@ -7,10 +7,12 @@ export class ProgramaService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number, query?: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [result, totalItems] = await Promise.all([
-      this.prismaService.programa.findMany({
+      prisma.programa.findMany({
         select: {
           id: true,
           nome: true,
@@ -26,7 +28,7 @@ export class ProgramaService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.statusEventos.count(),
+      prisma.programa.count(),
     ]);
 
     const totalPages = Math.ceil(result.length / pageSize);
@@ -49,6 +51,8 @@ export class ProgramaService {
   }
 
   async update(data: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const nome = data.nome;
     const id = data.id;
 
@@ -66,7 +70,7 @@ export class ProgramaService {
     });
 
     try {
-      return await this.prismaService.programa.update({
+      return await prisma.programa.update({
         data: {
           nome,
           atividades: JSON.stringify(atividades),
@@ -82,6 +86,8 @@ export class ProgramaService {
   }
 
   async create(data: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const nome = data.nome;
     delete data.nome;
     const atividades = [];
@@ -96,7 +102,7 @@ export class ProgramaService {
     });
 
     try {
-      return await this.prismaService.programa.create({
+      return await prisma.programa.create({
         data: {
           nome,
           atividades: JSON.stringify(atividades),
@@ -109,7 +115,9 @@ export class ProgramaService {
   }
 
   async search(word: string) {
-    return await this.prismaService.programa.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.programa.findMany({
       select: {
         id: true,
         nome: true,
@@ -138,7 +146,9 @@ export class ProgramaService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.programa.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.programa.delete({
       where: {
         id: Number(id),
       },
@@ -146,7 +156,9 @@ export class ProgramaService {
   }
 
   async dropdown() {
-    const result = await this.prismaService.programa.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const result = await prisma.programa.findMany({
       select: {
         id: true,
         nome: true,

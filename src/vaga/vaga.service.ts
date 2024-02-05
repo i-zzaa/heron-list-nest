@@ -17,12 +17,13 @@ export class VagaService {
 
   async update(body: VagaEspecialidadeProps) {
     const dataAgendado = formatadataPadraoBD(new Date());
+    const prisma = this.prismaService.getPrismaClient();
 
     if (body.agendar.length) {
       switch (body.statusPacienteCod) {
         case STATUS_PACIENT_COD.queue_avaliation:
           await Promise.all([
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: true,
                 dataAgendado: dataAgendado,
@@ -43,7 +44,7 @@ export class VagaService {
           ]);
         case STATUS_PACIENT_COD.avaliation:
           await Promise.all([
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: true,
                 dataAgendado: dataAgendado,
@@ -65,7 +66,7 @@ export class VagaService {
           break;
         case STATUS_PACIENT_COD.queue_devolutiva:
           await Promise.all([
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: true,
                 dataAgendado: dataAgendado,
@@ -90,7 +91,7 @@ export class VagaService {
         case STATUS_PACIENT_COD.crud_therapy:
         case STATUS_PACIENT_COD.therapy:
           const [, , now] = await Promise.all([
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: true,
                 dataAgendado: dataAgendado,
@@ -137,7 +138,7 @@ export class VagaService {
               body.desagendar,
             ),
 
-            await this.prismaService.vaga.update({
+            await prisma.vaga.update({
               data: {
                 dataRetorno: dataAgendado,
                 naFila: true,
@@ -147,7 +148,7 @@ export class VagaService {
               },
             }),
 
-            await this.prismaService.vagaOnEspecialidade.updateMany({
+            await prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: false,
               },
@@ -169,7 +170,7 @@ export class VagaService {
 
           return isQueueAvaliation;
         case STATUS_PACIENT_COD.queue_devolutiva:
-          await this.prismaService.vaga.update({
+          await prisma.vaga.update({
             data: {
               dataRetorno: dataAgendado,
               naFila: true,
@@ -186,7 +187,7 @@ export class VagaService {
               body.desagendar,
             ),
 
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: false,
               },
@@ -213,7 +214,7 @@ export class VagaService {
               body.statusPacienteCod,
               body.desagendar,
             ),
-            this.prismaService.vaga.update({
+            prisma.vaga.update({
               data: {
                 dataRetorno: dataAgendado,
                 naFila: true,
@@ -223,7 +224,7 @@ export class VagaService {
               },
             }),
 
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: false,
               },
@@ -247,7 +248,7 @@ export class VagaService {
         case STATUS_PACIENT_COD.crud_therapy:
         case STATUS_PACIENT_COD.therapy:
           const [, , now] = await Promise.all([
-            this.prismaService.vaga.update({
+            prisma.vaga.update({
               data: {
                 // dataVoltouAba: dataAgendado,
                 naFila: true,
@@ -256,7 +257,7 @@ export class VagaService {
                 id: body.vagaId,
               },
             }),
-            this.prismaService.vagaOnEspecialidade.updateMany({
+            prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: false,
               },
@@ -282,7 +283,7 @@ export class VagaService {
       }
     }
 
-    await this.prismaService.pacienteHistorico.create({
+    await prisma.pacienteHistorico.create({
       data: {
         historico: JSON.stringify(body),
         pacienteId: body.pacienteId,
@@ -291,10 +292,12 @@ export class VagaService {
   }
 
   async verifyInFila(vagaId: number, dataAgendado: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     let naFila = false;
 
-    const vagaOnEspecialidade: any =
-      await this.prismaService.vagaOnEspecialidade.aggregate({
+    const vagaOnEspecialidade: any = await prisma.vagaOnEspecialidade.aggregate(
+      {
         _count: {
           especialidadeId: true,
         },
@@ -302,23 +305,23 @@ export class VagaService {
           vagaId: vagaId,
           agendado: false,
         },
-      });
+      },
+    );
 
     naFila = vagaOnEspecialidade._count.especialidadeId !== 0;
 
     if (!naFila) {
-      const { dataContato }: any =
-        await this.prismaService.vaga.findUniqueOrThrow({
-          select: {
-            dataContato: true,
-          },
-          where: {
-            id: vagaId,
-          },
-        });
+      const { dataContato }: any = await prisma.vaga.findUniqueOrThrow({
+        select: {
+          dataContato: true,
+        },
+        where: {
+          id: vagaId,
+        },
+      });
 
       const diff = calculaData(dataAgendado, dataContato);
-      await this.prismaService.vaga.update({
+      await prisma.vaga.update({
         data: {
           // naFila: naFila,
           dataSaiuFila: dataAgendado,
@@ -359,8 +362,10 @@ export class VagaService {
   }
 
   async updateReturn({ id, devolutiva }: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const dataDevolutiva = formatadataPadraoBD(new Date());
-    await this.prismaService.vaga.update({
+    await prisma.vaga.update({
       data: {
         devolutiva: devolutiva,
         dataDevolutiva,
@@ -391,12 +396,14 @@ export class VagaService {
     pacienteId,
     especialidades,
   }: AgendarEspecialidadeProps) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const dataAgendado = formatadataPadraoBD(new Date());
 
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
         if (especialidadeId) {
-          await this.prismaService.vagaOnEspecialidade.updateMany({
+          await prisma.vagaOnEspecialidade.updateMany({
             data: {
               agendado: true,
               dataAgendado,
@@ -426,7 +433,7 @@ export class VagaService {
           especialidades?.map(async (id: number) => {
             if (id === undefined) return;
 
-            await this.prismaService.vagaOnEspecialidade.updateMany({
+            await prisma.vagaOnEspecialidade.updateMany({
               data: {
                 agendado: true,
                 dataAgendado,
@@ -438,7 +445,7 @@ export class VagaService {
             });
           });
         } else {
-          await this.prismaService.vagaOnEspecialidade.updateMany({
+          await prisma.vagaOnEspecialidade.updateMany({
             data: {
               agendado: true,
               dataAgendado,
@@ -457,7 +464,7 @@ export class VagaService {
         );
         return isReturnQueue;
       case STATUS_PACIENT_COD.queue_therapy:
-        await this.prismaService.vagaOnEspecialidade.updateMany({
+        await prisma.vagaOnEspecialidade.updateMany({
           data: {
             agendado: true,
             dataAgendado,
@@ -477,7 +484,7 @@ export class VagaService {
         return isTherapyQueue;
 
       case STATUS_PACIENT_COD.crud_therapy:
-        await this.prismaService.vagaOnEspecialidade.updateMany({
+        await prisma.vagaOnEspecialidade.updateMany({
           data: {
             agendado: true,
             dataAgendado,
@@ -500,6 +507,7 @@ export class VagaService {
     especialidadeIds: number[],
   ) {
     let modalidade = '';
+    const prisma = this.prismaService.getPrismaClient();
 
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
@@ -515,13 +523,13 @@ export class VagaService {
         break;
     }
 
-    const modalidadeDB = await this.prismaService.modalidade.findFirst({
+    const modalidadeDB = await prisma.modalidade.findFirst({
       where: {
         nome: modalidade,
       },
     });
 
-    return await this.prismaService.calendario.deleteMany({
+    return await prisma.calendario.deleteMany({
       where: {
         pacienteId,
         especialidadeId: {

@@ -7,10 +7,12 @@ export class TipoSessaoService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.tipoSessao.findMany({
+      prisma.tipoSessao.findMany({
         select: {
           id: true,
           nome: true,
@@ -21,7 +23,7 @@ export class TipoSessaoService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.tipoSessao.count(),
+      prisma.tipoSessao.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
@@ -35,7 +37,9 @@ export class TipoSessaoService {
   }
 
   async dropdown() {
-    return this.prismaService.tipoSessao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.tipoSessao.findMany({
       select: {
         id: true,
         nome: true,
@@ -52,7 +56,9 @@ export class TipoSessaoService {
   }
 
   async search(word: string) {
-    return await this.prismaService.tipoSessao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.tipoSessao.findMany({
       select: {
         id: true,
         nome: true,
@@ -73,13 +79,17 @@ export class TipoSessaoService {
   }
 
   async create(body: any) {
-    return await this.prismaService.tipoSessao.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.tipoSessao.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.tipoSessao.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.tipoSessao.update({
       data: {
         nome: body.casa,
       },
@@ -90,7 +100,9 @@ export class TipoSessaoService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.tipoSessao.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.tipoSessao.delete({
       where: {
         id: Number(id),
       },
@@ -98,7 +110,9 @@ export class TipoSessaoService {
   }
 
   async getTipoSessaoUnique(id: number) {
-    return await this.prismaService.tipoSessao.findUniqueOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.tipoSessao.findUniqueOrThrow({
       select: {
         nome: true,
         id: true,

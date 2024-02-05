@@ -6,7 +6,9 @@ export class PerfilService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    return this.prismaService.perfil.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.perfil.findMany({
       select: {
         id: true,
         nome: true,
@@ -23,7 +25,9 @@ export class PerfilService {
   }
 
   async search(word: string) {
-    return await this.prismaService.perfil.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.perfil.findMany({
       select: {
         id: true,
         nome: true,
@@ -47,13 +51,17 @@ export class PerfilService {
   }
 
   async create(body: any) {
-    return await this.prismaService.perfil.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.perfil.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.perfil.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.perfil.update({
       data: {
         nome: body.nome,
       },
@@ -64,7 +72,9 @@ export class PerfilService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.perfil.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.perfil.delete({
       where: {
         id: Number(id),
       },

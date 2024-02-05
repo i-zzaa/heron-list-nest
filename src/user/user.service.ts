@@ -11,7 +11,9 @@ export class UserService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async findUserAuth(username: string): Promise<any | undefined> {
-    const user: UserProps = await this.prismaService.usuario.findFirstOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const user: UserProps = await prisma.usuario.findFirstOrThrow({
       select: {
         id: true,
         nome: true,
@@ -19,11 +21,16 @@ export class UserService {
         senha: true,
         perfil: true,
         ativo: true,
-        permissoes: {
+        grupoPermissaoId: true,
+        grupo: {
           select: {
-            permissao: {
+            permissoes: {
               select: {
-                cod: true,
+                permissao: {
+                  select: {
+                    cod: true,
+                  },
+                },
               },
             },
           },
@@ -34,23 +41,35 @@ export class UserService {
       },
     });
 
+    if (user) {
+      user.permissoes = user.grupo.permissoes;
+      delete user.grupo;
+    }
+
     return user;
   }
 
   async getAll(page: number, pageSize: number): Promise<any | undefined> {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
-    const [usuarios, totalItems] = await Promise.all([
-      this.prismaService.usuario.findMany({
+    const [usuarios, totalItems]: any = await Promise.all([
+      prisma.usuario.findMany({
         select: {
           id: true,
           nome: true,
           login: true,
           perfil: true,
+          grupoPermissaoId: true,
           ativo: true,
-          permissoes: {
-            include: {
-              permissao: true,
+          grupo: {
+            select: {
+              permissoes: {
+                select: {
+                  permissao: true,
+                },
+              },
             },
           },
           terapeuta: {
@@ -85,7 +104,7 @@ export class UserService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.usuario.count(),
+      prisma.usuario.count(),
     ]);
 
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
@@ -111,11 +130,11 @@ export class UserService {
           };
         });
 
-        const permissoesId = usuario?.permissoes.map(
+        const permissoesId = usuario?.grupo?.permissoes.map(
           ({ permissao }: any) => permissao.id,
         );
 
-        delete usuario.permissoes;
+        delete usuario.grupo;
 
         if (usuario?.terapeuta?.fazDevolutiva) {
           usuario.devolutiva = usuario?.terapeuta?.fazDevolutiva;
@@ -154,16 +173,22 @@ export class UserService {
   }
 
   async getUser(login: string) {
-    return await this.prismaService.usuario.findUniqueOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const user: any = await prisma.usuario.findUniqueOrThrow({
       select: {
         id: true,
         nome: true,
         login: true,
         perfil: true,
         ativo: true,
-        permissoes: {
+        grupo: {
           select: {
-            permissao: true,
+            permissoes: {
+              select: {
+                permissao: true,
+              },
+            },
           },
         },
       },
@@ -171,19 +196,32 @@ export class UserService {
         login: login,
       },
     });
+
+    if (user) {
+      user.permissoes = user.grupo.permissoes;
+      delete user.grupo;
+    }
+
+    return user;
   }
 
   async search(word: string) {
-    const usuarios: any = await this.prismaService.usuario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const usuarios: any = await prisma.usuario.findMany({
       select: {
         id: true,
         nome: true,
         login: true,
         perfil: true,
         ativo: true,
-        permissoes: {
-          include: {
-            permissao: true,
+        grupo: {
+          select: {
+            permissoes: {
+              select: {
+                permissao: true,
+              },
+            },
           },
         },
         terapeuta: {
@@ -232,7 +270,9 @@ export class UserService {
   }
 
   async createTerapeuta(body: any, id: number) {
-    await this.prismaService.terapeuta.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    await prisma.terapeuta.create({
       data: {
         usuarioId: id,
         especialidadeId: body.especialidadeId,
@@ -241,7 +281,7 @@ export class UserService {
       },
     });
 
-    await this.prismaService.terapeutaOnFuncao.createMany({
+    await prisma.terapeutaOnFuncao.createMany({
       data: [
         ...body.comissao.map((comissao: any) => {
           const formatComissao =
@@ -261,14 +301,16 @@ export class UserService {
   }
 
   async updateTerapeuta(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     if (body?.comissao?.length) {
-      await this.prismaService.terapeutaOnFuncao.deleteMany({
+      await prisma.terapeutaOnFuncao.deleteMany({
         where: {
           terapeutaId: body.id,
         },
       });
 
-      await this.prismaService.terapeutaOnFuncao.createMany({
+      await prisma.terapeutaOnFuncao.createMany({
         data: [
           ...body.comissao.map((comissao: any) => {
             const formatComissao =
@@ -287,7 +329,7 @@ export class UserService {
       });
     }
 
-    await this.prismaService.terapeuta.update({
+    await prisma.terapeuta.update({
       data: {
         especialidadeId: body.especialidadeId,
         fazDevolutiva: body.devolutiva,
@@ -300,13 +342,15 @@ export class UserService {
   }
 
   async removeTerapeuta(usuarioId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     return await Promise.all([
-      this.prismaService.terapeuta.delete({
+      prisma.terapeuta.delete({
         where: {
           usuarioId,
         },
       }),
-      this.prismaService.terapeutaOnFuncao.deleteMany({
+      prisma.terapeutaOnFuncao.deleteMany({
         where: {
           terapeutaId: usuarioId,
         },
@@ -315,9 +359,11 @@ export class UserService {
   }
 
   async create(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     body.senha = bcrypt.hashSync('12345678', 8);
 
-    const user: UserProps = await this.prismaService.usuario.create({
+    const user: UserProps = await prisma.usuario.create({
       select: {
         nome: true,
         login: true,
@@ -329,15 +375,7 @@ export class UserService {
         login: body.login.toLowerCase(),
         perfilId: body.perfilId,
         senha: body.senha,
-        permissoes: {
-          create: [
-            ...body.permissoesId.map((id: number) => {
-              return {
-                permissaoId: id,
-              };
-            }),
-          ],
-        },
+        grupoPermissaoId: body.grupoPermissaoId,
       },
     });
 
@@ -351,8 +389,10 @@ export class UserService {
   }
 
   async update(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     if (!body.ativo) {
-      return await this.prismaService.usuario.update({
+      return await prisma.usuario.update({
         data: {
           ativo: false,
         },
@@ -362,27 +402,8 @@ export class UserService {
       });
     }
 
-    if (body?.permissoesId) {
-      await this.prismaService.usuarioOnPermissao.deleteMany({
-        where: {
-          usuarioId: body.id,
-        },
-      });
-
-      await this.prismaService.usuarioOnPermissao.createMany({
-        data: [
-          ...body.permissoesId.map((permissao: number) => {
-            return {
-              permissaoId: permissao,
-              usuarioId: body.id,
-            };
-          }),
-        ],
-      });
-    }
-
     // verifica tem terapeuta criada
-    const terapeuta = await this.prismaService.terapeuta.findUnique({
+    const terapeuta = await prisma.terapeuta.findUnique({
       where: {
         usuarioId: body.id,
       },
@@ -404,7 +425,7 @@ export class UserService {
         break;
     }
 
-    const user = await this.prismaService.usuario.update({
+    const user = await prisma.usuario.update({
       select: {
         nome: true,
         login: true,
@@ -426,8 +447,10 @@ export class UserService {
   }
 
   async updatePassword(userId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const senha = bcrypt.hashSync('12345678', 8);
-    const user = await this.prismaService.usuario.update({
+    const user = await prisma.usuario.update({
       data: {
         senha: senha,
       },
@@ -440,9 +463,11 @@ export class UserService {
   }
 
   async updatePasswordLogin(login: string, data: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const senha = bcrypt.hashSync(data.senha.toString(), 8);
 
-    const user = await this.prismaService.usuario.update({
+    const user = await prisma.usuario.update({
       data: {
         senha: senha,
       },

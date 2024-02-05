@@ -6,6 +6,7 @@ export interface UserProps {
   senha?: string;
   perfil?: PerfilProps;
   ativo?: boolean;
+  grupo?: any;
   permissoes?: any;
 }
 

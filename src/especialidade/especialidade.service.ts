@@ -6,7 +6,9 @@ export class EspecialidadeService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    return this.prismaService.especialidade.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.especialidade.findMany({
       select: {
         id: true,
         nome: true,
@@ -19,7 +21,9 @@ export class EspecialidadeService {
   }
 
   async getespecialidadeName(nome: string) {
-    return await this.prismaService.especialidade.findFirstOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.especialidade.findFirstOrThrow({
       select: {
         id: true,
         nome: true,
@@ -31,7 +35,9 @@ export class EspecialidadeService {
   }
 
   async search(word: string) {
-    return await this.prismaService.especialidade.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.especialidade.findMany({
       select: {
         id: true,
         nome: true,
@@ -52,13 +58,17 @@ export class EspecialidadeService {
   }
 
   async create(body: any) {
-    return await this.prismaService.especialidade.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.especialidade.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.especialidade.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.especialidade.update({
       data: {
         nome: body.nome,
       },
@@ -69,7 +79,9 @@ export class EspecialidadeService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.especialidade.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.especialidade.delete({
       where: {
         id: Number(id),
       },

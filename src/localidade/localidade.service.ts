@@ -6,10 +6,12 @@ export class LocalidadeService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.localidade.findMany({
+      prisma.localidade.findMany({
         select: {
           id: true,
           casa: true,
@@ -25,7 +27,7 @@ export class LocalidadeService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.localidade.count(),
+      prisma.localidade.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
@@ -39,7 +41,9 @@ export class LocalidadeService {
   }
 
   async dropdown() {
-    const localidade = await this.prismaService.localidade.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const localidade = await prisma.localidade.findMany({
       select: {
         id: true,
         casa: true,
@@ -65,7 +69,9 @@ export class LocalidadeService {
   }
 
   async search(word: string) {
-    return await this.prismaService.localidade.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.localidade.findMany({
       select: {
         id: true,
         casa: true,
@@ -94,13 +100,17 @@ export class LocalidadeService {
   }
 
   async create(body: any) {
-    return await this.prismaService.localidade.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.localidade.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.localidade.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.localidade.update({
       data: {
         casa: body.casa,
         sala: body.sala,
@@ -113,7 +123,9 @@ export class LocalidadeService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.localidade.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.localidade.delete({
       where: {
         id: Number(id),
       },
