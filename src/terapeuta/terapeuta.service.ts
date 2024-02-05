@@ -81,7 +81,9 @@ export class TerapeutaService {
   ) {}
 
   async dropdown() {
-    const user = await this.prismaService.usuario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const user = await prisma.usuario.findMany({
       select: {
         id: true,
         nome: true,
@@ -103,7 +105,9 @@ export class TerapeutaService {
   }
 
   async getAll() {
-    const user = await this.prismaService.usuario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const user = await prisma.usuario.findMany({
       select: {
         id: true,
         nome: true,
@@ -135,12 +139,14 @@ export class TerapeutaService {
     device: string,
     login: string,
   ) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const filter: any = {};
     Object.keys(query).map((key: string) => (filter[key] = Number(query[key])));
 
     const terapeutaId = parseInt(query.terapeutaId);
     const [terapeuta, events, datas] = await Promise.all([
-      this.prismaService.terapeuta.findUnique({
+      prisma.terapeuta.findUnique({
         select: {
           especialidade: true,
           cargaHoraria: true,
@@ -155,7 +161,7 @@ export class TerapeutaService {
           usuarioId: terapeutaId,
         },
       }),
-      this.prismaService.calendario.findMany({
+      prisma.calendario.findMany({
         select: {
           id: true,
           groupId: true,
@@ -425,7 +431,9 @@ export class TerapeutaService {
   }
 
   async getTerapeutaByEspecialidade() {
-    const user = await this.prismaService.terapeuta.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const user = await prisma.terapeuta.findMany({
       select: {
         usuarioId: true,
         usuario: true,
@@ -446,7 +454,9 @@ export class TerapeutaService {
     return list;
   }
   async getTerapeutaByEspecialidadeDropdown(especialidade: string) {
-    const terapeuta = await this.prismaService.terapeuta.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const terapeuta = await prisma.terapeuta.findMany({
       select: {
         usuarioId: true,
         usuario: true,
@@ -478,7 +488,9 @@ export class TerapeutaService {
     return list;
   }
   async getPacienteByTerapeutaDropdown(terapeutaId: number) {
-    const agenda = await this.prismaService.calendario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const agenda = await prisma.calendario.findMany({
       select: {
         paciente: true,
       },

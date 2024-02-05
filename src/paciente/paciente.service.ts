@@ -15,6 +15,8 @@ export class PacienteService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(query: any, page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const statusPacienteCod = query.statusPacienteCod;
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
@@ -52,7 +54,9 @@ export class PacienteService {
   }
 
   async getConvenio(pacienteId: number) {
-    return await this.prismaService.paciente.findUniqueOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.paciente.findUniqueOrThrow({
       select: {
         convenio: true,
       },
@@ -66,7 +70,9 @@ export class PacienteService {
     statusPacienteCod: string,
     pacienteId: number,
   ) {
-    const paciente = await this.prismaService.paciente.findUniqueOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const paciente = await prisma.paciente.findUniqueOrThrow({
       select: {
         emAtendimento: true,
         vaga: {
@@ -106,10 +112,12 @@ export class PacienteService {
     statusPacienteCod: string[],
     naFila?: boolean,
   ) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.paciente.findMany({
+      prisma.paciente.findMany({
         select: {
           id: true,
           nome: true,
@@ -148,7 +156,7 @@ export class PacienteService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.paciente.count(),
+      prisma.paciente.count(),
     ]);
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
@@ -166,7 +174,9 @@ export class PacienteService {
   }
 
   async getPatientId(id: number) {
-    return await this.prismaService.paciente.findFirstOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.paciente.findFirstOrThrow({
       select: {
         id: true,
         nome: true,
@@ -185,7 +195,9 @@ export class PacienteService {
   }
 
   async setTipoSessaoTerapia(pacienteId: number) {
-    const paciente: any = await this.prismaService.paciente.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const paciente: any = await prisma.paciente.update({
       data: {
         tipoSessaoId: 3,
       },
@@ -198,7 +210,9 @@ export class PacienteService {
   }
 
   async setStatusPaciente(statusPacienteCod: string, pacienteId: number) {
-    const paciente: any = await this.prismaService.paciente.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const paciente: any = await prisma.paciente.update({
       data: {
         statusPacienteCod: statusPacienteCod,
       },
@@ -211,6 +225,8 @@ export class PacienteService {
   }
 
   async formatPatients(patients: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     try {
       const pacientes = await Promise.all(
         patients.map(async (patient: any) => {
@@ -243,10 +259,12 @@ export class PacienteService {
   }
 
   async dropdown(statusPacienteCod: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const statusPacienteCods =
       this.setFilterstatusPacienteCod(statusPacienteCod);
 
-    return await this.prismaService.paciente.findMany({
+    return await prisma.paciente.findMany({
       select: {
         id: true,
         nome: true,
@@ -263,7 +281,9 @@ export class PacienteService {
   }
 
   async search(word: string) {
-    return await this.prismaService.localidade.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.localidade.findMany({
       select: {
         id: true,
         casa: true,
@@ -292,6 +312,8 @@ export class PacienteService {
   }
 
   async create(body: PatientCreate) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const dataContato =
       body?.dataContato ||
       body?.dataVoltouAba ||
@@ -300,7 +322,7 @@ export class PacienteService {
     const tipoSessaoId = body?.tipoSessaoId || 2;
     const naFila = body.statusPacienteCod !== STATUS_PACIENT_COD.crud_therapy; // CRIAR NA FILA TRUE SEMPRE QUE NAO FOR DA TELA  CADASTRO DO PACIENTE
 
-    const paciente: any = await this.prismaService.paciente.create({
+    const paciente: any = await prisma.paciente.create({
       data: {
         nome: body.nome.toUpperCase(),
         telefone: body.telefone,
@@ -361,9 +383,11 @@ export class PacienteService {
   }
 
   async updatePatient(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
     try {
-      const [, , especialidades] = await this.prismaService.$transaction([
-        this.prismaService.paciente.update({
+      const [, , especialidades] = await prisma.$transaction([
+        prisma.paciente.update({
           data: {
             nome: body.nome.toUpperCase(),
             telefone: body.telefone,
@@ -387,7 +411,7 @@ export class PacienteService {
             id: body.id,
           },
         }),
-        this.prismaService.vagaOnEspecialidade.deleteMany({
+        prisma.vagaOnEspecialidade.deleteMany({
           where: {
             vagaId: body.vagaId,
             agendado: false,
@@ -398,7 +422,7 @@ export class PacienteService {
             },
           },
         }),
-        this.prismaService.vagaOnEspecialidade.findMany({
+        prisma.vagaOnEspecialidade.findMany({
           select: {
             especialidadeId: true,
             valor: true,
@@ -422,7 +446,7 @@ export class PacienteService {
               : especialidade.valor;
 
           if (!arrEspecialidade.includes(especialidade.especialidadeId)) {
-            await this.prismaService.vagaOnEspecialidade.create({
+            await prisma.vagaOnEspecialidade.create({
               data: {
                 vagaId: body.vagaId,
                 agendado: false,
@@ -431,7 +455,7 @@ export class PacienteService {
               },
             });
           } else {
-            await this.prismaService.vagaOnEspecialidade.updateMany({
+            await prisma.vagaOnEspecialidade.updateMany({
               data: {
                 vagaId: body.vagaId,
                 agendado: false,
@@ -453,7 +477,9 @@ export class PacienteService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.localidade.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.localidade.delete({
       where: {
         id: Number(id),
       },
@@ -461,7 +487,9 @@ export class PacienteService {
   }
 
   async getPatientsActived() {
-    return await this.prismaService.paciente.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.paciente.findMany({
       select: {
         nome: true,
         telefone: true,
@@ -482,7 +510,9 @@ export class PacienteService {
   }
 
   async getTerapeutaByEspecialidade() {
-    const user = await this.prismaService.terapeuta.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const user = await prisma.terapeuta.findMany({
       select: {
         usuarioId: true,
         usuario: true,
@@ -507,7 +537,9 @@ export class PacienteService {
     statusPacienteCod: string,
     pacienteId: number,
   ) {
-    const vagas: any = await this.prismaService.paciente.findUnique({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const vagas: any = await prisma.paciente.findUnique({
       select: {
         vaga: {
           include: {
@@ -558,7 +590,9 @@ export class PacienteService {
   }
 
   async updateDisabled({ id, disabled }: any) {
-    await this.prismaService.paciente.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    await prisma.paciente.update({
       data: {
         disabled: disabled,
       },
@@ -649,10 +683,12 @@ export class PacienteService {
     statusPacienteCod: string[],
     body: any,
   ) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.paciente.findMany({
+      prisma.paciente.findMany({
         select: {
           id: true,
           nome: true,
@@ -708,7 +744,7 @@ export class PacienteService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.paciente.count(),
+      prisma.paciente.count(),
     ]);
 
     const pacientes: any = data.length ? await this.formatPatients(data) : [];

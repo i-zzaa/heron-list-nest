@@ -6,7 +6,9 @@ export class ConvenioService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    return this.prismaService.convenio.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.convenio.findMany({
       select: {
         id: true,
         nome: true,
@@ -18,7 +20,9 @@ export class ConvenioService {
   }
 
   async search(word: string) {
-    return await this.prismaService.convenio.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.convenio.findMany({
       select: {
         id: true,
         nome: true,
@@ -39,13 +43,17 @@ export class ConvenioService {
   }
 
   async create(body: any) {
-    return await this.prismaService.convenio.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.convenio.create({
       data: body,
     });
   }
 
   async update(body: any) {
-    return await this.prismaService.convenio.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.convenio.update({
       data: {
         nome: body.nome,
       },
@@ -56,7 +64,9 @@ export class ConvenioService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.frequencia.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.frequencia.delete({
       where: {
         id: Number(id),
       },

@@ -8,10 +8,12 @@ export class StatusEventoService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.statusEventos.findMany({
+      prisma.statusEventos.findMany({
         select: {
           id: true,
           nome: true,
@@ -27,7 +29,7 @@ export class StatusEventoService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.statusEventos.count(),
+      prisma.statusEventos.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
@@ -41,7 +43,9 @@ export class StatusEventoService {
   }
 
   async dropdown() {
-    return this.prismaService.statusEventos.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.statusEventos.findMany({
       select: {
         id: true,
         nome: true,
@@ -57,7 +61,9 @@ export class StatusEventoService {
   }
 
   async search(word: string) {
-    return await this.prismaService.statusEventos.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.statusEventos.findMany({
       select: {
         id: true,
         nome: true,
@@ -81,13 +87,17 @@ export class StatusEventoService {
   }
 
   async create(body: StatusEventosProps) {
-    return await this.prismaService.statusEventos.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.statusEventos.create({
       data: body,
     });
   }
 
   async update(body: StatusEventosProps) {
-    return await this.prismaService.statusEventos.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.statusEventos.update({
       data: {
         nome: body.nome,
         ativo: body.ativo,
@@ -100,7 +110,9 @@ export class StatusEventoService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.statusEventos.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.statusEventos.delete({
       where: {
         id: Number(id),
       },
@@ -108,7 +120,9 @@ export class StatusEventoService {
   }
 
   async getStatusUnique(id: number) {
-    return await this.prismaService.statusEventos.findUniqueOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.statusEventos.findUniqueOrThrow({
       select: {
         nome: true,
         id: true,

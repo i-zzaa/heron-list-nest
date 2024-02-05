@@ -8,10 +8,12 @@ export class ModalidadeService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.modalidade.findMany({
+      prisma.modalidade.findMany({
         select: {
           id: true,
           nome: true,
@@ -26,7 +28,7 @@ export class ModalidadeService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.modalidade.count(),
+      prisma.modalidade.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
@@ -40,6 +42,8 @@ export class ModalidadeService {
   }
 
   async dropdown(statusPacienteCod: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     let ids = [];
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
@@ -57,7 +61,7 @@ export class ModalidadeService {
         break;
     }
 
-    return await this.prismaService.modalidade.findMany({
+    return await prisma.modalidade.findMany({
       select: {
         id: true,
         nome: true,
@@ -74,7 +78,9 @@ export class ModalidadeService {
   }
 
   async search(word: string) {
-    return await this.prismaService.modalidade.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.modalidade.findMany({
       select: {
         id: true,
         nome: true,
@@ -97,13 +103,17 @@ export class ModalidadeService {
   }
 
   async create(body: ModalidadeProps) {
-    return await this.prismaService.modalidade.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.modalidade.create({
       data: body,
     });
   }
 
   async update(body: ModalidadeProps) {
-    return await this.prismaService.modalidade.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.modalidade.update({
       data: {
         nome: body.nome,
         ativo: body.ativo,
@@ -115,7 +125,9 @@ export class ModalidadeService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.modalidade.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.modalidade.delete({
       where: {
         id: Number(id),
       },
@@ -123,7 +135,9 @@ export class ModalidadeService {
   }
 
   async getmodalidadeUnique(id: number) {
-    return await this.prismaService.modalidade.findUniqueOrThrow({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.modalidade.findUniqueOrThrow({
       select: {
         id: true,
         nome: true,

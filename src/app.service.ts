@@ -11,7 +11,9 @@ export class AppService {
   }
 
   async intervaloDropdown() {
-    return this.prismaService.intervalo.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.intervalo.findMany({
       select: {
         id: true,
         nome: true,

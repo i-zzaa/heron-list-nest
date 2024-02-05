@@ -7,10 +7,12 @@ export class PeriodoService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const skip = (page - 1) * pageSize;
 
     const [data, totalItems] = await Promise.all([
-      this.prismaService.periodo.findMany({
+      prisma.periodo.findMany({
         select: {
           id: true,
           nome: true,
@@ -22,7 +24,7 @@ export class PeriodoService {
         skip,
         take: pageSize,
       }),
-      this.prismaService.periodo.count(),
+      prisma.periodo.count(),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
 
@@ -36,7 +38,9 @@ export class PeriodoService {
   }
 
   async dropdown() {
-    return this.prismaService.periodo.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.periodo.findMany({
       select: {
         id: true,
         nome: true,
@@ -49,7 +53,9 @@ export class PeriodoService {
   }
 
   async search(word: string) {
-    return await this.prismaService.periodo.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.periodo.findMany({
       select: {
         id: true,
         nome: true,
@@ -70,13 +76,17 @@ export class PeriodoService {
   }
 
   async create(body: PeriodoProps) {
-    return await this.prismaService.periodo.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.periodo.create({
       data: body,
     });
   }
 
   async update(body: PeriodoProps) {
-    return await this.prismaService.periodo.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.periodo.update({
       data: {
         nome: body.nome,
       },
@@ -87,7 +97,9 @@ export class PeriodoService {
   }
 
   async delete(id: number) {
-    return await this.prismaService.periodo.delete({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.periodo.delete({
       where: {
         id: Number(id),
       },

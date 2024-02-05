@@ -28,6 +28,7 @@ import { BaixaModule } from './baixa/baixa.module';
 import { WhatsappModule } from './whatsApp/whatsApp.module';
 import { ProgramaModule } from './programa/programa.module';
 import { SessaoModule } from './sessao/sessao.module';
+import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { SessaoModule } from './sessao/sessao.module';
     WhatsappModule,
     ProgramaModule,
     SessaoModule,
+    GrupoPermissaoModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],

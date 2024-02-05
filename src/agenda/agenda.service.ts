@@ -184,13 +184,15 @@ export class AgendaService {
   }
 
   async getFilter(params: any, query: any, login: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const inicioDoMes = params.start;
     const ultimoDiaDoMes = params.end;
 
     const filter: any = {};
     Object.keys(query).map((key: string) => (filter[key] = Number(query[key])));
 
-    const eventos: any = await this.prismaService.calendario.findMany({
+    const eventos: any = await prisma.calendario.findMany({
       select: {
         id: true,
         groupId: true,
@@ -286,6 +288,8 @@ export class AgendaService {
   }
 
   async getRange(params: any, device: string, login: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     let inicioDoMes = params.start;
     let ultimoDiaDoMes = params.end;
 
@@ -296,7 +300,7 @@ export class AgendaService {
       ultimoDiaDoMes = getPrimeiroDoMes(now.getFullYear(), mouth + 2);
     }
 
-    const eventos = await this.prismaService.calendario.findMany({
+    const eventos = await prisma.calendario.findMany({
       select: {
         id: true,
         groupId: true,
@@ -432,6 +436,8 @@ export class AgendaService {
     frequencia: any,
     user: any,
   ) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const filter = Object.keys(body).filter(
       (key: string) =>
         key.includes('terapeuta') && Object.keys(body[key]).length,
@@ -480,7 +486,7 @@ export class AgendaService {
       }),
     );
 
-    return await this.prismaService.calendario.createMany({
+    return await prisma.calendario.createMany({
       data: datas,
     });
   }
@@ -492,6 +498,8 @@ export class AgendaService {
     frequencia: any,
     user: any,
   ) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const hash: string = await this.getHashGroupId(
       body.paciente.id,
       body.modalidade.id,
@@ -522,8 +530,8 @@ export class AgendaService {
       usuarioId: user.id,
     };
 
-    const evento = await this.prismaService.$transaction([
-      this.prismaService.calendario.create({
+    const evento = await prisma.$transaction([
+      prisma.calendario.create({
         data: eventData,
       }),
     ]);
@@ -544,13 +552,15 @@ export class AgendaService {
   }
 
   async updateCalendario_(body: any, login: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     let dataFim = dateSubtractDay(body.dataAtual, 2);
     const isCanceled = body.statusEventos.nome.includes('permanente');
     if (isCanceled && !body?.dataFim) {
       body.dataFim = dataFim;
     }
 
-    const eventoUnico = await this.prismaService.calendario.findFirstOrThrow({
+    const eventoUnico = await prisma.calendario.findFirstOrThrow({
       where: {
         id: body.id,
       },
@@ -559,7 +569,7 @@ export class AgendaService {
     let evento;
     switch (true) {
       case body.frequencia.id === 1 && !body.changeAll:
-        evento = await this.prismaService.calendario.updateMany({
+        evento = await prisma.calendario.updateMany({
           data: {
             dataInicio: body?.dataInicio,
             km: body?.km,
@@ -582,7 +592,7 @@ export class AgendaService {
         });
         break;
       case isCanceled && body.changeAll:
-        evento = await this.prismaService.calendario.updateMany({
+        evento = await prisma.calendario.updateMany({
           data: {
             ...body,
             dataFim,
@@ -593,7 +603,7 @@ export class AgendaService {
         });
         break;
       case body.changeAll && dataFim !== eventoUnico.dataInicio:
-        evento = await this.prismaService.calendario.updateMany({
+        evento = await prisma.calendario.updateMany({
           data: {
             dataFim,
           },
@@ -612,7 +622,7 @@ export class AgendaService {
         );
         break;
       case body.changeAll && dataFim === eventoUnico.dataInicio:
-        evento = await this.prismaService.calendario.updateMany({
+        evento = await prisma.calendario.updateMany({
           data: {
             ...body,
           },
@@ -629,7 +639,7 @@ export class AgendaService {
 
         const format = exdate.join(',');
 
-        evento = await this.prismaService.calendario.updateMany({
+        evento = await prisma.calendario.updateMany({
           data: {
             exdate: format,
           },
@@ -655,7 +665,9 @@ export class AgendaService {
   }
 
   async updateCalendario(body: any, login: string) {
-    const eventoSalvo: any[] = await this.prismaService.calendario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const eventoSalvo: any[] = await prisma.calendario.findMany({
       where: { groupId: body.groupId },
     });
 
@@ -679,7 +691,7 @@ export class AgendaService {
         if (body.changeAll) {
           delete data.dataFim;
 
-          return await this.prismaService.calendario.updateMany({
+          return await prisma.calendario.updateMany({
             data: {
               ...data,
             },
@@ -690,7 +702,7 @@ export class AgendaService {
         } else {
           if (body.isChildren) {
             try {
-              const eventos = this.prismaService.calendario.update({
+              const eventos = prisma.calendario.update({
                 data,
                 where: {
                   id: body.id,
@@ -716,11 +728,13 @@ export class AgendaService {
   }
 
   async updateEventoUnicoGrupo(event: any, login: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     let evento;
     switch (event.frequencia.id) {
       case 1: //se o evento for único
         const data = this.formatEvent(event);
-        evento = await this.prismaService.calendario.update({
+        evento = await prisma.calendario.update({
           data,
           where: {
             id: event.id,
@@ -738,7 +752,9 @@ export class AgendaService {
   }
 
   async updateCalendarioMobile(body: any, login: string) {
-    const statusEventos = await this.prismaService.statusEventos.findFirst({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const statusEventos = await prisma.statusEventos.findFirst({
       where: {
         nome: 'Atendido',
       },
@@ -749,7 +765,9 @@ export class AgendaService {
     this.updateCalendario(body, login);
   }
   async updateCalendarioAtestado(body: any, login: string) {
-    const statusEventos = await this.prismaService.statusEventos.findFirst({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const statusEventos = await prisma.statusEventos.findFirst({
       where: {
         nome: 'Atestado',
       },
@@ -769,6 +787,8 @@ export class AgendaService {
   }
 
   async updateEventoRecorrentes(event: any, login: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     const data = this.formatEvent(event);
 
     let dataFim = event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
@@ -797,7 +817,7 @@ export class AgendaService {
 
         try {
           const [, eventos] = await Promise.all([
-            this.prismaService.calendario.update({
+            prisma.calendario.update({
               data: {
                 exdate: exdate.join(),
               },
@@ -805,7 +825,7 @@ export class AgendaService {
                 id: event.id,
               },
             }),
-            this.prismaService.calendario.create({
+            prisma.calendario.create({
               data: {
                 ...data,
                 dataInicio: event.dataAtual,
@@ -830,7 +850,9 @@ export class AgendaService {
     login: string,
     isCanceled?: boolean,
   ) => {
-    const evento: any = await this.prismaService.calendario.findFirst({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const evento: any = await prisma.calendario.findFirst({
       where: { id: event.id },
     });
 
@@ -851,7 +873,7 @@ export class AgendaService {
 
       // se data de inicio já passou, for recorrente e mudar todos
       const [, eventos] = await Promise.all([
-        this.prismaService.calendario.create({
+        prisma.calendario.create({
           data: {
             ...data,
             dataInicio: event.dataAtual,
@@ -860,7 +882,7 @@ export class AgendaService {
             dataFim,
           },
         }),
-        this.prismaService.calendario.updateMany({
+        prisma.calendario.updateMany({
           data: {
             // dataFim: dataAtual.subtract(1, 'day').format('YYYY-MM-DD'),
             dataFim: dateSubtractDay(dataAtual.format('YYYY-MM-DD'), 1),
@@ -875,7 +897,7 @@ export class AgendaService {
       return eventos;
     } else {
       delete event.dataAtual;
-      const eventosAll = await this.prismaService.calendario.updateMany({
+      const eventosAll = await prisma.calendario.updateMany({
         data: {
           ...data,
           statusEventosId: evento.statusEventosId,
@@ -889,9 +911,11 @@ export class AgendaService {
   };
 
   async delete(eventId: number, login: string) {
+    const prisma = this.prismaService.getPrismaClient();
+
     try {
       const { id } = await this.userService.getUser(login);
-      const evento = await this.prismaService.calendario.findFirstOrThrow({
+      const evento = await prisma.calendario.findFirstOrThrow({
         select: {
           paciente: {
             include: {
@@ -918,7 +942,7 @@ export class AgendaService {
 
       console.log(evento.paciente.vaga.id);
 
-      await this.prismaService.vaga.update({
+      await prisma.vaga.update({
         data: {
           naFila: true,
         },
@@ -927,7 +951,7 @@ export class AgendaService {
         },
       });
 
-      return await this.prismaService.calendario.deleteMany({
+      return await prisma.calendario.deleteMany({
         where: {
           groupId: evento.groupId,
           usuarioId: id,
@@ -944,7 +968,9 @@ export class AgendaService {
     pacienteId,
     statusEventosId,
   }: any) {
-    const eventos = await this.prismaService.calendario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const eventos = await prisma.calendario.findMany({
       select: {
         id: true,
         groupId: true,
@@ -1054,7 +1080,9 @@ export class AgendaService {
     dataFim,
     terapeutaId,
   }: any) => {
-    const eventos = await this.prismaService.calendario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const eventos = await prisma.calendario.findMany({
       select: {
         id: true,
         groupId: true,
@@ -1157,7 +1185,9 @@ export class AgendaService {
   };
 
   async getEventsMessage(dataInicio: string, datatFim: string) {
-    const eventosBrutos = await this.prismaService.calendario.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const eventosBrutos = await prisma.calendario.findMany({
       select: {
         dataInicio: true,
         dataFim: true,

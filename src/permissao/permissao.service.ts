@@ -11,8 +11,10 @@ export class PermissaoService {
   ) {}
 
   async getPermissaoUser(login: string) {
-    const { id } = await this.userService.getUser(login);
-    const permissoes = await this.prismaService.usuarioOnPermissao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    const { id, grupoPermissaoId } = await this.userService.getUser(login);
+    const permissoes = await prisma.grupoPermissaoOnPermissao.findMany({
       select: {
         permissao: {
           select: {
@@ -22,7 +24,7 @@ export class PermissaoService {
         },
       },
       where: {
-        usuarioId: id,
+        grupoPermissaoId: grupoPermissaoId,
       },
       orderBy: {
         permissao: {
@@ -35,7 +37,9 @@ export class PermissaoService {
   }
 
   async getAll() {
-    return await this.prismaService.permissao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.permissao.findMany({
       select: {
         id: true,
         cod: true,
@@ -48,7 +52,9 @@ export class PermissaoService {
   }
 
   async search(word: string) {
-    return await this.prismaService.permissao.findMany({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.permissao.findMany({
       select: {
         cod: true,
         descricao: true,
@@ -74,13 +80,17 @@ export class PermissaoService {
   }
 
   async create(body: any) {
-    return await this.prismaService.permissao.create({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.permissao.create({
       data: body,
     });
   }
 
   async update(body: PermissaoProps) {
-    return await this.prismaService.permissao.update({
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.permissao.update({
       data: {
         cod: body.cod,
         descricao: body.descricao,
