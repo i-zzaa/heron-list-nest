@@ -61,15 +61,11 @@ export class UserService {
           nome: true,
           login: true,
           perfil: true,
-          grupoPermissaoId: true,
           ativo: true,
           grupo: {
             select: {
-              permissoes: {
-                select: {
-                  permissao: true,
-                },
-              },
+              nome: true,
+              id: true,
             },
           },
           terapeuta: {
@@ -130,11 +126,11 @@ export class UserService {
           };
         });
 
-        const permissoesId = usuario?.grupo?.permissoes.map(
-          ({ permissao }: any) => permissao.id,
-        );
+        // const permissoesId = usuario?.grupo?.permissoes.map(
+        //   ({ permissao }: any) => permissao,
+        // );
 
-        delete usuario.grupo;
+        // delete usuario.grupo;
 
         if (usuario?.terapeuta?.fazDevolutiva) {
           usuario.devolutiva = usuario?.terapeuta?.fazDevolutiva;
@@ -165,7 +161,7 @@ export class UserService {
         return {
           ...usuario,
           especialidadeId: usuario?.terapeuta?.especialidade,
-          permissoesId: permissoesId,
+          // grupoId: permissoesId,
           funcoesId: funcoesId,
         };
       }),
@@ -217,11 +213,8 @@ export class UserService {
         ativo: true,
         grupo: {
           select: {
-            permissoes: {
-              select: {
-                permissao: true,
-              },
-            },
+            nome: true,
+            id: true,
           },
         },
         terapeuta: {
@@ -437,6 +430,7 @@ export class UserService {
         login: body.login,
         perfilId: Number(body.perfilId),
         ativo: body.ativo,
+        grupoPermissaoId: body.grupoPermissaoId,
       },
       where: {
         id: body.id,
