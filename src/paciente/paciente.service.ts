@@ -15,8 +15,6 @@ export class PacienteService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(query: any, page: number, pageSize: number) {
-    const prisma = this.prismaService.getPrismaClient();
-
     const statusPacienteCod = query.statusPacienteCod;
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
@@ -156,13 +154,23 @@ export class PacienteService {
         skip,
         take: pageSize,
       }),
-      prisma.paciente.count(),
+      prisma.paciente.findMany({
+        where: {
+          statusPacienteCod: {
+            in: statusPacienteCod,
+          },
+          disabled: false,
+          vaga: {
+            naFila: naFila,
+          },
+        },
+      }),
     ]);
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
 
     const totalPages =
-      pacientes.length < 10 ? 1 : Math.ceil(totalItems / pageSize); // Calcula o total de páginas
+      totalItems.length < 10 ? 1 : Math.ceil(totalItems.length / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
@@ -744,12 +752,33 @@ export class PacienteService {
         skip,
         take: pageSize,
       }),
-      prisma.paciente.count(),
+      prisma.paciente.findMany({
+        where: {
+          statusPacienteCod: {
+            in: statusPacienteCod,
+          },
+          disabled: body.disabled,
+          convenioId: body.convenios,
+          tipoSessaoId: body.tipoSessoes,
+          statusId: body.status,
+          vaga: {
+            pacienteId: body.pacientes,
+            periodoId: body.periodos,
+            // naFila: body.naFila,
+            devolutiva: body.devolutiva,
+            especialidades: {
+              some: {
+                especialidadeId: body.especialidades,
+              },
+            },
+          },
+        },
+      }),
     ]);
 
-    const pacientes: any = data.length ? await this.formatPatients(data) : [];
+    const pacientes: any = data ? await this.formatPatients(data) : [];
     const totalPages =
-      pacientes.length < 10 ? 1 : Math.ceil(totalItems / pageSize); // Calcula o total de páginas
+      totalItems.length < 10 ? 1 : Math.ceil(totalItems.length / pageSize); // Calcula o total de páginas
 
     const pagination = {
       currentPage: page,
@@ -757,6 +786,6 @@ export class PacienteService {
       totalPages,
     };
 
-    return { data: pacientes, pagination };
+    return { data: pacientes || [], pagination };
   }
 }
