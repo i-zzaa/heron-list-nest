@@ -755,24 +755,24 @@ export class AgendaService {
             id: event.id,
           },
         });
+
+        if (event.statusEventos.cobrar) {
+          this.baixaService.create({
+            pacienteId: event.paciente.id,
+            terapeutaId: event.terapeuta.id,
+            localidadeId: event.localidade.id,
+            statusEventosId: event.statusEventos.id,
+            eventoId: event.id,
+            usuarioLogin: login,
+            dataEvento: event.dateAtual,
+          });
+        }
         break;
       case 2: // se o evento for recorrente
         evento = await this.updateEventoRecorrentes(event, login);
 
       default:
         break;
-    }
-
-    if (event.statusEventos.cobrar) {
-      this.baixaService.create({
-        pacienteId: event.paciente.id,
-        terapeutaId: event.terapeuta.id,
-        localidadeId: event.localidade.id,
-        statusEventosId: event.statusEventos.id,
-        eventoId: event.id,
-        usuarioLogin: login,
-        dataEvento: event.dateAtual,
-      });
     }
 
     return evento;
@@ -838,6 +838,7 @@ export class AgendaService {
           login,
           isCanceled,
         );
+
         return eventosAll;
       case !event.changeAll: // se for mudar todos
         const usuario = await this.userService.getUser(login);
@@ -902,8 +903,6 @@ export class AgendaService {
       where: { id: event.id },
     });
 
-    console.log(evento.dataInicio);
-
     const dataInicio = transformStringInDate(evento.dataInicio);
     const dataAtual = transformStringInDate(event.dataAtual);
 
@@ -942,16 +941,33 @@ export class AgendaService {
 
       return eventos;
     } else {
+      console.log(data);
+
+      if (event.statusEventos.cobrar) {
+        this.baixaService.create({
+          pacienteId: event.paciente.id,
+          terapeutaId: event.terapeuta.id,
+          localidadeId: event.localidade.id,
+          statusEventosId: event.statusEventos.id,
+          eventoId: event.id,
+          usuarioLogin: login,
+          dataEvento: event.dataAtual,
+        });
+      }
+
+      const statusEventosId = evento.statusEventosId || evento.statusEventos.id;
       delete event.dataAtual;
+      delete event.data;
+
       const eventosAll = await prisma.calendario.updateMany({
         data: {
           ...data,
-          statusEventosId: evento.statusEventosId,
         },
         where: {
           groupId: data.groupId,
         },
       });
+
       return eventosAll;
     }
   };
