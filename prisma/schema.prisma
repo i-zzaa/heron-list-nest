@@ -274,6 +274,7 @@ model Calendario {
   intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
   usuario       Usuario       @relation(fields: [usuarioId], references: [id])
   Sessao        Sessao[]
+  Baixa         Baixa[]
 }
 
 model Permissao {
@@ -318,15 +319,18 @@ model Baixa {
   pacienteId      Int
   terapeutaId     Int
   statusEventosId Int
+  eventoId        Int?
   usuarioId       Int?
   localidadeId    Int
   baixa           Boolean @default(false)
+  dataEvento      String
 
   paciente   Paciente      @relation(fields: [pacienteId], references: [id])
   terapeuta  Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
   status     StatusEventos @relation(fields: [statusEventosId], references: [id])
   usuario    Usuario?      @relation(fields: [usuarioId], references: [id])
   localidade Localidade    @relation(fields: [localidadeId], references: [id])
+  evento     Calendario?   @relation(fields: [eventoId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())

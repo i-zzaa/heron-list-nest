@@ -11,8 +11,6 @@ export class AuthController {
   @Post('login')
   async login(@Request() req: any, @Response() res: any) {
     try {
-      console.log(req.body);
-
       const data = await this.authService.login(req.user);
       res.status(200).json(data);
     } catch (error) {

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { BaixaCreateProps, BaixaFilterProps } from './baixa.interface';
-import { dateFormatDDMMYYYY } from 'src/util/format-date';
+import {
+  dateFormatDDMMYYYY,
+  dateFormatDDMMYYYYHHMM,
+} from 'src/util/format-date';
 
 @Injectable()
 export class BaixaService {
@@ -59,6 +62,7 @@ export class BaixaService {
           usuario: true,
           baixa: true,
           updatedAt: true,
+          dataEvento: true,
         },
         orderBy: {
           updatedAt: 'desc',
@@ -75,7 +79,8 @@ export class BaixaService {
 
     const data = await Promise.all(
       result.map((item) => {
-        const updatedAt = Boolean(item.usuario) ? item.updatedAt : '-';
+        const updatedAt = Boolean(item.updatedAt) ? item.updatedAt : '-';
+
         return {
           id: item.id,
           paciente: item.paciente.nome,
@@ -86,7 +91,8 @@ export class BaixaService {
           status: item.status.nome,
           usuario: item.usuario?.nome || '-',
           baixa: item.baixa,
-          dataBaixa: dateFormatDDMMYYYY(updatedAt),
+          dataBaixa: dateFormatDDMMYYYYHHMM(updatedAt),
+          dataEvento: dateFormatDDMMYYYY(item.dataEvento),
         };
       }),
     );
@@ -117,10 +123,26 @@ export class BaixaService {
   async create(data: BaixaCreateProps) {
     const prisma = this.prismaService.getPrismaClient();
 
+    const [usuario, evento] = await Promise.all([
+      prisma.usuario.findUnique({
+        where: { login: data.usuarioLogin },
+      }),
+      prisma.baixa.findMany({
+        where: {
+          id: data.eventoId,
+        },
+      }),
+    ]);
+
+    if (Boolean(evento.length)) return;
+
+    delete data.usuarioLogin;
+
     try {
       return await prisma.baixa.create({
         data: {
           ...data,
+          usuarioId: usuario.id,
         },
       });
     } catch (error) {
