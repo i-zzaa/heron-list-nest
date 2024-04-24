@@ -123,22 +123,21 @@ export class BaixaService {
   async create(data: BaixaCreateProps) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const [usuario, evento] = await Promise.all([
-      prisma.usuario.findUnique({
-        where: { login: data.usuarioLogin },
-      }),
-      prisma.baixa.findMany({
-        where: {
-          id: data.eventoId,
-        },
-      }),
-    ]);
-
-    if (Boolean(evento.length)) return;
-
-    delete data.usuarioLogin;
-
     try {
+      const [usuario, evento] = await Promise.all([
+        prisma.usuario.findUnique({
+          where: { login: data.usuarioLogin },
+        }),
+        prisma.baixa.findMany({
+          where: {
+            eventoId: data.eventoId,
+          },
+        }),
+      ]);
+
+      if (Boolean(evento.length)) return;
+
+      delete data.usuarioLogin;
       return await prisma.baixa.create({
         data: {
           ...data,
