@@ -671,15 +671,6 @@ export class AgendaService {
       where: { groupId: body.groupId },
     });
 
-    if (body.statusEventos.cobrar) {
-      this.baixaService.create({
-        pacienteId: body.paciente.id,
-        terapeutaId: body.terapeuta.id,
-        localidadeId: body.localidade.id,
-        statusEventosId: body.statusEventos.id,
-      });
-    }
-
     switch (true) {
       case eventoSalvo.length === 0:
         throw new Error('Não existe evento desse groupo!');
@@ -699,6 +690,18 @@ export class AgendaService {
               groupId: data.groupId,
             },
           });
+
+          // if (body.statusEventos.cobrar) {
+          //   this.baixaService.create({
+          //     pacienteId: body.paciente.id,
+          //     terapeutaId: body.terapeuta.id,
+          //     localidadeId: body.localidade.id,
+          //     statusEventosId: body.statusEventos.id,
+          //     eventoId: body.id,
+          // usuarioLogin: login
+
+          //   });
+          // }
         } else {
           if (body.isChildren) {
             try {
@@ -708,6 +711,18 @@ export class AgendaService {
                   id: body.id,
                 },
               });
+
+              if (body.statusEventos.cobrar) {
+                this.baixaService.create({
+                  pacienteId: body.paciente.id,
+                  terapeutaId: body.terapeuta.id,
+                  localidadeId: body.localidade.id,
+                  statusEventosId: body.statusEventos.id,
+                  eventoId: body.id,
+                  usuarioLogin: login,
+                  dataEvento: body.dataInicio,
+                });
+              }
 
               return eventos;
             } catch (error) {
@@ -746,6 +761,18 @@ export class AgendaService {
 
       default:
         break;
+    }
+
+    if (event.statusEventos.cobrar) {
+      this.baixaService.create({
+        pacienteId: event.paciente.id,
+        terapeutaId: event.terapeuta.id,
+        localidadeId: event.localidade.id,
+        statusEventosId: event.statusEventos.id,
+        eventoId: event.id,
+        usuarioLogin: login,
+        dataEvento: event.dateAtual,
+      });
     }
 
     return evento;
@@ -826,6 +853,13 @@ export class AgendaService {
               },
             }),
             prisma.calendario.create({
+              select: {
+                id: true,
+                terapeutaId: true,
+                localidade: true,
+                statusEventos: true,
+                paciente: true,
+              },
               data: {
                 ...data,
                 dataInicio: event.dataAtual,
@@ -835,6 +869,18 @@ export class AgendaService {
               },
             }),
           ]);
+
+          if (eventos.statusEventos.cobrar) {
+            this.baixaService.create({
+              pacienteId: eventos.paciente.id,
+              terapeutaId: eventos.terapeutaId,
+              localidadeId: eventos.localidade.id,
+              statusEventosId: eventos.statusEventos.id,
+              eventoId: eventos.id,
+              usuarioLogin: login,
+              dataEvento: event.dataAtual,
+            });
+          }
 
           return eventos;
         } catch (error) {

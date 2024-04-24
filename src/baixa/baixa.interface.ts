@@ -24,4 +24,7 @@ export interface BaixaCreateProps {
   terapeutaId: number;
   localidadeId: number;
   statusEventosId: number;
+  eventoId: number;
+  usuarioLogin: string;
+  dataEvento: string;
 }

@@ -54,6 +54,9 @@ export const dateFormatYYYYMMDD = (date: Date | string) =>
 export const dateFormatDDMMYYYY = (date: Date | string) =>
   moment(date).format('DD/MM/YYYY');
 
+export const dateFormatDDMMYYYYHHMM = (date: Date | string) =>
+  moment(date).format('DD/MM/YYYY HH:mm');
+
 export function getDatesBetween(start: string, end: string) {
   // Defina a data de início e a data final como objetos moment
   const startDate = momentBusinessDays(start);
