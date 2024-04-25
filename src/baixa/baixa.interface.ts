@@ -25,6 +25,5 @@ export interface BaixaCreateProps {
   localidadeId: number;
   statusEventosId: number;
   eventoId: number;
-  usuarioLogin: string;
   dataEvento: string;
 }

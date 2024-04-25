@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { BaixaCreateProps, BaixaFilterProps } from './baixa.interface';
 import {
+  calcHoursHHMM,
   dateFormatDDMMYYYY,
   dateFormatDDMMYYYYHHMM,
 } from 'src/util/format-date';
@@ -63,6 +64,13 @@ export class BaixaService {
           baixa: true,
           updatedAt: true,
           dataEvento: true,
+          evento: {
+            select: {
+              start: true,
+              end: true,
+              especialidade: true,
+            },
+          },
         },
         orderBy: {
           updatedAt: 'desc',
@@ -78,7 +86,7 @@ export class BaixaService {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     const data = await Promise.all(
-      result.map((item) => {
+      result.map((item: any) => {
         const updatedAt = Boolean(item.updatedAt) ? item.updatedAt : '-';
 
         return {
@@ -89,10 +97,12 @@ export class BaixaService {
           localidade: item.localidade.casa,
           convenio: item.paciente.convenio.nome,
           status: item.status.nome,
-          usuario: item.usuario?.nome || '-',
+          usuario: item.baixa ? item.usuario?.nome : '-',
           baixa: item.baixa,
-          dataBaixa: dateFormatDDMMYYYYHHMM(updatedAt),
+          dataBaixa: item.baixa ? dateFormatDDMMYYYYHHMM(updatedAt) : '-',
           dataEvento: dateFormatDDMMYYYY(item.dataEvento),
+          cargaHoraria: calcHoursHHMM(item.evento.start, item.evento.end),
+          especialidade: item.evento.especialidade?.nome || '-',
         };
       }),
     );
@@ -124,24 +134,17 @@ export class BaixaService {
     const prisma = this.prismaService.getPrismaClient();
 
     try {
-      const [usuario, evento] = await Promise.all([
-        prisma.usuario.findUnique({
-          where: { login: data.usuarioLogin },
-        }),
-        prisma.baixa.findMany({
-          where: {
-            eventoId: data.eventoId,
-          },
-        }),
-      ]);
+      const evento = await prisma.baixa.findMany({
+        where: {
+          eventoId: data.eventoId,
+        },
+      });
 
       if (Boolean(evento.length)) return;
 
-      delete data.usuarioLogin;
       return await prisma.baixa.create({
         data: {
           ...data,
-          usuarioId: usuario.id,
         },
       });
     } catch (error) {
