@@ -274,3 +274,19 @@ export const formaTime = (duration: any) => {
 export const getDateBeforeDay = (days: number) => {
   return momentBusinessDays().businessAdd(days).format('YYYY-MM-DD');
 };
+
+export const calcHoursHHMM = (hora1, hora2, format = 'HH:mm') => {
+  // Converter as horas em objetos Moment
+  const momento1 = moment(hora1, format);
+  const momento2 = moment(hora2, format);
+
+  // Calcular a diferença de horas
+  const diferencaHoras = moment.duration(momento2.diff(momento1));
+
+  // Formatar o resultado para "HH:MM"
+  const horaFormatada = moment
+    .utc(diferencaHoras.asMilliseconds())
+    .format(format);
+
+  return horaFormatada;
+};

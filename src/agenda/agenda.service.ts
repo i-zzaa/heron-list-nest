@@ -15,7 +15,6 @@ import { CalendarioCreateParam, ObjProps } from './agenda.interface';
 import { FrequenciaService } from 'src/frequencia/frequencia.service';
 import { FREQUENCIA } from 'src/frequencia/frequencia.interface';
 import * as bcrypt from 'bcryptjs';
-import moment from 'moment';
 import { VagaService } from 'src/vaga/vaga.service';
 import { BaixaService } from 'src/baixa/baixa.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
@@ -719,7 +718,6 @@ export class AgendaService {
                   localidadeId: body.localidade.id,
                   statusEventosId: body.statusEventos.id,
                   eventoId: body.id,
-                  usuarioLogin: login,
                   dataEvento: body.dataInicio,
                 });
               }
@@ -763,7 +761,6 @@ export class AgendaService {
             localidadeId: event.localidade.id,
             statusEventosId: event.statusEventos.id,
             eventoId: event.id,
-            usuarioLogin: login,
             dataEvento: event.dateAtual,
           });
         }
@@ -878,7 +875,6 @@ export class AgendaService {
               localidadeId: eventos.localidade.id,
               statusEventosId: eventos.statusEventos.id,
               eventoId: eventos.id,
-              usuarioLogin: login,
               dataEvento: event.dataAtual,
             });
           }
@@ -950,7 +946,6 @@ export class AgendaService {
           localidadeId: event.localidade.id,
           statusEventosId: event.statusEventos.id,
           eventoId: event.id,
-          usuarioLogin: login,
           dataEvento: event.dataAtual,
         });
       }
