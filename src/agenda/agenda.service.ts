@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { LocalidadeService } from 'src/localidade/localidade.service';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { UserService } from 'src/user/user.service';
 import {
   dateAddtDay,

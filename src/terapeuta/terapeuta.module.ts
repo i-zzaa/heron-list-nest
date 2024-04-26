@@ -1,6 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { TerapeutaService } from './terapeuta.service';
 import { TerapeutaController } from './terapeuta.controller';
 import { UserModule } from 'src/user/user.module';

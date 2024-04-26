@@ -1,7 +1,7 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import * as moment from 'moment';
 import { AgendaService } from 'src/agenda/agenda.service';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import {
   HOURS,
   dateFormatYYYYMMDD,

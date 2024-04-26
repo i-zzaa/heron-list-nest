@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { StatusProps } from './status.interface';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 

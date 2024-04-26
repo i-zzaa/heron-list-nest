@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { FuncaoService } from './funcao.service';
 import { FuncaoController } from './funcao.controller';
 

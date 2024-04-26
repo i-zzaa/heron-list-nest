@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { GrupoPermissaoService } from './grupoPermissao.service';
 import { GrupoPermissaoController } from './grupoPermissao.controller';
 

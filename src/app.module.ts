@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 
 import * as cors from 'cors';
 
-import { PrismaService } from './prisma.service';
+import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { AgendaModule } from './agenda/agenda.module';
