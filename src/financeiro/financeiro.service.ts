@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PacienteService } from 'src/paciente/paciente.service';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import {
   dateBetween,
   formaTime,

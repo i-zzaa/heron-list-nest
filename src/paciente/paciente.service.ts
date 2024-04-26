@@ -1,5 +1,5 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 import {
   calculaIdade,

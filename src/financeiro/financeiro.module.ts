@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { FinanceiroService } from './financeiro.service';
 import { FinanceiroController } from './financeiro.controller';
 import { PacienteService } from 'src/paciente/paciente.service';

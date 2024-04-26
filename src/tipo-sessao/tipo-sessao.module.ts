@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { TipoSessaoService } from './tipo-sessao.service';
 import { TipoSessaoController } from './tipo-sessao.controller';
 

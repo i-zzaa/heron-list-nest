@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { moneyFormat } from 'src/util/util';
 import { UserProps } from './user.interface';
 import * as bcrypt from 'bcryptjs';

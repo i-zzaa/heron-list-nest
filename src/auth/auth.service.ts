@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 import { UserProps } from 'src/user/user.interface';
 import { UserService } from 'src/user/user.service';
@@ -11,6 +12,7 @@ export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   async login(user: UserProps, device: DeviceProps) {
@@ -26,6 +28,9 @@ export class AuthService {
 
     if (!hasPermissionDevice.length && user.perfil.nome !== PERFIL.dev)
       throw new Error('Não há permissão para esse módulo');
+    console.log('conectou');
+
+    await this.prismaService.getPrismaClient().$connect();
 
     return {
       accessToken: this.jwtService.sign(payload),
@@ -37,6 +42,10 @@ export class AuthService {
         nome: user.nome,
       },
     };
+  }
+
+  async logout() {
+    await this.prismaService.getPrismaClient().$disconnect();
   }
 
   async validateUser(login: string, password: string): Promise<any> {

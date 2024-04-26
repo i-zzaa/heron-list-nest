@@ -1,5 +1,5 @@
 import { Injectable, UseGuards } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { StatusEventosProps } from './status-evento.interface';
 import { AuthGuard } from '@nestjs/passport';
 

@@ -1,6 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { AgendaService } from './agenda.service';
 import { AgendaController } from './agenda.controller';
 import { UserService } from 'src/user/user.service';
