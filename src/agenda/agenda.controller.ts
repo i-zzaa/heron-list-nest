@@ -15,7 +15,6 @@ import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { DEVICE } from 'src/util/util';
 import { messageError } from 'src/util/message.response';
 import { responseError, responseSuccess } from 'src/util/response';
-import { getPrimeiroDoMes, getUltimoDoMes } from 'src/util/format-date';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('evento')
@@ -114,11 +113,11 @@ export class AgendaController {
     }
   }
 
-  @Put()
+  @Put('check')
   async check(@Request() req: any, @Response() response: any) {
     try {
       await this.agendaService.updateCalendarioMobile(
-        req.body,
+        req.body.id,
         req.headers.login,
       );
       responseSuccess(response, { message: 'Atualizado com sucesso!' });

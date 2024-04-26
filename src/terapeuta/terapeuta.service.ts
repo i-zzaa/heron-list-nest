@@ -249,7 +249,8 @@ export class TerapeutaService {
     ]);
 
     if (!Boolean(terapeuta)) {
-      throw new Error('Terapeuta não encontrado');
+      // throw new Error('Terapeuta não encontrado');
+      return [];
     }
 
     const eventosFormat = await this.agendaService.formatEvents(events, login);
@@ -421,11 +422,21 @@ export class TerapeutaService {
 
     const mobileSort = {};
 
-    Object.keys(mobileArray).map((key: string) => {
-      mobileSort[key] = mobileArray[key].sort((a, b) =>
-        a.data.start.localeCompare(b.data.start),
-      );
-    });
+    if (device === DEVICE.mobile) {
+      const arr = {};
+
+      Object.keys(mobileArray).map((key: string) => {
+        arr[key] = mobileArray[key].filter(
+          (item) => !item.exdate.includes(`${key} ${item.start}`),
+        );
+      });
+
+      Object.keys(arr).map((key: string) => {
+        mobileSort[key] = arr[key].sort((a, b) =>
+          a.data.start.localeCompare(b.data.start),
+        );
+      });
+    }
 
     return device === DEVICE.mobile ? mobileSort : webArray;
   }

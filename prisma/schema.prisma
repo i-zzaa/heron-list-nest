@@ -363,7 +363,7 @@ model Protocolo {
 model Sessao {
   id           Int    @id @default(autoincrement())
   resumo       String
-  calendarioId Int
+  calendarioId Int?
   sessao       Json
   pacienteId   Int
 

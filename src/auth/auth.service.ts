@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 
 import { UserProps } from 'src/user/user.interface';
 import { UserService } from 'src/user/user.service';
+import { DeviceProps, PERFIL } from 'src/util/util';
 
 @Injectable()
 export class AuthService {
@@ -12,15 +13,19 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async login(user: UserProps) {
+  async login(user: UserProps, device: DeviceProps) {
     const payload = {
       sub: user.id,
       username: user.login,
     };
 
-    const permissoes = await Promise.all(
+    const [permissoes, hasPermissionDevice] = await Promise.all([
       user.permissoes?.map(({ permissao }: any) => permissao.cod),
-    );
+      user.permissoes?.filter(({ permissao }: any) => permissao.cod === device),
+    ]);
+
+    if (!hasPermissionDevice.length && user.perfil.nome !== PERFIL.dev)
+      throw new Error('Não há permissão para esse módulo');
 
     return {
       accessToken: this.jwtService.sign(payload),
@@ -39,7 +44,6 @@ export class AuthService {
       const user = await this.userService.findUserAuth(login);
 
       if (!user) return null;
-
       const checkPassword = bcrypt.compareSync(password.toString(), user.senha);
 
       if (user && checkPassword && user.ativo) {

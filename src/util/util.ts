@@ -1,9 +1,13 @@
 export enum DEVICE {
-  mobile = 'mobile',
-  web = 'web',
+  mobile = 'DEVICE_MOBILE',
+  web = 'DEVICE_WEB',
 }
 
-export type DeviceProps = 'mobile' | 'web';
+export enum PERFIL {
+  dev = 'Developer',
+}
+
+export type DeviceProps = 'DEVICE_MOBILE' | 'DEVICE_WEB';
 
 export const moneyFormat = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
