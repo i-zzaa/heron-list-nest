@@ -129,8 +129,8 @@ export class UserService {
         // const permissoesId = usuario?.grupo?.permissoes.map(
         //   ({ permissao }: any) => permissao,
         // );
-
-        // delete usuario.grupo;
+        usuario.grupoPermissao = usuario.grupo;
+        delete usuario.grupo;
 
         if (usuario?.terapeuta?.fazDevolutiva) {
           usuario.devolutiva = usuario?.terapeuta?.fazDevolutiva;

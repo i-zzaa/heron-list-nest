@@ -48,4 +48,16 @@ export class BaixaController {
       responseError(response);
     }
   }
+
+  @Delete(':id')
+  async delete(@Param('id') id: number, @Response() response: any) {
+    console.log(id);
+
+    try {
+      const data = await this.baixaService.delete(Number(id));
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
 }
