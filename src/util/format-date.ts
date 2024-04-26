@@ -66,7 +66,7 @@ export function getDatesBetween(start: string, end: string) {
 
   const datasUteis = [];
   const diff = endDate.businessDiff(startDate);
-  for (let index = 0; index <= diff; index++) {
+  for (let index = 0; index < diff; index++) {
     datasUteis.push(startDate.businessAdd(index).format('YYYY-MM-DD'));
   }
 

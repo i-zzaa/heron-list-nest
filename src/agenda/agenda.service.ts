@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import {
   dateAddtDay,
+  dateFormatYYYYMMDD,
   dateSubtractDay,
   formatDateTime,
   formatadataPadraoBD,
@@ -31,6 +32,11 @@ export class AgendaService {
   ) {}
 
   formatEvent(event: any) {
+    let diasFrequencia = event.diasFrequencia;
+    if (event?.diasFrequencia && typeof event?.diasFrequencia === 'object') {
+      diasFrequencia = event?.diasFrequencia?.join();
+    }
+
     return {
       groupId: event?.groupId,
       km: event?.km,
@@ -43,11 +49,11 @@ export class AgendaService {
       pacienteId: event?.paciente?.id,
       modalidadeId: event?.modalidade?.id,
       especialidadeId: event?.especialidade?.id,
-      terapeutaId: event?.terapeuta?.id,
+      terapeutaId: event?.terapeuta?.id || event?.terapeuta?.usuarioId,
       funcaoId: event?.funcao?.id,
       localidadeId: event.localidade?.id,
       statusEventosId: event?.statusEventos?.id,
-      diasFrequencia: event?.diasFrequencia?.join(),
+      diasFrequencia,
       isExterno: event?.isExterno,
       frequenciaId: event?.frequencia?.id,
       intervaloId: event?.intervalo?.id,
@@ -775,18 +781,70 @@ export class AgendaService {
     return evento;
   }
 
-  async updateCalendarioMobile(body: any, login: string) {
+  async updateCalendarioMobile(id: any, login: string) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const statusEventos = await prisma.statusEventos.findFirst({
-      where: {
-        nome: 'Atendido',
-      },
-    });
+    const [statusEventos, evento]: any = await Promise.all([
+      prisma.statusEventos.findFirst({
+        where: {
+          nome: 'Atendido',
+        },
+      }),
+      prisma.calendario.findFirst({
+        select: {
+          id: true,
+          groupId: true,
+          km: true,
+          dataInicio: true,
+          dataFim: true,
+          start: true,
+          end: true,
+          ciclo: true,
+          observacao: true,
+          paciente: {
+            select: {
+              nome: true,
+              id: true,
+            },
+          },
+          modalidade: {
+            select: {
+              nome: true,
+              id: true,
+            },
+          },
+          especialidade: {
+            select: {
+              nome: true,
+              id: true,
+            },
+          },
+          terapeuta: true,
+          localidade: true,
+          funcao: {
+            select: {
+              nome: true,
+              id: true,
+            },
+          },
+          statusEventos: true,
+          diasFrequencia: true,
+          isExterno: true,
+          frequencia: true,
+          intervalo: true,
+          exdate: true,
+        },
+        where: {
+          id,
+        },
+      }),
+    ]);
 
-    body.statusEventos = statusEventos;
+    evento.statusEventos = statusEventos;
+    evento.changeAll = false;
+    evento.dataAtual = dateFormatYYYYMMDD(new Date());
 
-    this.updateCalendario(body, login);
+    this.updateCalendario(evento, login);
   }
   async updateCalendarioAtestado(body: any, login: string) {
     const prisma = this.prismaService.getPrismaClient();

@@ -11,11 +11,11 @@ export class AuthController {
   @Post('login')
   async login(@Request() req: any, @Response() res: any) {
     try {
-      const data = await this.authService.login(req.user);
+      const data = await this.authService.login(req.user, req.headers.device);
       res.status(200).json(data);
+      return data;
     } catch (error) {
       responseError(res);
     }
-    return await this.authService.login(req.user);
   }
 }
