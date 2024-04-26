@@ -151,4 +151,18 @@ export class BaixaService {
       console.log(error);
     }
   }
+
+  async delete(id: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    try {
+      return await prisma.baixa.delete({
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
 }
