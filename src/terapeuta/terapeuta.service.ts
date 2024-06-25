@@ -426,9 +426,11 @@ export class TerapeutaService {
       const arr = {};
 
       Object.keys(mobileArray).map((key: string) => {
-        arr[key] = mobileArray[key].filter(
-          (item) => !item.exdate.includes(`${key} ${item.start}`),
-        );
+        arr[key] = mobileArray[key].filter((item) => {
+          return (
+            !item['exdate'] || !item.exdate.includes(`${key} ${item.start}`)
+          );
+        });
       });
 
       Object.keys(arr).map((key: string) => {
