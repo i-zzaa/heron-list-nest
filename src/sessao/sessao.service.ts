@@ -70,11 +70,53 @@ export class SessaoService {
     return result;
   }
 
+  async get(calendarioId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+    const data = await prisma.sessao.findMany({
+      select: {
+        id: true,
+        resumo: true,
+        sessao: true,
+      },
+      where: {
+        calendarioId: Number(calendarioId),
+      },
+    });
+
+    return data[0];
+  }
+
   async create(body: any) {
     const prisma = this.prismaService.getPrismaClient();
 
+    const statusEventos = await prisma.statusEventos.findFirst({
+      where: {
+        nome: 'Atendido',
+      },
+    });
+
+    await prisma.calendario.update({
+      data: {
+        statusEventosId: statusEventos.id,
+      },
+      where: {
+        id: body.calendarioId,
+      },
+    });
+
     return await prisma.sessao.create({
       data: body,
+    });
+  }
+
+  async updateSumary(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.sessao.update({
+      data: body,
+      where: {
+        id: body.id,
+      },
     });
   }
 

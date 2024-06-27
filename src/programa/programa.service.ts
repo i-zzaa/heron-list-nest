@@ -156,39 +156,19 @@ export class ProgramaService {
   }
 
   async dropdown() {
-    const prisma = this.prismaService.getPrismaClient();
-
-    const result = await prisma.programa.findMany({
-      select: {
-        id: true,
-        nome: true,
-        atividades: true,
-        ativo: true,
-      },
-      where: {
-        ativo: true,
-      },
-    });
-
-    result.map((item: any, index: number) => {
-      const atividades = JSON.parse(item.atividades);
-
-      delete item.atividades;
-
-      item.children = atividades.map((ativo: any, key: number) => {
-        return {
-          label: ativo.nome,
-          key: `${item.id}-${ativo.id}`,
-          data: ativo.nome,
-          id: ativo.id,
-        };
-      });
-      item.key = `${item.id}`;
-      item.label = item.nome;
-      item.data = item.nome;
-      item.id = item.id;
-    });
-
-    return result;
+    return [
+      { id: 1, nome: 'Mando' },
+      { id: 2, nome: 'Tato' },
+      { id: 3, nome: 'Ouvinte/VP' },
+      { id: 4, nome: 'MTS' },
+      { id: 5, nome: 'Brincar' },
+      { id: 6, nome: 'Social' },
+      { id: 7, nome: 'Imitação' },
+      { id: 8, nome: 'Ecóico' },
+      { id: 9, nome: 'LRFFC' },
+      { id: 10, nome: 'INTRAV' },
+      { id: 11, nome: 'Grupo' },
+      { id: 12, nome: 'Ling' },
+    ];
   }
 }

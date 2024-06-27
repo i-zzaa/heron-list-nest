@@ -20,10 +20,30 @@ import { SessaoService } from './sessao.service';
 export class SessaoController {
   constructor(private sessaoService: SessaoService) {}
 
-  @Get(':id')
-  async getAll(@Param('id') id: number, @Response() response: any) {
+  @Get('sumary/:id')
+  async get(@Param('id') calendarioId: number, @Response() response: any) {
     try {
-      const data = await this.sessaoService.getAll(id);
+      const data = await this.sessaoService.get(calendarioId);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Post('sumary')
+  async saveSumary(@Body() body: any, @Response() response: any) {
+    try {
+      const data = await this.sessaoService.create(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Put('sumary')
+  async updateSumary(@Body() body: any, @Response() response: any) {
+    try {
+      const data = await this.sessaoService.updateSumary(body);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
@@ -76,15 +96,15 @@ export class SessaoController {
     }
   }
 
-  @Post()
-  async create(@Body() body: any, @Response() response: any) {
-    try {
-      const data = await this.sessaoService.create(body);
-      responseSuccess(response, data);
-    } catch (error) {
-      responseError(response);
-    }
-  }
+  // @Post()
+  // async create(@Body() body: any, @Response() response: any) {
+  //   try {
+  //     const data = await this.sessaoService.create(body);
+  //     responseSuccess(response, data);
+  //   } catch (error) {
+  //     responseError(response);
+  //   }
+  // }
 
   @Put()
   async put(@Body() body: any, @Response() response: any) {

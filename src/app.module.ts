@@ -29,6 +29,7 @@ import { WhatsappModule } from './whatsApp/whatsApp.module';
 import { ProgramaModule } from './programa/programa.module';
 import { SessaoModule } from './sessao/sessao.module';
 import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
+import { PeiModule } from './pei/pei.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
     ProgramaModule,
     SessaoModule,
     GrupoPermissaoModule,
+    PeiModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],
