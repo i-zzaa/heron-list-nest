@@ -44,6 +44,7 @@ model Paciente {
   Sessao            Sessao[]
   Protocolo         Protocolo[]
   AtividadeSessao   AtividadeSessao[]
+  Pei               Pei[]
 }
 
 model StatusPaciente {
@@ -219,6 +220,7 @@ model Terapeuta {
   Baixa           Baixa[]
   Protocolo       Protocolo[]
   AtividadeSessao AtividadeSessao[]
+  Pei             Pei[]
 }
 
 model TerapeutaOnFuncao {
@@ -386,4 +388,23 @@ model AtividadeSessao {
 
   terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
   paciente  Paciente   @relation(fields: [pacienteId], references: [id])
+}
+
+model Pei {
+  id          Int  @id @default(autoincrement())
+  pacienteId  Int
+  programaId  Int
+  terapeutaId Int?
+
+  estimuloDiscriminativo     String
+  resposta                   String
+  estimuloReforcoPositivo    String
+  estimuloReforcadorPositivo String
+  metas                      Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  paciente  Paciente   @relation(fields: [pacienteId], references: [id])
+  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
 }
