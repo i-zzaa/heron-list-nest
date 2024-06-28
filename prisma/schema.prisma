@@ -265,18 +265,19 @@ model Calendario {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
-  terapeuta     Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
-  paciente      Paciente      @relation(fields: [pacienteId], references: [id])
-  modalidade    Modalidade    @relation(fields: [modalidadeId], references: [id])
-  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
-  funcao        Funcao        @relation(fields: [funcaoId], references: [id])
-  localidade    Localidade    @relation(fields: [localidadeId], references: [id])
-  statusEventos StatusEventos @relation(fields: [statusEventosId], references: [id])
-  frequencia    Frequencia    @relation(fields: [frequenciaId], references: [id])
-  intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
-  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
-  Sessao        Sessao[]
-  Baixa         Baixa[]
+  terapeuta       Terapeuta         @relation(fields: [terapeutaId], references: [usuarioId])
+  paciente        Paciente          @relation(fields: [pacienteId], references: [id])
+  modalidade      Modalidade        @relation(fields: [modalidadeId], references: [id])
+  especialidade   Especialidade     @relation(fields: [especialidadeId], references: [id])
+  funcao          Funcao            @relation(fields: [funcaoId], references: [id])
+  localidade      Localidade        @relation(fields: [localidadeId], references: [id])
+  statusEventos   StatusEventos     @relation(fields: [statusEventosId], references: [id])
+  frequencia      Frequencia        @relation(fields: [frequenciaId], references: [id])
+  intervalo       Intervalo         @relation(fields: [intervaloId], references: [id])
+  usuario         Usuario           @relation(fields: [usuarioId], references: [id])
+  Sessao          Sessao[]
+  Baixa           Baixa[]
+  AtividadeSessao AtividadeSessao[]
 }
 
 model Permissao {
@@ -339,13 +340,13 @@ model Baixa {
 }
 
 model Programa {
-  id         Int     @id @default(autoincrement())
-  nome       String
-  atividades Json
-  ativo      Boolean @default(true)
+  id    Int     @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+  Pei       Pei[]
 }
 
 model Protocolo {
@@ -377,17 +378,22 @@ model Sessao {
 }
 
 model AtividadeSessao {
-  id                 Int  @id @default(autoincrement())
-  atividadeSessao    Json
-  atividadeSessaoSet Json
-  terapeutaId        Int?
-  pacienteId         Int
+  id           Int    @id @default(autoincrement())
+  calendarioId Int
+  peisIds      String
+
+  atividades   Json
+  selectedKeys Json
+
+  terapeutaId Int
+  pacienteId  Int
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
-  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
+  terapeuta Terapeuta  @relation(fields: [terapeutaId], references: [usuarioId])
   paciente  Paciente   @relation(fields: [pacienteId], references: [id])
+  evento    Calendario @relation(fields: [calendarioId], references: [id])
 }
 
 model Pei {
@@ -398,7 +404,6 @@ model Pei {
 
   estimuloDiscriminativo     String
   resposta                   String
-  estimuloReforcoPositivo    String
   estimuloReforcadorPositivo String
   metas                      Json
 
@@ -407,4 +412,5 @@ model Pei {
 
   paciente  Paciente   @relation(fields: [pacienteId], references: [id])
   terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
+  programa  Programa   @relation(fields: [programaId], references: [id])
 }

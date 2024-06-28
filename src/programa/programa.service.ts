@@ -16,7 +16,6 @@ export class ProgramaService {
         select: {
           id: true,
           nome: true,
-          atividades: true,
           ativo: true,
         },
         where: {
@@ -33,13 +32,6 @@ export class ProgramaService {
 
     const totalPages = Math.ceil(result.length / pageSize);
     const data = [];
-
-    result.map((item: any) => {
-      data.push({
-        ...item,
-        atividades: JSON.parse(item.atividades),
-      });
-    });
 
     const pagination = {
       currentPage: page,
@@ -58,22 +50,11 @@ export class ProgramaService {
 
     delete data.nome;
     delete data.id;
-    const atividades = [];
-
-    Object.keys(data).map((key) => {
-      const idAtividade = key.match(/\d+/g)[0];
-
-      atividades.push({
-        id: idAtividade,
-        nome: data[key],
-      });
-    });
 
     try {
       return await prisma.programa.update({
         data: {
           nome,
-          atividades: JSON.stringify(atividades),
           ativo: true,
         },
         where: {
@@ -88,26 +69,9 @@ export class ProgramaService {
   async create(data: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const nome = data.nome;
-    delete data.nome;
-    const atividades = [];
-
-    Object.keys(data).map((key) => {
-      const id = key.match(/\d+/g)[0];
-
-      atividades.push({
-        id: id,
-        nome: data[key],
-      });
-    });
-
     try {
       return await prisma.programa.create({
-        data: {
-          nome,
-          atividades: JSON.stringify(atividades),
-          ativo: true,
-        },
+        data: data,
       });
     } catch (error) {
       console.log(error);
@@ -121,7 +85,6 @@ export class ProgramaService {
       select: {
         id: true,
         nome: true,
-        atividades: true,
         ativo: true,
       },
       orderBy: {
@@ -156,19 +119,13 @@ export class ProgramaService {
   }
 
   async dropdown() {
-    return [
-      { id: 1, nome: 'Mando' },
-      { id: 2, nome: 'Tato' },
-      { id: 3, nome: 'Ouvinte/VP' },
-      { id: 4, nome: 'MTS' },
-      { id: 5, nome: 'Brincar' },
-      { id: 6, nome: 'Social' },
-      { id: 7, nome: 'Imitação' },
-      { id: 8, nome: 'Ecóico' },
-      { id: 9, nome: 'LRFFC' },
-      { id: 10, nome: 'INTRAV' },
-      { id: 11, nome: 'Grupo' },
-      { id: 12, nome: 'Ling' },
-    ];
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.programa.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+    });
   }
 }

@@ -188,8 +188,8 @@ export class SessaoService {
     const result: any = await prisma.atividadeSessao.findMany({
       select: {
         id: true,
-        atividadeSessao: true,
-        atividadeSessaoSet: true,
+        // atividadeSessao: true,
+        // atividadeSessaoSet: true,
       },
       where: {
         pacienteId: Number(pacienteId),
