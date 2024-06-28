@@ -31,6 +31,16 @@ export class PeiController {
     }
   }
 
+  @Get('activity-session/:id')
+  async getActivity(@Response() response: any, @Body() body: any) {
+    try {
+      const data = await this.peiService.getActivity(body);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Post()
   async create(
     @Body() body: PeiProps,
@@ -74,7 +84,7 @@ export class PeiController {
     }
   }
 
-  @Post('atividade-sessao')
+  @Post('activity-session')
   async createAtividadeSessao(
     @Body() body: any,
     @Response() response: any,
@@ -85,6 +95,33 @@ export class PeiController {
         body,
         Number(req.headers.iduser),
       );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Put('activity-session')
+  async updateAtividadeSessao(
+    @Body() body: any,
+    @Response() response: any,
+    @Request() req: any,
+  ) {
+    try {
+      const data = await this.peiService.updateAtividadeSessao(
+        body,
+        Number(req.headers.iduser),
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('activity/session/:id')
+  async activitySession(@Response() response: any, @Param('id') id: any) {
+    try {
+      const data = await this.peiService.activitySession(Number(id));
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

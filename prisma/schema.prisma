@@ -379,7 +379,7 @@ model Sessao {
 
 model AtividadeSessao {
   id           Int    @id @default(autoincrement())
-  calendarioId Int
+  calendarioId Int    @unique
   peisIds      String
 
   atividades   Json
