@@ -76,10 +76,24 @@ export class PeiService {
     });
   }
 
+  async getActivity(calendarioId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.atividadeSessao.findFirst({
+      select: {
+        atividades: true,
+        selectedKeys: true,
+      },
+      where: {
+        calendarioId,
+      },
+    });
+  }
+
   async createAtividadeSessao(data: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const result = await prisma.atividadeSessao.create({
+    return await prisma.atividadeSessao.create({
       data: {
         ...data,
         terapeutaId,
@@ -88,6 +102,40 @@ export class PeiService {
         peisIds: JSON.stringify(data.peisIds),
       },
     });
-    console.log(result);
+  }
+
+  async updateAtividadeSessao(data: any, terapeutaId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const atividade = await prisma.atividadeSessao.findFirst({
+      where: { calendarioId: data.calendario },
+    });
+
+    return await prisma.atividadeSessao.update({
+      data: {
+        ...data,
+        terapeutaId,
+        atividades: JSON.stringify(data.atividades),
+        selectedKeys: JSON.stringify(data.selectedKeys),
+        peisIds: JSON.stringify(data.peisIds),
+      },
+      where: {
+        id: atividade.id,
+      },
+    });
+  }
+
+  async activitySession(calendarioId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+    const result: any = await prisma.atividadeSessao.findMany({
+      select: {
+        atividades: true,
+      },
+      where: {
+        calendarioId: calendarioId,
+      },
+    });
+
+    return JSON.parse(result[0].atividades);
   }
 }
