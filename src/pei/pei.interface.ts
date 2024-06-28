@@ -6,4 +6,5 @@ export interface PeiProps {
   pacienteId: string;
   programaId: string;
   resposta: string;
+  id?: number;
 }
