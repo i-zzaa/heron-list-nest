@@ -63,13 +63,15 @@ export class SessaoController {
     }
   }
 
-  @Get('atividade/:id')
+  @Get('atividade/:pacienteId')
   async getAtividadeSessaoByPacient(
-    @Param('id') id: number,
+    @Param('pacienteId') pacienteId: number,
     @Response() response: any,
   ) {
     try {
-      const data = await this.sessaoService.getAtividadeSessaoByPacient(id);
+      const data = await this.sessaoService.getAtividadeSessaoByPacient(
+        Number(pacienteId),
+      );
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
