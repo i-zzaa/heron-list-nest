@@ -20,7 +20,7 @@ import { SessaoService } from './sessao.service';
 export class SessaoController {
   constructor(private sessaoService: SessaoService) {}
 
-  @Get('sumary/:id')
+  @Get(':id')
   async get(@Param('id') calendarioId: number, @Response() response: any) {
     try {
       const data = await this.sessaoService.get(calendarioId);
@@ -30,7 +30,7 @@ export class SessaoController {
     }
   }
 
-  @Post('sumary')
+  @Post()
   async saveSumary(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.sessaoService.create(body);
@@ -40,7 +40,7 @@ export class SessaoController {
     }
   }
 
-  @Put('sumary')
+  @Put()
   async updateSumary(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.sessaoService.updateSumary(body);
