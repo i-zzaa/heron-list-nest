@@ -3,4 +3,5 @@ export interface SessaoProps {
   pacientId: number;
   sessaoId: number;
   resumo: string;
+  sessao: any;
 }

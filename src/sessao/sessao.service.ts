@@ -72,7 +72,7 @@ export class SessaoService {
 
   async get(calendarioId: number) {
     const prisma = this.prismaService.getPrismaClient();
-    const data = await prisma.sessao.findMany({
+    const data: any = await prisma.sessao.findFirst({
       select: {
         id: true,
         resumo: true,
@@ -83,7 +83,11 @@ export class SessaoService {
       },
     });
 
-    return data[0];
+    if (Boolean(data?.sessao)) {
+      data.sessao = JSON.parse(data.sessao);
+    }
+
+    return data;
   }
 
   async create(body: any) {
