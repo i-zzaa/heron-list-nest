@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { dateFormatDDMMYYYY } from 'src/util/format-date';
+import { TYPE_DTT, calcAcertos } from 'src/util/util';
 
 @Injectable()
 export class SessaoService {
@@ -189,11 +191,10 @@ export class SessaoService {
   async getAtividadeSessaoByPacient(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const result: any = await prisma.atividadeSessao.findMany({
+    const result: any = await prisma.sessao.findMany({
       select: {
-        id: true,
-        // atividadeSessao: true,
-        // atividadeSessaoSet: true,
+        sessao: true,
+        createdAt: true,
       },
       where: {
         pacienteId: Number(pacienteId),
@@ -203,30 +204,83 @@ export class SessaoService {
       },
     });
 
-    const last = result.at(-1);
-    const atividadeSessao = JSON.parse(last.atividadeSessao);
+    const sessoes = [];
+    await Promise.all(
+      result.map((item: any) => {
+        const programas = JSON.parse(item.sessao);
 
-    atividadeSessao.map((task: any) => {
-      task.children.map((child: any) => {
-        child.loop = [
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-          'no value',
-        ];
+        programas.map((programa: any) => {
+          let current = [];
+          const metas = programa.children;
+          metas.map((meta: any) => {
+            const subtItem = meta.children;
+            subtItem.map((sub: any) => {
+              current.push({
+                programa: sub.label,
+                primeiraResposta: sub.children[0] === TYPE_DTT.c,
+                data: dateFormatDDMMYYYY(item.createdAt),
+                porcentagem: calcAcertos(sub.children),
+              });
+            });
+          });
+
+          sessoes.push({
+            programa: programa.label,
+            children: current,
+          });
+        });
+      }),
+    );
+
+    const programasFormatados = [];
+
+    sessoes.map((item: any) => {
+      const formatted = [];
+
+      let qtdColumns = 0;
+
+      item.children.map((meta: any) => {
+        const se = formatted.filter(
+          (sessao: any) => sessao.programa === meta.programa,
+        )[0];
+
+        if (Boolean(se)) {
+          se.dias.push({
+            primeiraResposta: meta.primeiraResposta,
+            data: meta.data,
+            porcentagem: meta.porcentagem,
+          });
+        } else {
+          formatted.push({
+            programa: meta.programa,
+            dias: [
+              {
+                primeiraResposta: meta.primeiraResposta,
+                data: meta.data,
+                porcentagem: meta.porcentagem,
+              },
+            ],
+          });
+        }
+
+        if (Boolean(se)) {
+          qtdColumns =
+            se.dias.length > qtdColumns ? se.dias.length : qtdColumns;
+        } else {
+          formatted.map((column) => {
+            qtdColumns =
+              column.dias.length > qtdColumns ? column.dias.length : qtdColumns;
+          });
+        }
+      });
+
+      programasFormatados.push({
+        programa: item.programa,
+        children: formatted,
+        qtdColumns,
       });
     });
 
-    return {
-      ...last,
-      atividadeSessao,
-      atividadeSessaoSet: JSON.parse(last.atividadeSessaoSet),
-    };
+    return programasFormatados;
   }
 }
