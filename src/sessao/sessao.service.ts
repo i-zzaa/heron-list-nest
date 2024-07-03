@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { dateFormatDDMMYYYY } from 'src/util/format-date';
 import { TYPE_DTT, calcAcertos } from 'src/util/util';
 
 @Injectable()
 export class SessaoService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly agendaService: AgendaService,
+  ) {}
 
   async getAll(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
@@ -92,26 +96,28 @@ export class SessaoService {
     return data;
   }
 
-  async create(body: any) {
+  async create(body: any, login: string) {
     const prisma = this.prismaService.getPrismaClient();
+    await this.agendaService.updateCalendarioMobile(body.calendarioId, login);
 
-    const statusEventos = await prisma.statusEventos.findFirst({
-      where: {
-        nome: 'Atendido',
-      },
-    });
-
-    await prisma.calendario.update({
-      data: {
-        statusEventosId: statusEventos.id,
+    const eventCurrent = await prisma.calendario.findFirst({
+      select: {
+        id: true,
       },
       where: {
-        id: body.calendarioId,
+        pacienteId: body.pacienteId,
+        terapeuta: body.terapeutaId,
+      },
+      orderBy: {
+        id: 'desc', // Ordena pelo campo 'id' em ordem decrescente
       },
     });
 
     return await prisma.sessao.create({
-      data: body,
+      data: {
+        ...body,
+        calendarioId: eventCurrent.id,
+      },
     });
   }
 
@@ -191,96 +197,106 @@ export class SessaoService {
   async getAtividadeSessaoByPacient(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const result: any = await prisma.sessao.findMany({
-      select: {
-        sessao: true,
-        createdAt: true,
-      },
-      where: {
-        pacienteId: Number(pacienteId),
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+    try {
+      const result: any = await prisma.sessao.findMany({
+        select: {
+          sessao: true,
+          createdAt: true,
+        },
+        where: {
+          pacienteId: Number(pacienteId),
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      });
 
-    const sessoes = [];
-    await Promise.all(
-      result.map((item: any) => {
-        const programas = JSON.parse(item.sessao);
+      const sessoes = [];
+      await Promise.all(
+        result.map((item: any) => {
+          const programas = Array.isArray(item.sessao)
+            ? item.sessao
+            : JSON.parse(item.sessao);
 
-        programas.map((programa: any) => {
-          let current = [];
-          const metas = programa.children;
-          metas.map((meta: any) => {
-            const subtItem = meta.children;
-            subtItem.map((sub: any) => {
-              current.push({
-                programa: sub.label,
-                primeiraResposta: sub.children[0] === TYPE_DTT.c,
-                data: dateFormatDDMMYYYY(item.createdAt),
-                porcentagem: calcAcertos(sub.children),
+          programas.map((programa: any) => {
+            let current = [];
+            const metas = programa.children;
+            metas.map((meta: any) => {
+              const subtItem = meta.children;
+              subtItem.map((sub: any) => {
+                current.push({
+                  programa: sub.label,
+                  primeiraResposta: sub.children[0] === TYPE_DTT.c,
+                  data: dateFormatDDMMYYYY(item.createdAt),
+                  porcentagem: calcAcertos(sub.children),
+                });
               });
             });
+
+            sessoes.push({
+              programa: programa.label,
+              children: current,
+            });
           });
+        }),
+      );
 
-          sessoes.push({
-            programa: programa.label,
-            children: current,
-          });
-        });
-      }),
-    );
+      const programasFormatados = [];
 
-    const programasFormatados = [];
+      await Promise.all(
+        sessoes.map((item: any) => {
+          const formatted = [];
 
-    sessoes.map((item: any) => {
-      const formatted = [];
+          let qtdColumns = 0;
 
-      let qtdColumns = 0;
+          item.children.map((meta: any) => {
+            const se = formatted.filter(
+              (sessao: any) => sessao.programa === meta.programa,
+            )[0];
 
-      item.children.map((meta: any) => {
-        const se = formatted.filter(
-          (sessao: any) => sessao.programa === meta.programa,
-        )[0];
-
-        if (Boolean(se)) {
-          se.dias.push({
-            primeiraResposta: meta.primeiraResposta,
-            data: meta.data,
-            porcentagem: meta.porcentagem,
-          });
-        } else {
-          formatted.push({
-            programa: meta.programa,
-            dias: [
-              {
+            if (Boolean(se)) {
+              se.dias.push({
                 primeiraResposta: meta.primeiraResposta,
                 data: meta.data,
                 porcentagem: meta.porcentagem,
-              },
-            ],
+              });
+            } else {
+              formatted.push({
+                programa: meta.programa,
+                dias: [
+                  {
+                    primeiraResposta: meta.primeiraResposta,
+                    data: meta.data,
+                    porcentagem: meta.porcentagem,
+                  },
+                ],
+              });
+            }
+
+            if (Boolean(se)) {
+              qtdColumns =
+                se.dias.length > qtdColumns ? se.dias.length : qtdColumns;
+            } else {
+              formatted.map((column) => {
+                qtdColumns =
+                  column.dias.length > qtdColumns
+                    ? column.dias.length
+                    : qtdColumns;
+              });
+            }
           });
-        }
 
-        if (Boolean(se)) {
-          qtdColumns =
-            se.dias.length > qtdColumns ? se.dias.length : qtdColumns;
-        } else {
-          formatted.map((column) => {
-            qtdColumns =
-              column.dias.length > qtdColumns ? column.dias.length : qtdColumns;
+          programasFormatados.push({
+            programa: item.programa,
+            children: formatted,
+            qtdColumns,
           });
-        }
-      });
+        }),
+      );
 
-      programasFormatados.push({
-        programa: item.programa,
-        children: formatted,
-        qtdColumns,
-      });
-    });
-
-    return programasFormatados;
+      return programasFormatados;
+    } catch (error) {
+      console.log(error);
+    }
   }
 }

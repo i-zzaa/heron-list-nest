@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
 
 @Injectable()
 export class PeiService {
@@ -35,6 +36,7 @@ export class PeiService {
         id: true,
         estimuloDiscriminativo: true,
         estimuloReforcadorPositivo: true,
+        procedimentoEnsinoId: true,
         metas: true,
         programa: {
           select: {
@@ -58,6 +60,9 @@ export class PeiService {
 
     result.map((item: any) => {
       item.metas = JSON.parse(item.metas);
+      item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
+        (pe: any) => pe.id === item.procedimentoEnsinoId,
+      )[0];
     });
 
     return result;
@@ -137,5 +142,9 @@ export class PeiService {
     });
 
     return JSON.parse(result[0].atividades);
+  }
+
+  async getProcedimentoEnsino() {
+    return PROCEDIMENTO_ENSINO;
   }
 }
