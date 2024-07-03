@@ -127,4 +127,14 @@ export class PeiController {
       responseError(response);
     }
   }
+
+  @Get('procedimento-ensino/dropdown')
+  async typePEI(@Response() response: any, @Param('id') id: any) {
+    try {
+      const data = await this.peiService.getProcedimentoEnsino();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
 }

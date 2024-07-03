@@ -397,10 +397,11 @@ model AtividadeSessao {
 }
 
 model Pei {
-  id          Int  @id @default(autoincrement())
-  pacienteId  Int
-  programaId  Int
-  terapeutaId Int?
+  id                   Int  @id @default(autoincrement())
+  procedimentoEnsinoId Int
+  pacienteId           Int
+  programaId           Int
+  terapeutaId          Int?
 
   estimuloDiscriminativo     String
   resposta                   String

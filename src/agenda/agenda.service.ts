@@ -846,6 +846,7 @@ export class AgendaService {
 
     this.updateCalendario(evento, login);
   }
+
   async updateCalendarioAtestado(body: any, login: string) {
     const prisma = this.prismaService.getPrismaClient();
 

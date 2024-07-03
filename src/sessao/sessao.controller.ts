@@ -31,9 +31,13 @@ export class SessaoController {
   }
 
   @Post()
-  async saveSumary(@Body() body: any, @Response() response: any) {
+  async saveSumary(
+    @Body() body: any,
+    @Response() response: any,
+    @Request() req: any,
+  ) {
     try {
-      const data = await this.sessaoService.create(body);
+      const data = await this.sessaoService.create(body, req.headers.login);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
