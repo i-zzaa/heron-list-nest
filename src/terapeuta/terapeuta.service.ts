@@ -280,7 +280,6 @@ export class TerapeutaService {
       await Promise.all(
         datasRecorrentes.map((dataRecorrentes: string) => {
           ev.date = dateFormatYYYYMMDD(dataRecorrentes);
-
           if (Boolean(eventosFormatados[dataRecorrentes])) {
             eventosFormatados[dataRecorrentes].push(ev);
           } else {

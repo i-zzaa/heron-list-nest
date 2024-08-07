@@ -15,6 +15,7 @@ import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { DEVICE } from 'src/util/util';
 import { messageError } from 'src/util/message.response';
 import { responseError, responseSuccess } from 'src/util/response';
+import { dateAddtDay } from 'src/util/format-date';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('evento')
@@ -97,9 +98,13 @@ export class AgendaController {
   async update(@Request() req: any, @Response() response: any) {
     try {
       if (req.headers.device === DEVICE.mobile) {
+        const dataFim = dateAddtDay(req.body.date, 1);
+
         await this.agendaService.updateCalendarioMobile(
           req.body,
           req.headers.login,
+          req.body.date,
+          dataFim,
         );
       } else {
         await this.agendaService.updateCalendario(req.body, req.headers.login);

@@ -669,7 +669,11 @@ export class AgendaService {
     return evento;
   }
 
-  async updateCalendario(body: any, login: string) {
+  async updateCalendario(
+    body: any,
+    login: string,
+    hasDataFim: boolean = false,
+  ) {
     const prisma = this.prismaService.getPrismaClient();
 
     const eventoSalvo: any[] = await prisma.calendario.findMany({
@@ -680,7 +684,7 @@ export class AgendaService {
       case eventoSalvo.length === 0:
         throw new Error('Não existe evento desse groupo!');
       case eventoSalvo.length === 1:
-        return await this.updateEventoUnicoGrupo(body, login);
+        return await this.updateEventoUnicoGrupo(body, login, hasDataFim);
       case eventoSalvo.length >= 2:
         const data = this.formatEvent(body);
 
@@ -737,8 +741,7 @@ export class AgendaService {
               (event: any) => event.id === body.id,
             )[0];
             body.exdate = evento.exdate;
-
-            this.updateEventoRecorrentes(body, login);
+            this.updateEventoRecorrentes(body, login, hasDataFim);
           }
         }
       default:
@@ -746,7 +749,11 @@ export class AgendaService {
     }
   }
 
-  async updateEventoUnicoGrupo(event: any, login: string) {
+  async updateEventoUnicoGrupo(
+    event: any,
+    login: string,
+    hasDataFim: boolean = false,
+  ) {
     const prisma = this.prismaService.getPrismaClient();
 
     let evento;
@@ -772,7 +779,7 @@ export class AgendaService {
         }
         break;
       case 2: // se o evento for recorrente
-        evento = await this.updateEventoRecorrentes(event, login);
+        evento = await this.updateEventoRecorrentes(event, login, hasDataFim);
 
       default:
         break;
@@ -781,7 +788,12 @@ export class AgendaService {
     return evento;
   }
 
-  async updateCalendarioMobile(id: any, login: string) {
+  async updateCalendarioMobile(
+    id: any,
+    login: string,
+    dataAtual?: string,
+    dataFim?: string,
+  ) {
     const prisma = this.prismaService.getPrismaClient();
 
     const [statusEventos, evento]: any = await Promise.all([
@@ -842,9 +854,14 @@ export class AgendaService {
 
     evento.statusEventos = statusEventos;
     evento.changeAll = false;
-    evento.dataAtual = dateFormatYYYYMMDD(new Date());
 
-    this.updateCalendario(evento, login);
+    evento.dataAtual = dataAtual || dateFormatYYYYMMDD(new Date());
+
+    if (!!dataFim) {
+      evento.dataFim = dataFim;
+    }
+
+    return this.updateCalendario(evento, login, !!dataFim);
   }
 
   async updateCalendarioAtestado(body: any, login: string) {
@@ -869,12 +886,16 @@ export class AgendaService {
     return exdate;
   }
 
-  async updateEventoRecorrentes(event: any, login: string) {
+  async updateEventoRecorrentes(
+    event: any,
+    login: string,
+    hasDataFim: boolean = false,
+  ) {
     const prisma = this.prismaService.getPrismaClient();
 
     const data = this.formatEvent(event);
 
-    let dataFim = event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
+    let dataFim = hasDataFim ? event.dataFim : event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
 
     const statusEventos = event.statusEventos.nome.toLowerCase();
     const isCanceled =
