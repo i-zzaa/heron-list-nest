@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { dateFormatDDMMYYYY } from 'src/util/format-date';
+import { dateAddtDay, dateFormatDDMMYYYY } from 'src/util/format-date';
 import { TYPE_DTT, calcAcertos } from 'src/util/util';
 
 @Injectable()
@@ -98,25 +98,22 @@ export class SessaoService {
 
   async create(body: any, login: string) {
     const prisma = this.prismaService.getPrismaClient();
-    await this.agendaService.updateCalendarioMobile(body.calendarioId, login);
 
-    const eventCurrent = await prisma.calendario.findFirst({
-      select: {
-        id: true,
-      },
-      where: {
-        pacienteId: body.pacienteId,
-        terapeuta: body.terapeutaId,
-      },
-      orderBy: {
-        id: 'desc', // Ordena pelo campo 'id' em ordem decrescente
-      },
-    });
+    const dateFim = dateAddtDay(body.date, 1);
+
+    const evento = await this.agendaService.updateCalendarioMobile(
+      body.calendarioId,
+      login,
+      body.date,
+      dateFim,
+    );
+
+    delete body.date;
 
     return await prisma.sessao.create({
       data: {
         ...body,
-        calendarioId: eventCurrent.id,
+        calendarioId: evento.id,
       },
     });
   }
@@ -294,7 +291,68 @@ export class SessaoService {
         }),
       );
 
-      return programasFormatados;
+      const groupedData = programasFormatados.reduce((acc, current) => {
+        const programa = current.programa;
+        const existingProgram = acc.find((item) => item.programa === programa);
+
+        if (existingProgram) {
+          current.children.forEach((child) => {
+            const existingChild = existingProgram.children.find(
+              (c) => c.programa === child.programa,
+            );
+            if (existingChild) {
+              existingChild.dias.push(...child.dias);
+            } else {
+              existingProgram.children.push({ ...child });
+            }
+          });
+
+          // Atualiza qtdColumns para o maior tamanho de dias encontrado
+          existingProgram.qtdColumns = Math.max(
+            ...existingProgram.children.map((child) => child.dias.length),
+          );
+        } else {
+          // Inicia qtdColumns com o tamanho do primeiro children
+          const qtdColumns = Math.max(
+            ...current.children.map((child) => child.dias.length),
+          );
+          acc.push({
+            programa: programa,
+            children: [...current.children],
+            qtdColumns: qtdColumns,
+          });
+        }
+
+        return acc;
+      }, []);
+
+      // const groupedData = programasFormatados.reduce((acc, current) => {
+      //   const programa = current.programa;
+      //   const existingProgram = acc.find((item) => item.programa === programa);
+
+      //   if (existingProgram) {
+      //     current.children.forEach((child) => {
+      //       const existingChild = existingProgram.children.find(
+      //         (c) => c.programa === child.programa,
+      //       );
+      //       if (existingChild) {
+      //         existingChild.dias.push(...child.dias);
+      //       } else {
+      //         existingProgram.children.push({ ...child });
+      //       }
+      //     });
+      //   } else {
+      //     acc.push({
+      //       programa: programa,
+      //       children: [...current.children],
+      //       qtdColumns: current.qtdColumns,
+      //     });
+      //   }
+
+      //   return acc;
+      // }, []);
+
+      return groupedData;
     } catch (error) {
       console.log(error);
     }

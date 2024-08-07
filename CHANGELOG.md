@@ -1,3 +1,7 @@
+- Implementa o processo de ensino dinamicamente no PEI
+- Ajusta agenda 
+- Ajusta aegnda ao salvar sessão
+
 
 - Implementa Folha de Primeira Resposta
 - Implementa PEI
