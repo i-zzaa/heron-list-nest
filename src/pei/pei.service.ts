@@ -88,6 +88,9 @@ export class PeiService {
       select: {
         atividades: true,
         selectedKeys: true,
+
+        maintenance: true,
+        selectedMaintenanceKeys: true,
       },
       where: {
         calendarioId,
@@ -104,6 +107,12 @@ export class PeiService {
         terapeutaId,
         atividades: JSON.stringify(data.atividades),
         selectedKeys: JSON.stringify(data.selectedKeys),
+
+        maintenance: data.maintenance ? JSON.stringify(data.maintenance) : '',
+        selectedMaintenanceKeys: data.selectedMaintenanceKeys
+          ? JSON.stringify(data.selectedMaintenanceKeys)
+          : '',
+
         peisIds: JSON.stringify(data.peisIds),
       },
     });
@@ -122,6 +131,8 @@ export class PeiService {
         terapeutaId,
         atividades: JSON.stringify(data.atividades),
         selectedKeys: JSON.stringify(data.selectedKeys),
+        maintenance: JSON.stringify(data.maintenance),
+        selectedMaintenanceKeys: JSON.stringify(data.selectedMaintenanceKeys),
         peisIds: JSON.stringify(data.peisIds),
       },
       where: {
@@ -135,13 +146,23 @@ export class PeiService {
     const result: any = await prisma.atividadeSessao.findMany({
       select: {
         atividades: true,
+        maintenance: true,
+        selectedMaintenanceKeys: true,
       },
       where: {
         calendarioId: calendarioId,
       },
     });
 
-    return JSON.parse(result[0].atividades);
+    result.map((item) => {
+      item.atividades = JSON.parse(item.atividades);
+      item.maintenance = item.maintenance && JSON.parse(item.maintenance);
+      item.selectedMaintenanceKeys =
+        item.selectedMaintenanceKeys &&
+        JSON.parse(item.selectedMaintenanceKeys);
+    });
+
+    return result[0];
   }
 
   async getProcedimentoEnsino() {

@@ -741,7 +741,7 @@ export class AgendaService {
               (event: any) => event.id === body.id,
             )[0];
             body.exdate = evento.exdate;
-            this.updateEventoRecorrentes(body, login, hasDataFim);
+            return this.updateEventoRecorrentes(body, login, hasDataFim);
           }
         }
       default:
@@ -917,7 +917,7 @@ export class AgendaService {
         );
 
         return eventosAll;
-      case !event.changeAll: // se for mudar todos
+      case !event.changeAll: // se nao for mudar todos
         const usuario = await this.userService.getUser(login);
 
         try {
