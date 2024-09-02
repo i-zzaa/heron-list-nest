@@ -83,6 +83,8 @@ export class SessaoService {
         id: true,
         resumo: true,
         sessao: true,
+        maintenance: true,
+        selectedMaintenanceKeys: true,
       },
       where: {
         calendarioId: Number(calendarioId),
@@ -91,6 +93,8 @@ export class SessaoService {
 
     if (Boolean(data?.sessao)) {
       data.sessao = JSON.parse(data.sessao);
+      data.selectedMaintenanceKeys = JSON.parse(data.selectedMaintenanceKeys);
+      data.maintenance = JSON.parse(data.maintenance);
     }
 
     return data;
@@ -115,6 +119,20 @@ export class SessaoService {
         ...body,
         calendarioId: evento.id,
       },
+    });
+  }
+
+  async updateMaintenance(pacienteId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const sessions = await prisma.sessao.findMany({
+      where: {
+        pacienteId,
+      },
+      orderBy: {
+        id: 'desc', // Substitua 'id' pelo campo que deseja usar para ordenar os registros
+      },
+      take: 3,
     });
   }
 

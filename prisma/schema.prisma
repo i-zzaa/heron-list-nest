@@ -370,6 +370,9 @@ model Sessao {
   sessao       Json
   pacienteId   Int
 
+  maintenance             Json
+  selectedMaintenanceKeys Json
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
@@ -384,6 +387,9 @@ model AtividadeSessao {
 
   atividades   Json
   selectedKeys Json
+
+  maintenance             Json?
+  selectedMaintenanceKeys Json?
 
   terapeutaId Int
   pacienteId  Int
