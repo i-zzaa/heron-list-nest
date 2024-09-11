@@ -114,18 +114,137 @@ export class SessaoService {
 
     delete body.date;
 
-    return await prisma.sessao.create({
+    await prisma.sessao.create({
       data: {
         ...body,
         calendarioId: evento.id,
       },
     });
+
+    await this.updateMaintenance(body.pacienteId, body.calendarioId);
+
+    return;
   }
 
-  async updateMaintenance(pacienteId: number) {
+  isTaskCompleted(childrenArray) {
+    const fourCWithNulls =
+      childrenArray.slice(0, 4).every((child) => child === 'C') &&
+      childrenArray.slice(4).every((child) => child === null);
+
+    const allCs = childrenArray.every((child) => child === 'C');
+
+    return fourCWithNulls || allCs;
+  }
+
+  processActivities(node) {
+    const taskCompletionCount = {};
+    const manutencao = [];
+
+    node.forEach((group) => {
+      group.forEach((item) => {
+        item.children.forEach((meta) => {
+          meta.children.forEach((task) => {
+            const taskKey = `${task.key}`;
+
+            if (this.isTaskCompleted(task.children)) {
+              // Contabiliza quantas vezes a tarefa foi completada 100%
+              if (taskCompletionCount[taskKey]) {
+                taskCompletionCount[taskKey]++;
+              } else {
+                taskCompletionCount[taskKey] = 1;
+              }
+
+              // Se completou 100% 3 vezes, move toda a árvore para manutenção
+              if (taskCompletionCount[taskKey] === 3) {
+                // Adicionar ao array de manutenção a estrutura completa
+                const existingIndex = manutencao.findIndex(
+                  (m) => m.key === item.key,
+                );
+
+                if (existingIndex !== -1) {
+                  const existingMetaIndex = manutencao[
+                    existingIndex
+                  ].children.findIndex((m) => m.key === meta.key);
+
+                  if (existingMetaIndex !== -1) {
+                    manutencao[existingIndex].children[
+                      existingMetaIndex
+                    ].children.push({
+                      key: task.key,
+                      label: task.label,
+                      disabled: task.disabled,
+                    });
+                  } else {
+                    manutencao[existingIndex].children.push({
+                      key: meta.key,
+                      label: meta.label,
+                      children: [
+                        {
+                          key: task.key,
+                          label: task.label,
+                          disabled: task.disabled,
+                        },
+                      ],
+                    });
+                  }
+                } else {
+                  manutencao.push({
+                    key: item.key,
+                    label: item.label,
+                    children: [
+                      {
+                        key: meta.key,
+                        label: meta.label,
+                        children: [
+                          {
+                            key: task.key,
+                            label: task.label,
+                            disabled: task.disabled,
+                          },
+                        ],
+                      },
+                    ],
+                  });
+                }
+              }
+            }
+          });
+        });
+      });
+    });
+
+    // Remove apenas as tarefas que foram movidas para manutenção do array original
+    node.forEach((group) => {
+      group.forEach((item) => {
+        item.data = item.key;
+
+        item.children.forEach((meta) => {
+          meta.data = meta.key;
+
+          meta.children = meta.children.filter((task) => {
+            task.data = task.key;
+            const taskKey = `${task.key}`;
+
+            delete task.children;
+            return !(taskCompletionCount[taskKey] === 3);
+          });
+        });
+      });
+    });
+
+    return {
+      manutencao,
+      atividades: node[0],
+    };
+  }
+
+  async updateMaintenance(pacienteId: number, calendarioId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
     const sessions = await prisma.sessao.findMany({
+      select: {
+        sessao: true,
+      },
       where: {
         pacienteId,
       },
@@ -134,6 +253,24 @@ export class SessaoService {
       },
       take: 3,
     });
+
+    const flat = sessions.flat();
+
+    const formatted = await Promise.all(
+      flat.map((session: any) => {
+        return JSON.parse(session.sessao);
+      }),
+    );
+
+    const result = this.processActivities(formatted);
+
+    if (result.manutencao.length) {
+      this.updateAtividadeSessao({
+        maintenance: JSON.stringify(result.manutencao),
+        atividades: JSON.stringify(result.atividades),
+        calendarioId,
+      });
+    }
   }
 
   async updateSumary(body: any) {
@@ -163,15 +300,17 @@ export class SessaoService {
     });
   }
 
-  async update(body: any) {
-    // return await this.prismaService.periodo.update({
-    //   data: {
-    //     nome: body.nome,
-    //   },
-    //   where: {
-    //     id: Number(body.id),
-    //   },
-    // });
+  async updateAtividadeSessao(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    return await prisma.atividadeSessao.update({
+      data: {
+        ...body,
+      },
+      where: {
+        calendarioId: body.calendarioId,
+      },
+    });
   }
 
   async delete(id: number) {
@@ -217,6 +356,7 @@ export class SessaoService {
         select: {
           sessao: true,
           createdAt: true,
+          evento: true,
         },
         where: {
           pacienteId: Number(pacienteId),
@@ -238,11 +378,12 @@ export class SessaoService {
             const metas = programa.children;
             metas.map((meta: any) => {
               const subtItem = meta.children;
+
               subtItem.map((sub: any) => {
                 current.push({
                   programa: sub.label,
                   primeiraResposta: sub.children[0] === TYPE_DTT.c,
-                  data: dateFormatDDMMYYYY(item.createdAt),
+                  data: dateFormatDDMMYYYY(item.evento.dataInicio),
                   porcentagem: calcAcertos(sub.children),
                 });
               });
@@ -253,6 +394,8 @@ export class SessaoService {
               children: current,
             });
           });
+
+          delete item.evento;
         }),
       );
 

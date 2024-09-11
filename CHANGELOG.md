@@ -1,6 +1,6 @@
 
 3º Entrega
-- Implementa Manutenção
+- Implementa Manutenção (tela Meta-dtt/ tela sessão)
 
 2º Entrega
 - Implementa o processo de ensino dinamicamente no PEI
