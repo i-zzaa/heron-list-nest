@@ -141,6 +141,43 @@ export class PeiService {
     });
   }
 
+  // getAllKeys(arr: any) {
+  //   let current: string[] = [];
+
+  //   console.log(arr);
+
+  //   arr.forEach((item: any) => {
+  //     current.push(item.key); // Pega a chave do item atual
+
+  //     // Se o item tiver children, faz a recursão
+  //     if (item.children) {
+  //       current = current.concat(this.getAllKeys(item.children));
+  //     }
+  //   });
+
+  //   return current;
+  // }
+
+  filterTree(data: any, keys: any) {
+    let allKeysMaintenance = Object.keys(keys);
+
+    return data
+      .map((item: any) => {
+        if (item.children) {
+          const filteredChildren = this.filterTree(item.children, keys);
+          if (filteredChildren.length > 0) {
+            return { ...item, children: filteredChildren };
+          }
+        }
+        // Verifica se o item é a última camada e está em selectedMaintenanceKeys
+        if (allKeysMaintenance.includes(item.key)) {
+          return item;
+        }
+        return null;
+      })
+      .filter((item: any) => item !== null);
+  }
+
   async activitySession(calendarioId: number) {
     const prisma = this.prismaService.getPrismaClient();
     const result: any = await prisma.atividadeSessao.findMany({
@@ -155,11 +192,21 @@ export class PeiService {
     });
 
     result.map((item) => {
+      let maintenanceParse = JSON.parse(item.maintenance);
+      let maintenance = [];
+
+      const selectedMaintenanceKeys = JSON.parse(item.selectedMaintenanceKeys);
+
+      if (maintenanceParse.length) {
+        maintenance = this.filterTree(
+          maintenanceParse,
+          selectedMaintenanceKeys,
+        );
+      }
+
       item.atividades = JSON.parse(item.atividades);
-      item.maintenance = item.maintenance && JSON.parse(item.maintenance);
-      item.selectedMaintenanceKeys =
-        item.selectedMaintenanceKeys &&
-        JSON.parse(item.selectedMaintenanceKeys);
+      item.maintenance = maintenance;
+      item.selectedMaintenanceKeys = selectedMaintenanceKeys;
     });
 
     return result[0];

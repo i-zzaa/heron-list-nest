@@ -20,6 +20,16 @@ import { SessaoService } from './sessao.service';
 export class SessaoController {
   constructor(private sessaoService: SessaoService) {}
 
+  @Get('teste')
+  async teste(@Param('id') calendarioId: number, @Response() response: any) {
+    try {
+      const data = await this.sessaoService.updateMaintenance(58, 29);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Get(':id')
   async get(@Param('id') calendarioId: number, @Response() response: any) {
     try {
@@ -76,6 +86,7 @@ export class SessaoController {
       const data = await this.sessaoService.getAtividadeSessaoByPacient(
         Number(pacienteId),
       );
+
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
@@ -115,8 +126,8 @@ export class SessaoController {
   @Put()
   async put(@Body() body: any, @Response() response: any) {
     try {
-      const data = await this.sessaoService.update(body);
-      responseSuccess(response, data);
+      // const data = await this.sessaoService.update(body);
+      // responseSuccess(response, data);
     } catch (error) {
       responseError(response);
     }
