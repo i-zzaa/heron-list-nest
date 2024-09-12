@@ -45,6 +45,7 @@ model Paciente {
   Protocolo         Protocolo[]
   AtividadeSessao   AtividadeSessao[]
   Pei               Pei[]
+  Portage           Portage[]
 }
 
 model StatusPaciente {
@@ -260,24 +261,31 @@ model Calendario {
   statusEventosId Int
   frequenciaId    Int
   intervaloId     Int
+  usuarioId       Int
 
-  usuarioId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
-  terapeuta       Terapeuta         @relation(fields: [terapeutaId], references: [usuarioId])
-  paciente        Paciente          @relation(fields: [pacienteId], references: [id])
-  modalidade      Modalidade        @relation(fields: [modalidadeId], references: [id])
-  especialidade   Especialidade     @relation(fields: [especialidadeId], references: [id])
-  funcao          Funcao            @relation(fields: [funcaoId], references: [id])
-  localidade      Localidade        @relation(fields: [localidadeId], references: [id])
-  statusEventos   StatusEventos     @relation(fields: [statusEventosId], references: [id])
-  frequencia      Frequencia        @relation(fields: [frequenciaId], references: [id])
-  intervalo       Intervalo         @relation(fields: [intervaloId], references: [id])
-  usuario         Usuario           @relation(fields: [usuarioId], references: [id])
-  Sessao          Sessao[]
+  // Relations
+  terapeuta     Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
+  paciente      Paciente      @relation(fields: [pacienteId], references: [id])
+  modalidade    Modalidade    @relation(fields: [modalidadeId], references: [id])
+  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
+  funcao        Funcao        @relation(fields: [funcaoId], references: [id])
+  localidade    Localidade    @relation(fields: [localidadeId], references: [id])
+  statusEventos StatusEventos @relation(fields: [statusEventosId], references: [id])
+  frequencia    Frequencia    @relation(fields: [frequenciaId], references: [id])
+  intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
+
+  // One-to-many relation with Portage (multiple instances)
+  PortageEvento1  Portage[]        @relation("Evento1")
+  PortageEvento2  Portage[]        @relation("Evento2")
+  PortageEvento3  Portage[]        @relation("Evento3")
+  PortageEvento4  Portage[]        @relation("Evento4")
   Baixa           Baixa[]
-  AtividadeSessao AtividadeSessao[]
+  Sessao          Sessao[]
+  AtividadeSessao AtividadeSessao?
 }
 
 model Permissao {
@@ -420,4 +428,30 @@ model Pei {
   paciente  Paciente   @relation(fields: [pacienteId], references: [id])
   terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
   programa  Programa   @relation(fields: [programaId], references: [id])
+}
+
+model Portage {
+  id          Int       @id @default(autoincrement())
+  atividade   String
+  atividadeId Int
+  pacienteId  Int
+  faixaEtaria String
+  tipo        String
+  resposta1   String? // Campo opcional
+  resposta2   String? // Campo opcional
+  resposta3   String? // Campo opcional
+  resposta4   String? // Campo opcional
+  sessaoId1   Int? // Campo opcional
+  sessaoId2   Int? // Campo opcional
+  sessaoId3   Int? // Campo opcional
+  sessaoId4   Int? // Campo opcional
+  createdAt   DateTime? @default(now()) // Campo opcional com valor padrão
+  updatedAt   DateTime? @updatedAt // Atualiza automaticamente ao modificar
+
+  // Relations
+  paciente Paciente    @relation(fields: [pacienteId], references: [id])
+  evento1  Calendario? @relation("Evento1", fields: [sessaoId1], references: [id])
+  evento2  Calendario? @relation("Evento2", fields: [sessaoId2], references: [id])
+  evento3  Calendario? @relation("Evento3", fields: [sessaoId3], references: [id])
+  evento4  Calendario? @relation("Evento4", fields: [sessaoId4], references: [id])
 }

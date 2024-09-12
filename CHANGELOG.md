@@ -1,6 +1,7 @@
 
 3º Entrega
 - Implementa Manutenção (tela Meta-dtt/ tela sessão)
+- Folha de primeira respsta estava considerando a data de criacao da sessão e não a data de inicio da sessão como data principal
 
 2º Entrega
 - Implementa o processo de ensino dinamicamente no PEI

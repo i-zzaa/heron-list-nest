@@ -129,9 +129,19 @@ export class PeiController {
   }
 
   @Get('procedimento-ensino/dropdown')
-  async typePEI(@Response() response: any, @Param('id') id: any) {
+  async typePEI(@Response() response: any) {
     try {
       const data = await this.peiService.getProcedimentoEnsino();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('metas/dropdown')
+  async metasPEI(@Response() response: any) {
+    try {
+      const data = await this.peiService.getMetas();
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
