@@ -30,6 +30,7 @@ import { ProgramaModule } from './programa/programa.module';
 import { SessaoModule } from './sessao/sessao.module';
 import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
 import { PeiModule } from './pei/pei.module';
+import { ProtocoloeModule } from './protocolo/protocolo.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { PeiModule } from './pei/pei.module';
     SessaoModule,
     GrupoPermissaoModule,
     PeiModule,
+    ProtocoloeModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],

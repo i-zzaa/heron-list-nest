@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
+import { METAS, PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
 
 @Injectable()
 export class PeiService {
@@ -212,7 +212,10 @@ export class PeiService {
     return result[0];
   }
 
-  async getProcedimentoEnsino() {
+  getProcedimentoEnsino() {
     return PROCEDIMENTO_ENSINO;
+  }
+  getMetas() {
+    return METAS;
   }
 }
