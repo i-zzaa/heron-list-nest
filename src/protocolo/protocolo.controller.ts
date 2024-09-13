@@ -21,6 +21,20 @@ import { PortageProps } from './protocolo.interface';
 export class ProtocoloController {
   constructor(private protocoloService: ProtocoloService) {}
 
+  @Post('filtro')
+  async filtro(@Request() req: any, @Response() response: any) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const pageSize = Number(req.query.pageSize) || 10;
+
+      const data = await this.protocoloService.filter(req.body, page, pageSize);
+
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Post('portage')
   async createPostage(
     @Body() body: PortageProps,
@@ -28,7 +42,7 @@ export class ProtocoloController {
     @Request() req: any,
   ) {
     try {
-      const data = await this.protocoloService.createPostage(
+      const data = await this.protocoloService.createOrUpdatePostage(
         body,
         req.headers.iduser,
       );
