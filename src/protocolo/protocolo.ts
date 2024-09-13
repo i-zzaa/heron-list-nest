@@ -62,6 +62,6 @@ export const TIPO_PROTOCOLO = [
   },
   {
     id: 3,
-    nome: 'DTT',
+    nome: 'PEI',
   },
 ];
