@@ -91,6 +91,9 @@ export class PeiService {
 
         maintenance: true,
         selectedMaintenanceKeys: true,
+
+        portage: true,
+        selectedPortageKeys: true,
       },
       where: {
         calendarioId,
@@ -129,10 +132,12 @@ export class PeiService {
       data: {
         ...data,
         terapeutaId,
-        atividades: JSON.stringify(data.atividades),
-        selectedKeys: JSON.stringify(data.selectedKeys),
-        maintenance: JSON.stringify(data.maintenance),
-        selectedMaintenanceKeys: JSON.stringify(data.selectedMaintenanceKeys),
+        atividades: data.atividades,
+        selectedKeys: data.selectedKeys,
+        maintenance: data.maintenance,
+        selectedPortageKeys: data.selectedPortageKeys,
+        portage: data.portage,
+        selectedMaintenanceKeys: data.selectedMaintenanceKeys,
         peisIds: JSON.stringify(data.peisIds),
       },
       where: {
@@ -178,12 +183,40 @@ export class PeiService {
       .filter((item: any) => item !== null);
   }
 
+  filterSelectedItemsTree(data: any, keys: any) {
+    return data
+      .map((item: any) => {
+        if (item.children) {
+          // Recursivamente filtra os filhos
+          const filteredChildren = this.filterSelectedItemsTree(
+            item.children,
+            keys,
+          );
+
+          // Se houver filhos filtrados, monta o nó com os filhos
+          if (filteredChildren.length > 0) {
+            return { ...item, children: filteredChildren };
+          }
+        }
+
+        // Verifica se o item (última camada) está marcado como `checked = true`
+        if (keys[item.key]?.checked) {
+          return item;
+        }
+
+        return null;
+      })
+      .filter((item: any) => item !== null); // Remove nós nulos
+  }
+
   async activitySession(calendarioId: number) {
     const prisma = this.prismaService.getPrismaClient();
     const result: any = await prisma.atividadeSessao.findMany({
       select: {
         atividades: true,
         maintenance: true,
+        portage: true,
+        selectedPortageKeys: true,
         selectedMaintenanceKeys: true,
       },
       where: {
@@ -192,10 +225,11 @@ export class PeiService {
     });
 
     result.map((item) => {
-      let maintenanceParse = JSON.parse(item.maintenance);
-      let maintenance = [];
+      console.log(item);
 
-      const selectedMaintenanceKeys = JSON.parse(item.selectedMaintenanceKeys);
+      let maintenanceParse = item.maintenance;
+      let maintenance = [];
+      const selectedMaintenanceKeys = item.selectedMaintenanceKeys;
 
       if (maintenanceParse.length) {
         maintenance = this.filterTree(
@@ -204,8 +238,21 @@ export class PeiService {
         );
       }
 
-      item.atividades = JSON.parse(item.atividades);
+      let portageParse = item.portage;
+      let portage = [];
+
+      if (portageParse.length) {
+        const selectedPortageKeys = item.selectedPortageKeys;
+
+        portage = this.filterSelectedItemsTree(
+          portageParse,
+          selectedPortageKeys,
+        );
+      }
+
+      item.atividades = item.atividades;
       item.maintenance = maintenance;
+      item.portage = portage;
       item.selectedMaintenanceKeys = selectedMaintenanceKeys;
     });
 

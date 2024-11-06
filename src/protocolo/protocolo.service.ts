@@ -6,6 +6,7 @@ import {
   PORTAGE_TIPO,
   TIPO_PROTOCOLO,
 } from './protocolo';
+import { VALOR_PORTAGE } from 'src/util/util';
 
 export enum TIPO_PROTOCOLO_ENUM {
   portage = 1,
@@ -17,42 +18,31 @@ export enum TIPO_PROTOCOLO_ENUM {
 export class ProtocoloService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  groupedArray(originalArray) {
-    const agrupado = {};
+  transformarParaEstruturaAninhadaCheckbox(array) {
+    const agrupadoPorTipoEFaixaEtaria = {};
 
-    originalArray.forEach((item) => {
-      const tipo = item.tipo;
-      const faixaEtaria = item.faixaEtaria;
-      const pacienteId = item.pacienteId;
+    array.forEach((item) => {
+      // Cria uma chave combinando `tipo` e `faixaEtaria`
+      const tipoFaixa = `${item.tipo} ${item.faixaEtaria}`;
 
-      const chaveGrupo = `${tipo}-${faixaEtaria}-${pacienteId}`;
-
-      if (!agrupado[chaveGrupo]) {
-        agrupado[chaveGrupo] = {
-          id: item.id,
-          tipoId: {
-            id: item.pacienteId, // Usando o pacienteId como um identificador temporário, ajuste conforme necessário
-            nome: tipo,
-          },
-          faixaEtariaId: {
-            id: item.pacienteId, // Usando o pacienteId como um identificador temporário, ajuste conforme necessário
-            nome: faixaEtaria,
-          },
-          atividades: [],
-          pacienteId: {
-            id: item.pacienteId,
-            nome: `Paciente ${item.pacienteId}`, // Ajuste o nome conforme a necessidade
-          },
+      // Se o agrupamento por `tipoFaixa` não existir, cria um novo nó
+      if (!agrupadoPorTipoEFaixaEtaria[tipoFaixa]) {
+        agrupadoPorTipoEFaixaEtaria[tipoFaixa] = {
+          key: `${item.tipo}-${item.faixaEtaria}`, // Ajuste o key conforme necessário
+          label: tipoFaixa,
+          children: [],
         };
       }
 
-      agrupado[chaveGrupo].atividades.push({
-        id: item.atividadeId,
-        nome: item.atividade,
+      // Adiciona a atividade como um "child" no tipo + faixaEtaria
+      agrupadoPorTipoEFaixaEtaria[tipoFaixa].children.push({
+        key: `${item.atividadeId}-atividade`, // Ajuste o key conforme necessário
+        label: item.atividade,
       });
     });
 
-    return Object.values(agrupado);
+    // Retorna os valores agrupados em um array
+    return Object.values(agrupadoPorTipoEFaixaEtaria);
   }
 
   async filter(body: any, page: number, pageSize: number) {
@@ -60,15 +50,10 @@ export class ProtocoloService {
 
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:
-        console.log('portage');
-
         const portage = await prisma.portage.findMany({
           select: {
             id: true,
-            tipo: true,
-            atividadeId: true,
-            atividade: true,
-            faixaEtaria: true,
+            portage: true,
             paciente: {
               select: {
                 id: true,
@@ -81,7 +66,7 @@ export class ProtocoloService {
           },
         });
 
-        return this.groupedArray(portage);
+        return portage[0];
 
       case TIPO_PROTOCOLO_ENUM.pei:
         const result = await prisma.pei.findMany({
@@ -90,7 +75,119 @@ export class ProtocoloService {
           },
         });
 
-        console.log(result);
+        return result;
+
+      case TIPO_PROTOCOLO_ENUM.vbMapp:
+        // return await prisma.vbmapp.findMany({
+        //   where: {
+        //     pacienteId: body.pacienteId,
+        //   },
+        // });
+        break;
+    }
+  }
+
+  filterDataBySelected(data: any) {
+    const result = {};
+
+    // Percorre cada portage (ex: "Cognição", "Socialização")
+    for (const portage in data) {
+      const faixasEtarias = data[portage];
+      const filteredFaixasEtarias = {};
+
+      // Percorre cada faixa etária dentro do portage
+      for (const faixaEtaria in faixasEtarias) {
+        const atividades = faixasEtarias[faixaEtaria];
+
+        // Filtra as atividades removendo aquelas que têm selected === "1"
+        const filteredAtividades = atividades.filter(
+          (activity) => activity.selected !== '1',
+        );
+
+        // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
+        if (filteredAtividades.length > 0) {
+          filteredFaixasEtarias[faixaEtaria] = filteredAtividades;
+        }
+      }
+
+      // Adiciona o portage ao resultado se ainda tiver faixas etárias válidas
+      if (Object.keys(filteredFaixasEtarias).length > 0) {
+        result[portage] = filteredFaixasEtarias;
+      }
+    }
+
+    return result;
+  }
+
+  convertToTreeStructure(filteredData: any) {
+    const result = [];
+    let metaIndex = 0; // Contador para meta
+
+    // Percorre o portage (ex: "Cognição", "Socialização")
+    for (const portage in filteredData) {
+      const faixasEtarias = filteredData[portage];
+
+      // Percorre as faixas etárias dentro do portage
+      for (const faixaEtaria in faixasEtarias) {
+        const atividades = faixasEtarias[faixaEtaria];
+        const children = [];
+        let subItemIndex = 0; // Contador para sub-item dentro de cada meta
+
+        // Percorre cada atividade dentro da faixa etária
+        atividades.forEach((activity, index) => {
+          children.push({
+            key: `${metaIndex}-meta-${index}-sub-item-${subItemIndex}`, // Formata o key no estilo pedido
+            label: activity.nome,
+          });
+          subItemIndex++; // Incrementa o contador de sub-item
+        });
+
+        // Adiciona ao resultado final no formato desejado
+        result.push({
+          key: `${metaIndex}-meta`, // Chave de meta
+          label: `${portage} ${faixaEtaria}`,
+          children: children,
+        });
+
+        metaIndex++; // Incrementa o contador de meta
+      }
+    }
+
+    return result;
+  }
+
+  async filterMeta(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    switch (body.protocoloId) {
+      case TIPO_PROTOCOLO_ENUM.portage:
+        const data = await prisma.portage.findFirst({
+          select: {
+            id: true,
+            portage: true,
+            paciente: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+          where: {
+            pacienteId: body.pacienteId,
+          },
+        });
+
+        const filter = this.filterDataBySelected(data.portage);
+        const convertToTree = this.convertToTreeStructure(filter);
+
+        return convertToTree;
+
+      case TIPO_PROTOCOLO_ENUM.pei:
+        const result = await prisma.pei.findMany({
+          where: {
+            pacienteId: body.pacienteId,
+          },
+        });
 
         return result;
 
@@ -106,84 +203,25 @@ export class ProtocoloService {
 
   async createOrUpdatePostage(body: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
-    const payload = [];
-
-    // Passo 1: Montar o payload com os dados enviados
-    await Promise.all(
-      body.map((item: any) => {
-        item.atividades.map((atividade: any) => {
-          payload.push({
-            atividade: atividade.nome,
-            atividadeId: atividade.id,
-            pacienteId: item.pacienteId.id,
-            faixaEtaria: item.faixaEtariaId.nome,
-            tipo: item.tipoId.nome,
-          });
-        });
-      }),
-    );
+    const pacienteId = body.pacienteId.id;
 
     try {
-      // Passo 2: Buscar os registros existentes no banco de dados
       const registrosExistentes = await prisma.portage.findMany({
-        where: { pacienteId: body[0].pacienteId.id }, // Ajuste conforme necessário
+        where: { pacienteId: pacienteId },
       });
 
-      // Passo 3: Identificar os registros que precisam ser atualizados ou inseridos
-      const registrosExistentesIds = registrosExistentes.map(
-        (item) => item.atividadeId,
-      );
-
-      const novosRegistros = payload.filter(
-        (item) => !registrosExistentesIds.includes(item.atividadeId),
-      );
-      const registrosParaAtualizar = payload.filter((item) =>
-        registrosExistentesIds.includes(item.atividadeId),
-      );
-
-      // Passo 4: Atualizar os registros existentes, caso tenham mudado
-      await Promise.all(
-        registrosParaAtualizar.map(async (item) => {
-          const registroExistente = registrosExistentes.find(
-            (r) => r.atividadeId === item.atividadeId,
-          );
-
-          // Verificar se algum campo mudou
-          if (
-            registroExistente.atividade !== item.atividade ||
-            registroExistente.faixaEtaria !== item.faixaEtaria ||
-            registroExistente.tipo !== item.tipo
-          ) {
-            // Se mudou, atualiza o registro
-            await prisma.portage.update({
-              where: { id: registroExistente.id },
-              data: {
-                atividade: item.atividade,
-                faixaEtaria: item.faixaEtaria,
-                tipo: item.tipo,
-              },
-            });
-          }
-        }),
-      );
-
-      // Passo 5: Inserir novos registros
-      if (novosRegistros.length > 0) {
-        await prisma.portage.createMany({
-          data: novosRegistros,
+      if (registrosExistentes.length) {
+        await prisma.portage.update({
+          data: {
+            portage: body.portage,
+          },
+          where: { id: registrosExistentes[0].id },
         });
-      }
-
-      // Passo 6: Excluir os registros que não estão mais presentes nos dados enviados
-      const idsAtuais = payload.map((item) => item.atividadeId);
-      const idsParaExcluir = registrosExistentes
-        .filter((item) => !idsAtuais.includes(item.atividadeId))
-        .map((item) => item.id);
-
-      if (idsParaExcluir.length > 0) {
-        await prisma.portage.deleteMany({
-          where: {
-            id: { in: idsParaExcluir },
+      } else {
+        await prisma.portage.create({
+          data: {
+            portage: body.portage,
+            pacienteId: body.pacienteId.id,
           },
         });
       }
@@ -204,8 +242,29 @@ export class ProtocoloService {
     // });
   }
 
+  groupedData(data: any) {
+    return data.reduce((acc, item) => {
+      const { portage, faixaEtaria } = item;
+
+      // Verifica se a chave portage já existe
+      if (!acc[portage]) {
+        acc[portage] = {};
+      }
+
+      // Verifica se a chave faixaEtaria já existe dentro de portage
+      if (!acc[portage][faixaEtaria]) {
+        acc[portage][faixaEtaria] = [];
+      }
+
+      // Adiciona o item ao grupo correspondente
+      acc[portage][faixaEtaria].push(item);
+
+      return acc;
+    }, {});
+  }
+
   async dropdown() {
-    return PORTAGE_LIST;
+    return this.groupedData(PORTAGE_LIST);
   }
 
   async tipoPortagedropdown() {

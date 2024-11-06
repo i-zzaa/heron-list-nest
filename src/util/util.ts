@@ -28,3 +28,14 @@ export const calcAcertos = (array: string[]) => {
   const countC = filteredArray.filter((item) => item === TYPE_DTT.c).length;
   return ((countC / filteredArray.length) * 100).toFixed(2);
 };
+
+export enum TIPO_PORTAGE {
+  socializacao = 'Socialização',
+  cognicao = 'Cognição',
+}
+
+export enum VALOR_PORTAGE {
+  sim = '1',
+  asVezes = '0.5',
+  nao = '0',
+}

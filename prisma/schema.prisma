@@ -381,6 +381,9 @@ model Sessao {
   maintenance             Json
   selectedMaintenanceKeys Json
 
+  portage Json?
+  // selectedPortageKeys Json
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
@@ -398,6 +401,9 @@ model AtividadeSessao {
 
   maintenance             Json?
   selectedMaintenanceKeys Json?
+
+  portage             Json?
+  selectedPortageKeys Json?
 
   terapeutaId Int
   pacienteId  Int
@@ -431,22 +437,19 @@ model Pei {
 }
 
 model Portage {
-  id          Int       @id @default(autoincrement())
-  atividade   String
-  atividadeId Int
-  pacienteId  Int
-  faixaEtaria String
-  tipo        String
-  resposta1   String? // Campo opcional
-  resposta2   String? // Campo opcional
-  resposta3   String? // Campo opcional
-  resposta4   String? // Campo opcional
-  sessaoId1   Int? // Campo opcional
-  sessaoId2   Int? // Campo opcional
-  sessaoId3   Int? // Campo opcional
-  sessaoId4   Int? // Campo opcional
-  createdAt   DateTime? @default(now()) // Campo opcional com valor padrão
-  updatedAt   DateTime? @updatedAt // Atualiza automaticamente ao modificar
+  id         Int       @id @default(autoincrement())
+  portage    Json
+  pacienteId Int
+  resposta1  String? // Campo opcional
+  resposta2  String? // Campo opcional
+  resposta3  String? // Campo opcional
+  resposta4  String? // Campo opcional
+  sessaoId1  Int? // Campo opcional
+  sessaoId2  Int? // Campo opcional
+  sessaoId3  Int? // Campo opcional
+  sessaoId4  Int? // Campo opcional
+  createdAt  DateTime? @default(now()) // Campo opcional com valor padrão
+  updatedAt  DateTime? @updatedAt // Atualiza automaticamente ao modificar
 
   // Relations
   paciente Paciente    @relation(fields: [pacienteId], references: [id])
