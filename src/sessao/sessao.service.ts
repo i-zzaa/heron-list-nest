@@ -84,6 +84,7 @@ export class SessaoService {
         resumo: true,
         sessao: true,
         maintenance: true,
+        portage: true,
         selectedMaintenanceKeys: true,
       },
       where: {
@@ -92,9 +93,9 @@ export class SessaoService {
     });
 
     if (Boolean(data?.sessao)) {
-      data.sessao = JSON.parse(data.sessao);
-      data.selectedMaintenanceKeys = JSON.parse(data.selectedMaintenanceKeys);
-      data.maintenance = JSON.parse(data.maintenance);
+      data.sessao = data.sessao;
+      data.selectedMaintenanceKeys = data.selectedMaintenanceKeys;
+      data.maintenance = data.maintenance;
     }
 
     return data;
@@ -258,7 +259,7 @@ export class SessaoService {
 
     const formatted = await Promise.all(
       flat.map((session: any) => {
-        return JSON.parse(session.sessao);
+        return session.sessao;
       }),
     );
 
@@ -266,8 +267,8 @@ export class SessaoService {
 
     if (result.manutencao.length) {
       this.updateAtividadeSessao({
-        maintenance: JSON.stringify(result.manutencao),
-        atividades: JSON.stringify(result.atividades),
+        maintenance: result.manutencao,
+        atividades: result.atividades,
         calendarioId,
       });
     }
@@ -421,6 +422,7 @@ export class SessaoService {
             } else {
               formatted.push({
                 programa: meta.programa,
+                
                 dias: [
                   {
                     primeiraResposta: meta.primeiraResposta,

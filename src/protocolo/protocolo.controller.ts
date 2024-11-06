@@ -6,8 +6,6 @@ import {
   Post,
   Body,
   Request,
-  Delete,
-  Param,
   Put,
 } from '@nestjs/common';
 
@@ -28,6 +26,17 @@ export class ProtocoloController {
       const pageSize = Number(req.query.pageSize) || 10;
 
       const data = await this.protocoloService.filter(req.body, page, pageSize);
+
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Post('meta/filtro')
+  async filterMeta(@Request() req: any, @Response() response: any) {
+    try {
+      const data = await this.protocoloService.filterMeta(req.body);
 
       responseSuccess(response, data);
     } catch (error) {
