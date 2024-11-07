@@ -278,11 +278,6 @@ model Calendario {
   intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
   usuario       Usuario       @relation(fields: [usuarioId], references: [id])
 
-  // One-to-many relation with Portage (multiple instances)
-  PortageEvento1  Portage[]        @relation("Evento1")
-  PortageEvento2  Portage[]        @relation("Evento2")
-  PortageEvento3  Portage[]        @relation("Evento3")
-  PortageEvento4  Portage[]        @relation("Evento4")
   Baixa           Baixa[]
   Sessao          Sessao[]
   AtividadeSessao AtividadeSessao?
@@ -437,24 +432,20 @@ model Pei {
 }
 
 model Portage {
-  id         Int       @id @default(autoincrement())
-  portage    Json
-  pacienteId Int
-  resposta1  String? // Campo opcional
-  resposta2  String? // Campo opcional
-  resposta3  String? // Campo opcional
-  resposta4  String? // Campo opcional
-  sessaoId1  Int? // Campo opcional
-  sessaoId2  Int? // Campo opcional
-  sessaoId3  Int? // Campo opcional
-  sessaoId4  Int? // Campo opcional
-  createdAt  DateTime? @default(now()) // Campo opcional com valor padrão
-  updatedAt  DateTime? @updatedAt // Atualiza automaticamente ao modificar
+  id            Int       @id @default(autoincrement())
+  portage       Json?
+  pacienteId    Int
+  resposta1     Json? // Campo opcional
+  resposta2     Json? // Campo opcional
+  resposta3     Json? // Campo opcional
+  resposta4     Json? // Campo opcional
+  respostaDate1 DateTime? // Campo opcional
+  respostaDate2 DateTime? // Campo opcional
+  respostaDate3 DateTime? // Campo opcional
+  respostaDate4 DateTime? // Campo opcional
+  createdAt     DateTime? @default(now()) // Campo opcional com valor padrão
+  updatedAt     DateTime? @updatedAt // Atualiza automaticamente ao modificar
 
   // Relations
-  paciente Paciente    @relation(fields: [pacienteId], references: [id])
-  evento1  Calendario? @relation("Evento1", fields: [sessaoId1], references: [id])
-  evento2  Calendario? @relation("Evento2", fields: [sessaoId2], references: [id])
-  evento3  Calendario? @relation("Evento3", fields: [sessaoId3], references: [id])
-  evento4  Calendario? @relation("Evento4", fields: [sessaoId4], references: [id])
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
 }
