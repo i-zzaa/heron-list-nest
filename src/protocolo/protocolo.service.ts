@@ -7,6 +7,7 @@ import {
   TIPO_PROTOCOLO,
 } from './protocolo';
 import { VALOR_PORTAGE } from 'src/util/util';
+import { dateFormatDDMMYYYY } from 'src/util/format-date';
 
 export enum TIPO_PROTOCOLO_ENUM {
   portage = 1,
@@ -45,19 +46,83 @@ export class ProtocoloService {
     return Object.values(agrupadoPorTipoEFaixaEtaria);
   }
 
+  calcularPercentual(itens) {
+    const itensPreenchidos = itens.filter(
+      (item) =>
+        item.selected === VALOR_PORTAGE.sim ||
+        item.selected === VALOR_PORTAGE.asVezes ||
+        item.selected === VALOR_PORTAGE.nao,
+    );
+
+    if (itensPreenchidos.length === 0) {
+      return 'Não se aplica';
+    }
+
+    const totalItens = itensPreenchidos.length;
+    const totalCompletos = itensPreenchidos.filter(
+      (item) => item.selected === '1',
+    ).length;
+    const totalMeio = itensPreenchidos.filter(
+      (item) => item.selected === '0.5',
+    ).length;
+    const percentual = ((totalCompletos + totalMeio * 0.5) / totalItens) * 100;
+    return `${Math.round(percentual)}%`;
+  }
+
+  agrupaRespostas(dados: any) {
+    const resultado = {
+      Socializacao: [],
+      Cognicao: [],
+    };
+
+    ['Socialização', 'Cognição'].forEach((categoria) => {
+      const categoriaResultado = [];
+      const faixasEtarias = Object.keys(dados.resposta1[categoria]);
+      const respostas = Object.keys(dados);
+
+      faixasEtarias.forEach((faixaEtaria) => {
+        const faixaData = [faixaEtaria];
+
+        // Calcula as porcentagens para cada resposta (resposta1, resposta2, resposta3, resposta4)
+        respostas.forEach((respostaKey) => {
+          const itens = dados[respostaKey][categoria][faixaEtaria] || [];
+          faixaData.push(this.calcularPercentual(itens));
+        });
+
+        categoriaResultado.push(faixaData);
+      });
+
+      if (categoria === 'Socialização') {
+        resultado.Socializacao = categoriaResultado;
+      } else if (categoria === 'Cognição') {
+        resultado.Cognicao = categoriaResultado;
+      }
+    });
+
+    return resultado;
+  }
+
   async filter(body: any, page: number, pageSize: number) {
     const prisma = this.prismaService.getPrismaClient();
 
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:
-        const portage = await prisma.portage.findMany({
+        const resultPortage: any = await prisma.portage.findMany({
           select: {
             id: true,
-            portage: true,
+            resposta1: true,
+            resposta2: true,
+            resposta3: true,
+            resposta4: true,
+            respostaDate1: true,
+            respostaDate2: true,
+            respostaDate3: true,
+            respostaDate4: true,
             paciente: {
               select: {
                 id: true,
                 nome: true,
+                dataNascimento: true,
               },
             },
           },
@@ -66,7 +131,66 @@ export class ProtocoloService {
           },
         });
 
-        return portage[0];
+        if (!resultPortage.length) return null;
+
+        const oneResult = resultPortage[0];
+
+        if (body.type === 'pdf') {
+          const ref: any = {};
+          const headers = [''];
+
+          if (oneResult.resposta1) {
+            ref.resposta1 = oneResult.resposta1;
+            headers.push(
+              `Avaliação ${dateFormatDDMMYYYY(oneResult.respostaDate1)}`,
+            );
+          }
+          if (Boolean(oneResult.resposta2)) {
+            ref.resposta2 = oneResult.resposta2;
+            headers.push(
+              `Reavaliação ${dateFormatDDMMYYYY(oneResult.respostaDate2)}`,
+            );
+          }
+          if (Boolean(oneResult.resposta3)) {
+            ref.resposta3 = oneResult.resposta3;
+            headers.push(
+              `Reavaliação ${dateFormatDDMMYYYY(oneResult.respostaDate3)}`,
+            );
+          }
+          if (Boolean(oneResult.resposta4)) {
+            ref.resposta4 = oneResult.resposta4;
+            headers.push(
+              `Reavaliação ${dateFormatDDMMYYYY(oneResult.respostaDate4)}`,
+            );
+          }
+
+          const result: any = this.agrupaRespostas(ref);
+          result.headers = headers;
+          result.paciente = {
+            ...oneResult.paciente,
+            dataNascimento: dateFormatDDMMYYYY(
+              oneResult.paciente.dataNascimento,
+            ),
+          };
+          return result;
+        }
+
+        const portage: any = {
+          paciente: oneResult.paciente,
+          id: oneResult.id,
+        };
+
+        if (!oneResult.resposta2) {
+          portage.portage = oneResult.resposta1;
+        } else if (!oneResult.resposta3) {
+          portage.portage = oneResult.resposta2;
+        } else if (!oneResult.resposta4) {
+          portage.portage = oneResult.resposta3;
+        } else {
+          portage.portage = oneResult.resposta4;
+        }
+
+        return portage;
 
       case TIPO_PROTOCOLO_ENUM.pei:
         const result = await prisma.pei.findMany({
@@ -161,10 +285,13 @@ export class ProtocoloService {
 
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:
-        const data = await prisma.portage.findFirst({
+        const resultPortage = await prisma.portage.findFirst({
           select: {
             id: true,
-            portage: true,
+            resposta1: true,
+            resposta2: true,
+            resposta3: true,
+            resposta4: true,
             paciente: {
               select: {
                 id: true,
@@ -177,7 +304,23 @@ export class ProtocoloService {
           },
         });
 
-        const filter = this.filterDataBySelected(data.portage);
+        const oneResult = resultPortage;
+        const portage: any = {
+          paciente: oneResult.paciente,
+          id: oneResult.id,
+        };
+
+        if (!oneResult.resposta2) {
+          portage.portage = oneResult.resposta1;
+        } else if (!oneResult.resposta3) {
+          portage.portage = oneResult.resposta2;
+        } else if (!oneResult.resposta4) {
+          portage.portage = oneResult.resposta3;
+        } else {
+          portage.portage = oneResult.resposta4;
+        }
+
+        const filter = this.filterDataBySelected(portage.portage);
         const convertToTree = this.convertToTreeStructure(filter);
 
         return convertToTree;
@@ -205,23 +348,47 @@ export class ProtocoloService {
     const prisma = this.prismaService.getPrismaClient();
     const pacienteId = body.pacienteId.id;
 
+    const now = new Date();
+
     try {
+      // Busca registros existentes para o paciente
       const registrosExistentes = await prisma.portage.findMany({
         where: { pacienteId: pacienteId },
       });
 
       if (registrosExistentes.length) {
+        const registro = registrosExistentes[0];
+
+        // Verifica qual campo de resposta está vazio e salva no próximo disponível
+        const dadosAtualizados: any = {};
+        if (!registro.resposta2) {
+          dadosAtualizados.resposta2 = body.portage;
+          dadosAtualizados.respostaDate2 = now;
+        } else if (!registro.resposta3) {
+          dadosAtualizados.resposta3 = body.portage;
+          dadosAtualizados.respostaDate3 = now;
+        } else if (!registro.resposta4) {
+          dadosAtualizados.resposta4 = body.portage;
+          dadosAtualizados.respostaDate4 = now;
+        } else {
+          // Opcional: trate o caso onde todas as respostas estão preenchidas
+          throw new Error(
+            'Todas as respostas já estão preenchidas para este paciente.',
+          );
+        }
+
+        // Atualiza o registro com a próxima resposta disponível
         await prisma.portage.update({
-          data: {
-            portage: body.portage,
-          },
-          where: { id: registrosExistentes[0].id },
+          data: dadosAtualizados,
+          where: { id: registro.id },
         });
       } else {
+        // Cria um novo registro caso não exista
         await prisma.portage.create({
           data: {
-            portage: body.portage,
-            pacienteId: body.pacienteId.id,
+            resposta1: body.portage,
+            respostaDate1: now,
+            pacienteId: pacienteId,
           },
         });
       }
