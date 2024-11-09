@@ -39,3 +39,9 @@ export enum VALOR_PORTAGE {
   asVezes = '0.5',
   nao = '0',
 }
+
+export enum VBMAPP {
+  um = 1,
+  dois = 2,
+  tres = 3,
+}

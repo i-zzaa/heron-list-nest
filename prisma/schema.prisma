@@ -46,6 +46,7 @@ model Paciente {
   AtividadeSessao   AtividadeSessao[]
   Pei               Pei[]
   Portage           Portage[]
+  VBMappResultado   VBMappResultado[]
 }
 
 model StatusPaciente {
@@ -131,11 +132,12 @@ model Usuario {
 
   createdAt DateTime @default(now())
 
-  perfil     Perfil          @relation(fields: [perfilId], references: [id])
-  grupo      GrupoPermissao? @relation(fields: [grupoPermissaoId], references: [id])
-  calendario Calendario[]
-  terapeuta  Terapeuta?
-  Baixa      Baixa[]
+  perfil          Perfil            @relation(fields: [perfilId], references: [id])
+  grupo           GrupoPermissao?   @relation(fields: [grupoPermissaoId], references: [id])
+  calendario      Calendario[]
+  terapeuta       Terapeuta?
+  Baixa           Baixa[]
+  VBMappResultado VBMappResultado[]
 }
 
 model Perfil {
@@ -448,4 +450,29 @@ model Portage {
 
   // Relations
   paciente Paciente @relation(fields: [pacienteId], references: [id])
+}
+
+model VBMappResultado {
+  id         Int    @id @default(autoincrement())
+  resposta   String
+  vbmappId   Int
+  pacienteId Int
+  usuarioId  Int
+
+  createdAt DateTime?        @default(now())
+  updatedAt DateTime?        @updatedAt
+  vbmapp    VBMappAtividades @relation(fields: [vbmappId], references: [id])
+  paciente  Paciente         @relation(fields: [pacienteId], references: [id])
+  terapeuta Usuario?         @relation(fields: [usuarioId], references: [id])
+}
+
+model VBMappAtividades {
+  id       Int    @id @default(autoincrement())
+  nome     String
+  nivel    Int
+  programa String
+
+  createdAt       DateTime?         @default(now())
+  updatedAt       DateTime?         @updatedAt
+  VBMappResultado VBMappResultado[]
 }

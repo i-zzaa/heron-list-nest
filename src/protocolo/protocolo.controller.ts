@@ -44,6 +44,23 @@ export class ProtocoloController {
     }
   }
 
+  @Post('vbmapp')
+  async vbmapCreate(
+    @Body() body: PortageProps,
+    @Response() response: any,
+    @Request() req: any,
+  ) {
+    try {
+      const data = await this.protocoloService.vbmapCreate(
+        body,
+        req.headers.iduser,
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
   @Post('portage')
   async createPostage(
     @Body() body: PortageProps,
@@ -79,6 +96,16 @@ export class ProtocoloController {
   async dropdown(@Response() response: any) {
     try {
       const data = await this.protocoloService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
+  }
+
+  @Get('vbmapp/:nivel/dropdown')
+  async vbmapDropdown(@Response() response: any, @Request() req: any) {
+    try {
+      const data = await this.protocoloService.vbmapDropdown(req.params.nivel);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

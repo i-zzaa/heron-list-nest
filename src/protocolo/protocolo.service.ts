@@ -202,12 +202,13 @@ export class ProtocoloService {
         return result;
 
       case TIPO_PROTOCOLO_ENUM.vbMapp:
-        // return await prisma.vbmapp.findMany({
-        //   where: {
-        //     pacienteId: body.pacienteId,
-        //   },
-        // });
-        break;
+        if (body.type === 'pdf') {
+          const dados = await this.filterVbmapp(body);
+          return this.gerarRelatorioVbmapp(dados);
+        }
+
+        const existe = await this.filterVbmapp(body);
+        return existe.length;
     }
   }
 
@@ -432,6 +433,129 @@ export class ProtocoloService {
 
   async dropdown() {
     return this.groupedData(PORTAGE_LIST);
+  }
+
+  agrupadoPorPrograma(atividades: any) {
+    return atividades.reduce((acc, atividade) => {
+      const programaNome = atividade.programa;
+
+      if (!acc[programaNome]) {
+        acc[programaNome] = [];
+      }
+
+      acc[programaNome].push(atividade);
+      return acc;
+    }, {});
+  }
+
+  async vbmapDropdown(nivel: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const result = await prisma.vBMappAtividades.findMany({
+      select: {
+        id: true,
+        nome: true,
+        nivel: true,
+        programa: true,
+      },
+      where: {
+        nivel: Number(nivel),
+      },
+    });
+
+    return this.agrupadoPorPrograma(result);
+  }
+
+  async vbmapCreate(dados, terapeutaId) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    try {
+      for (const programa in dados.vbmapp) {
+        for (const atividade of dados.vbmapp[programa]) {
+          if (atividade.selected !== undefined) {
+            await prisma.vBMappResultado.create({
+              data: {
+                vbmappId: atividade.id,
+                resposta: atividade.selected,
+                pacienteId: dados.pacienteId,
+                usuarioId: Number(terapeutaId),
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  gerarRelatorioVbmapp(dados) {
+    // Agrupamento das respostas por programa e atividade
+    const relatorio = {};
+
+    dados.forEach((item) => {
+      const programa = item.vbmapp.programa;
+      const atividadeNome = item.vbmapp.nome;
+      const resposta = parseFloat(item.resposta);
+
+      // Verifica se o programa já está no relatório
+      if (!relatorio[programa]) {
+        relatorio[programa] = {};
+      }
+
+      // Verifica se a atividade já está no programa
+
+      if (!relatorio[programa][atividadeNome]) {
+        relatorio[programa][atividadeNome] = {
+          nivel: item.vbmapp.nivel,
+          soma: 0,
+          contador: 0,
+        };
+      }
+
+      // Adiciona a resposta à atividade
+      relatorio[programa][atividadeNome].soma += resposta;
+      relatorio[programa][atividadeNome].contador += 1;
+    });
+
+    // Calcula a média de preenchimento para cada atividade
+    for (const programa in relatorio) {
+      for (const atividade in relatorio[programa]) {
+        const atividadeData = relatorio[programa][atividade];
+        const mediaPercentual =
+          (atividadeData.soma / atividadeData.contador) * 100;
+        atividadeData.percentual = Math.round(mediaPercentual); // Arredonda para facilitar a exibição
+
+        // Remove os campos desnecessários
+        delete atividadeData.soma;
+        delete atividadeData.contador;
+      }
+    }
+
+    return relatorio;
+  }
+
+  async filterVbmapp(filter: any) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const result = await prisma.vBMappResultado.findMany({
+      select: {
+        id: true,
+        resposta: true,
+        vbmapp: true,
+        paciente: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+      },
+      where: {
+        pacienteId: filter.pacienteId,
+      },
+    });
+
+    return result;
   }
 
   async tipoPortagedropdown() {
