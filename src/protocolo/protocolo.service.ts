@@ -147,6 +147,67 @@ export class ProtocoloService {
     return result;
   }
 
+  mergeAtividadesVBMapp = (data1: any, data2: any) => {
+    const mergedData = {};
+
+    // Combina as chaves dos dois objetos (programas)
+    const allKeys = new Set([...Object.keys(data1), ...Object.keys(data2)]);
+
+    allKeys.forEach((key) => {
+      const list1 = data1[key] || [];
+      const list2 = data2[key] || [];
+
+      // Cria um mapa para mesclar os itens por id, prevalecendo os do segundo array
+      const map = new Map();
+      list2.forEach((item) => map.set(item.id, item)); // itens do segundo array prevalecem
+      list1.forEach((item) => {
+        if (!map.has(item.id)) {
+          map.set(item.id, item); // adiciona itens novos do primeiro array
+        }
+      });
+
+      // Converte o mapa em um array e adiciona à chave correspondente
+      mergedData[key] = Array.from(map.values());
+    });
+
+    return mergedData;
+  };
+
+  preencherRespostasComPerguntas(respostas, perguntas) {
+    // Cria uma cópia das respostas para modificar sem afetar o original
+    const respostasCompletas = JSON.parse(JSON.stringify(respostas));
+
+    // Itera sobre cada nível no objeto de respostas
+    for (const nivel in respostasCompletas) {
+      console.log(respostasCompletas[0]);
+
+      // Itera sobre cada data no nível
+      for (const data in respostasCompletas[nivel]) {
+        // Itera sobre cada programa no objeto de perguntas
+        for (const programa in perguntas) {
+          // Verifica se o programa já existe na data, caso contrário, inicializa-o
+          if (!respostasCompletas[nivel][data][programa]) {
+            respostasCompletas[nivel][data][programa] = {};
+          }
+
+          // Itera sobre cada pergunta dentro do programa
+          perguntas[programa].forEach((pergunta) => {
+            const perguntaNome = pergunta.nome;
+
+            // Verifica se a pergunta já existe no programa dentro da data, caso contrário, inicializa com `percentual: 0`
+            if (!respostasCompletas[nivel][data][programa][perguntaNome]) {
+              respostasCompletas[nivel][data][programa][perguntaNome] = {
+                percentual: 0,
+              };
+            }
+          });
+        }
+      }
+    }
+
+    return respostasCompletas;
+  }
+
   async filter(body: any, page: number, pageSize: number) {
     const prisma = this.prismaService.getPrismaClient();
 
@@ -248,8 +309,19 @@ export class ProtocoloService {
 
       case TIPO_PROTOCOLO_ENUM.vbMapp:
         if (body.type === 'pdf') {
-          const dados = await this.filterVbmapp(body);
-          return this.gerarRelatorioVbmapp(dados);
+          const [dropdown, preenchidoLista] = await Promise.all([
+            this.vbmapDropdown(),
+            this.filterVbmapp(body),
+          ]);
+
+          const formated = this.gerarRelatorioVbmapp(preenchidoLista);
+
+          const mergedData = this.preencherRespostasComPerguntas(
+            formated,
+            dropdown,
+          );
+
+          return mergedData;
         }
 
         const [dropdown, preenchidoLista, existeResposta] = await Promise.all([
@@ -261,30 +333,10 @@ export class ProtocoloService {
           }),
         ]);
 
-        const data1 = dropdown;
-        const data2 = preenchidoLista;
-
-        const mergedData = {};
-
-        // Combina as chaves dos dois objetos (programas)
-        const allKeys = new Set([...Object.keys(data1), ...Object.keys(data2)]);
-
-        allKeys.forEach((key) => {
-          const list1 = data1[key] || [];
-          const list2 = data2[key] || [];
-
-          // Cria um mapa para mesclar os itens por id, prevalecendo os do segundo array
-          const map = new Map();
-          list2.forEach((item) => map.set(item.id, item)); // itens do segundo array prevalecem
-          list1.forEach((item) => {
-            if (!map.has(item.id)) {
-              map.set(item.id, item); // adiciona itens novos do primeiro array
-            }
-          });
-
-          // Converte o mapa em um array e adiciona à chave correspondente
-          mergedData[key] = Array.from(map.values());
-        });
+        const mergedData = this.mergeAtividadesVBMapp(
+          dropdown,
+          preenchidoLista,
+        );
 
         const resultMergedData = {
           existeResposta,
@@ -531,8 +583,9 @@ export class ProtocoloService {
     }, {});
   }
 
-  async vbmapDropdown(nivel: number) {
+  async vbmapDropdown(nivel?: number) {
     const prisma = this.prismaService.getPrismaClient();
+    const filter = nivel ? { nivel: Number(nivel) } : {};
 
     const result = await prisma.vBMappAtividades.findMany({
       select: {
@@ -540,9 +593,10 @@ export class ProtocoloService {
         nome: true,
         nivel: true,
         programa: true,
+        createdAt: true,
       },
       where: {
-        nivel: Number(nivel),
+        ...filter,
       },
     });
 
