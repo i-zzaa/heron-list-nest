@@ -179,8 +179,6 @@ export class ProtocoloService {
 
     // Itera sobre cada nível no objeto de respostas
     for (const nivel in respostasCompletas) {
-      console.log(respostasCompletas[0]);
-
       // Itera sobre cada data no nível
       for (const data in respostasCompletas[nivel]) {
         // Itera sobre cada programa no objeto de perguntas
@@ -440,9 +438,13 @@ export class ProtocoloService {
           },
         });
 
+        if (!resultPortage) {
+          return [];
+        }
+
         const oneResult = resultPortage;
         const portage: any = {
-          paciente: oneResult.paciente,
+          paciente: body.pacienteId,
           id: oneResult.id,
         };
 
