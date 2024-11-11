@@ -102,6 +102,41 @@ export class ProtocoloService {
     return resultado;
   }
 
+  transformDataFilterVBMapp(data: any[]) {
+    const result = {};
+
+    data.forEach((item) => {
+      const { programa, id, nome, nivel } = item.vbmapp;
+      const selected = item.resposta;
+
+      // Inicializa a categoria do programa se ainda não existe
+      if (!result[programa]) {
+        result[programa] = [];
+      }
+
+      // Verifica se o item já existe para evitar duplicatas
+      const existingItem = result[programa].find((i) => i.id === id);
+
+      if (existingItem) {
+        // Se já existe e `selected` ainda não foi definido, adiciona
+        if (!existingItem.selected) {
+          existingItem.selected = selected;
+        }
+      } else {
+        // Adiciona o item ao programa correspondente com ou sem `selected`
+        result[programa].push({
+          id,
+          nome,
+          nivel,
+          programa,
+          ...(selected && { selected }),
+        });
+      }
+    });
+
+    return result;
+  }
+
   async filter(body: any, page: number, pageSize: number) {
     const prisma = this.prismaService.getPrismaClient();
 
@@ -207,8 +242,37 @@ export class ProtocoloService {
           return this.gerarRelatorioVbmapp(dados);
         }
 
-        const existe = await this.filterVbmapp(body);
-        return existe.length;
+        const [dropdown, preenchidoLista] = await Promise.all([
+          this.vbmapDropdown(body.nivel),
+          this.filterVbmapp(body),
+        ]);
+
+        const data1 = dropdown;
+        const data2 = preenchidoLista;
+
+        const mergedData = {};
+
+        // Combina as chaves dos dois objetos (programas)
+        const allKeys = new Set([...Object.keys(data1), ...Object.keys(data2)]);
+
+        allKeys.forEach((key) => {
+          const list1 = data1[key] || [];
+          const list2 = data2[key] || [];
+
+          // Cria um mapa para mesclar os itens por id, prevalecendo os do segundo array
+          const map = new Map();
+          list2.forEach((item) => map.set(item.id, item)); // itens do segundo array prevalecem
+          list1.forEach((item) => {
+            if (!map.has(item.id)) {
+              map.set(item.id, item); // adiciona itens novos do primeiro array
+            }
+          });
+
+          // Converte o mapa em um array e adiciona à chave correspondente
+          mergedData[key] = Array.from(map.values());
+        });
+
+        return mergedData;
     }
   }
 
@@ -490,45 +554,51 @@ export class ProtocoloService {
   }
 
   gerarRelatorioVbmapp(dados) {
-    // Agrupamento das respostas por programa e atividade
+    // Agrupamento das respostas por nível, programa e atividade
     const relatorio = {};
 
     dados.forEach((item) => {
+      const nivel = item.vbmapp.nivel;
       const programa = item.vbmapp.programa;
       const atividadeNome = item.vbmapp.nome;
       const resposta = parseFloat(item.resposta);
 
-      // Verifica se o programa já está no relatório
-      if (!relatorio[programa]) {
-        relatorio[programa] = {};
+      // Verifica se o nível já está no relatório
+      if (!relatorio[nivel]) {
+        relatorio[nivel] = {};
       }
 
-      // Verifica se a atividade já está no programa
+      // Verifica se o programa já está dentro do nível
+      if (!relatorio[nivel][programa]) {
+        relatorio[nivel][programa] = {};
+      }
 
-      if (!relatorio[programa][atividadeNome]) {
-        relatorio[programa][atividadeNome] = {
-          nivel: item.vbmapp.nivel,
+      // Verifica se a atividade já está no programa dentro do nível
+      if (!relatorio[nivel][programa][atividadeNome]) {
+        relatorio[nivel][programa][atividadeNome] = {
           soma: 0,
           contador: 0,
         };
       }
 
       // Adiciona a resposta à atividade
-      relatorio[programa][atividadeNome].soma += resposta;
-      relatorio[programa][atividadeNome].contador += 1;
+      relatorio[nivel][programa][atividadeNome].soma += resposta;
+      relatorio[nivel][programa][atividadeNome].contador += 1;
     });
 
     // Calcula a média de preenchimento para cada atividade
-    for (const programa in relatorio) {
-      for (const atividade in relatorio[programa]) {
-        const atividadeData = relatorio[programa][atividade];
-        const mediaPercentual =
-          (atividadeData.soma / atividadeData.contador) * 100;
-        atividadeData.percentual = Math.round(mediaPercentual); // Arredonda para facilitar a exibição
+    for (const nivel in relatorio) {
+      for (const programa in relatorio[nivel]) {
+        for (const atividade in relatorio[nivel][programa]) {
+          const atividadeData = relatorio[nivel][programa][atividade];
+          const mediaPercentual =
+            (atividadeData.soma / atividadeData.contador) * 100;
+          atividadeData.percentual = Math.round(mediaPercentual); // Arredonda para facilitar a exibição
 
-        // Remove os campos desnecessários
-        delete atividadeData.soma;
-        delete atividadeData.contador;
+          // Remove os campos desnecessários
+          delete atividadeData.soma;
+          delete atividadeData.contador;
+        }
       }
     }
 
@@ -537,6 +607,13 @@ export class ProtocoloService {
 
   async filterVbmapp(filter: any) {
     const prisma = this.prismaService.getPrismaClient();
+    const vbmapp = filter.nivel
+      ? {
+          vbmapp: {
+            nivel: Number(filter.nivel),
+          },
+        }
+      : {};
 
     const result = await prisma.vBMappResultado.findMany({
       select: {
@@ -552,10 +629,15 @@ export class ProtocoloService {
       },
       where: {
         pacienteId: filter.pacienteId,
+        ...vbmapp,
       },
     });
 
-    return result;
+    if (filter.type === 'pdf') {
+      return result;
+    }
+
+    return this.transformDataFilterVBMapp(result);
   }
 
   async tipoPortagedropdown() {
