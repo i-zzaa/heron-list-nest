@@ -7,13 +7,23 @@ import {
   TIPO_PROTOCOLO,
 } from './protocolo';
 import { VALOR_PORTAGE } from 'src/util/util';
-import { dateFormatDDMMYYYY } from 'src/util/format-date';
+import { dateFormatDDMMYYYY, formatadataPadraoBD } from 'src/util/format-date';
 
 export enum TIPO_PROTOCOLO_ENUM {
   portage = 1,
   vbMapp = 2,
   pei = 3,
 }
+
+type DadosAtividade = {
+  [nivel: number]: {
+    [data: string]: {
+      [programa: string]: {
+        [atividade: string]: { percentual: number };
+      };
+    };
+  };
+};
 
 @Injectable()
 export class ProtocoloService {
@@ -242,9 +252,13 @@ export class ProtocoloService {
           return this.gerarRelatorioVbmapp(dados);
         }
 
-        const [dropdown, preenchidoLista] = await Promise.all([
+        const [dropdown, preenchidoLista, existeResposta] = await Promise.all([
           this.vbmapDropdown(body.nivel),
           this.filterVbmapp(body),
+          this.filterVbmapp({
+            pacienteId: body.pacienteId,
+            existeResposta: true,
+          }),
         ]);
 
         const data1 = dropdown;
@@ -272,7 +286,12 @@ export class ProtocoloService {
           mergedData[key] = Array.from(map.values());
         });
 
-        return mergedData;
+        const resultMergedData = {
+          existeResposta,
+          data: mergedData,
+        };
+
+        return resultMergedData;
     }
   }
 
@@ -552,15 +571,15 @@ export class ProtocoloService {
       console.log(error);
     }
   }
-
   gerarRelatorioVbmapp(dados) {
-    // Agrupamento das respostas por nível, programa e atividade
-    const relatorio = {};
+    // Estrutura do relatório
+    const relatorio: any = {};
 
     dados.forEach((item) => {
       const nivel = item.vbmapp.nivel;
       const programa = item.vbmapp.programa;
-      const atividadeNome = item.vbmapp.nome;
+      const atividadeNome: any = item.vbmapp.nome;
+      const data = dateFormatDDMMYYYY(item.createdAt); // Extrai a data (yyyy-mm-dd)
       const resposta = parseFloat(item.resposta);
 
       // Verifica se o nível já está no relatório
@@ -568,36 +587,43 @@ export class ProtocoloService {
         relatorio[nivel] = {};
       }
 
-      // Verifica se o programa já está dentro do nível
-      if (!relatorio[nivel][programa]) {
-        relatorio[nivel][programa] = {};
+      // Verifica se a data já está dentro do nível
+      if (!relatorio[nivel][data]) {
+        relatorio[nivel][data] = {};
       }
 
-      // Verifica se a atividade já está no programa dentro do nível
-      if (!relatorio[nivel][programa][atividadeNome]) {
-        relatorio[nivel][programa][atividadeNome] = {
+      // Verifica se o programa já está dentro da data
+      if (!relatorio[nivel][data][programa]) {
+        relatorio[nivel][data][programa] = {};
+      }
+
+      // Verifica se a atividade já está no programa para essa data
+      if (!relatorio[nivel][data][programa][atividadeNome]) {
+        relatorio[nivel][data][programa][atividadeNome] = {
           soma: 0,
           contador: 0,
         };
       }
 
       // Adiciona a resposta à atividade
-      relatorio[nivel][programa][atividadeNome].soma += resposta;
-      relatorio[nivel][programa][atividadeNome].contador += 1;
+      const atividade = relatorio[nivel][data][programa][atividadeNome];
+      atividade.soma += resposta;
+      atividade.contador += 1;
     });
 
-    // Calcula a média de preenchimento para cada atividade
+    // Calcula o percentual para cada atividade e formata o resultado
     for (const nivel in relatorio) {
-      for (const programa in relatorio[nivel]) {
-        for (const atividade in relatorio[nivel][programa]) {
-          const atividadeData = relatorio[nivel][programa][atividade];
-          const mediaPercentual =
-            (atividadeData.soma / atividadeData.contador) * 100;
-          atividadeData.percentual = Math.round(mediaPercentual); // Arredonda para facilitar a exibição
-
-          // Remove os campos desnecessários
-          delete atividadeData.soma;
-          delete atividadeData.contador;
+      for (const data in relatorio[nivel]) {
+        for (const programa in relatorio[nivel][data]) {
+          for (const atividade in relatorio[nivel][data][programa]) {
+            const atividadeData: any =
+              relatorio[nivel][data][programa][atividade];
+            const mediaPercentual =
+              (atividadeData.soma / atividadeData.contador) * 100;
+            relatorio[nivel][data][programa][atividade] = {
+              percentual: Math.round(mediaPercentual),
+            };
+          }
         }
       }
     }
@@ -620,6 +646,7 @@ export class ProtocoloService {
         id: true,
         resposta: true,
         vbmapp: true,
+        createdAt: true,
         paciente: {
           select: {
             id: true,
@@ -635,6 +662,10 @@ export class ProtocoloService {
 
     if (filter.type === 'pdf') {
       return result;
+    }
+
+    if (filter.existeResposta) {
+      return Boolean(result.length);
     }
 
     return this.transformDataFilterVBMapp(result);
