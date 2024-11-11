@@ -1196,6 +1196,6 @@ export const TIPO_PROTOCOLO = [
   },
   {
     id: 3,
-    nome: 'PEI',
+    nome: 'Manual',
   },
 ];
