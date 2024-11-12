@@ -85,6 +85,7 @@ export class SessaoService {
         sessao: true,
         maintenance: true,
         portage: true,
+        vbmapp: true,
         selectedMaintenanceKeys: true,
       },
       where: {
@@ -93,9 +94,12 @@ export class SessaoService {
     });
 
     if (Boolean(data?.sessao)) {
-      data.sessao = data.sessao;
+      data.sessao = JSON.parse(data.sessao);
       data.selectedMaintenanceKeys = data.selectedMaintenanceKeys;
-      data.maintenance = data.maintenance;
+      data.maintenance = JSON.parse(data.maintenance);
+
+      data.vbmapp = data.vbmapp || {};
+      data.portage = data.portage || {};
     }
 
     return data;
@@ -422,7 +426,7 @@ export class SessaoService {
             } else {
               formatted.push({
                 programa: meta.programa,
-                
+
                 dias: [
                   {
                     primeiraResposta: meta.primeiraResposta,

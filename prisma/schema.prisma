@@ -378,8 +378,11 @@ model Sessao {
   maintenance             Json
   selectedMaintenanceKeys Json
 
-  portage Json?
-  // selectedPortageKeys Json
+  portage             Json?
+  selectedPortageKeys Json?
+
+  vbmapp             Json?
+  selectedVBMappKeys Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
@@ -401,6 +404,9 @@ model AtividadeSessao {
 
   portage             Json?
   selectedPortageKeys Json?
+
+  vbmapp             Json?
+  selectedVbMappKeys Json?
 
   terapeutaId Int
   pacienteId  Int
