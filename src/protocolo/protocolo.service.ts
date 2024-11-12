@@ -307,7 +307,7 @@ export class ProtocoloService {
 
       case TIPO_PROTOCOLO_ENUM.vbMapp:
         if (body.type === 'pdf') {
-          const [dropdown, preenchidoLista] = await Promise.all([
+          const [dropdown, preenchidoLista]: any = await Promise.all([
             this.vbmapDropdown(),
             this.filterVbmapp(body),
           ]);
@@ -319,7 +319,20 @@ export class ProtocoloService {
             dropdown,
           );
 
-          return mergedData;
+          const result: any = {
+            data: { ...mergedData },
+          };
+
+          if (preenchidoLista.length) {
+            result.paciente = {
+              ...preenchidoLista[0].paciente,
+              dataNascimento: dateFormatDDMMYYYY(
+                preenchidoLista[0].paciente.dataNascimento,
+              ),
+            };
+          }
+
+          return result;
         }
 
         const [dropdown, preenchidoLista, existeResposta] = await Promise.all([
@@ -766,6 +779,7 @@ export class ProtocoloService {
           select: {
             id: true,
             nome: true,
+            dataNascimento: true,
           },
         },
       },
