@@ -94,6 +94,8 @@ export class PeiService {
 
         portage: true,
         selectedPortageKeys: true,
+
+        vbmapp: true,
       },
       where: {
         calendarioId,
@@ -218,20 +220,21 @@ export class PeiService {
         portage: true,
         selectedPortageKeys: true,
         selectedMaintenanceKeys: true,
+        selectedVbMappKeys: true,
+        vbmapp: true,
       },
       where: {
-        calendarioId: calendarioId,
+        // calendarioId: calendarioId,
+        pacienteId: calendarioId,
       },
     });
 
     result.map((item) => {
-      console.log(item);
-
-      let maintenanceParse = item.maintenance;
+      let maintenanceParse = JSON.parse(item.maintenance);
       let maintenance = [];
-      const selectedMaintenanceKeys = item.selectedMaintenanceKeys;
+      const selectedMaintenanceKeys = JSON.parse(item.selectedMaintenanceKeys);
 
-      if (maintenanceParse.length) {
+      if (maintenanceParse.length > 0) {
         maintenance = this.filterTree(
           maintenanceParse,
           selectedMaintenanceKeys,
@@ -250,9 +253,19 @@ export class PeiService {
         );
       }
 
+      let vbMappParse = item.vbmapp;
+      let vbMapp = [];
+
+      if (vbMappParse.length) {
+        const selectedVbMappKeys = item.selectedVbMappKeys;
+
+        vbMapp = this.filterSelectedItemsTree(vbMappParse, selectedVbMappKeys);
+      }
+
       item.atividades = item.atividades;
       item.maintenance = maintenance;
       item.portage = portage;
+      item.vbmapp = vbMapp;
       item.selectedMaintenanceKeys = selectedMaintenanceKeys;
     });
 

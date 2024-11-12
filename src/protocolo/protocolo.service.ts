@@ -6,7 +6,7 @@ import {
   PORTAGE_TIPO,
   TIPO_PROTOCOLO,
 } from './protocolo';
-import { VALOR_PORTAGE } from 'src/util/util';
+import { VALOR_PORTAGE, VBMAPP } from 'src/util/util';
 import { dateFormatDDMMYYYY, formatadataPadraoBD } from 'src/util/format-date';
 
 export enum TIPO_PROTOCOLO_ENUM {
@@ -473,13 +473,72 @@ export class ProtocoloService {
         return result;
 
       case TIPO_PROTOCOLO_ENUM.vbMapp:
-        // return await prisma.vbmapp.findMany({
-        //   where: {
-        //     pacienteId: body.pacienteId,
-        //   },
-        // });
-        break;
+        const resultVBMapp = await prisma.vBMappResultado.findMany({
+          select: {
+            id: true,
+            resposta: true,
+            vbmapp: true,
+            createdAt: true,
+            paciente: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+          where: {
+            pacienteId: body.pacienteId,
+            NOT: {
+              resposta: VBMAPP.um.toString(),
+            },
+          },
+        });
+
+        return this.formatDataVBMapMeta(resultVBMapp);
     }
+  }
+
+  formatDataVBMapMeta(dataArray: any[]): any[] {
+    // Agrupa os dados pelo nível e programa
+    const groupedData = dataArray.reduce((acc, item) => {
+      const nivelKey = `nivel-${item.vbmapp.nivel}`;
+      const programaKey = `programa-${item.vbmapp.programa}`;
+
+      // Verifica se o nível já existe no acumulador
+      if (!acc[nivelKey]) {
+        acc[nivelKey] = {
+          key: `${item.vbmapp.nivel}-nivel`,
+          label: `Nível ${item.vbmapp.nivel}`,
+          children: {},
+        };
+      }
+
+      // Verifica se o programa já existe dentro do nível
+      if (!acc[nivelKey].children[programaKey]) {
+        acc[nivelKey].children[programaKey] = {
+          key: `${item.vbmapp.nivel}-nivel-${item.vbmapp.id}-programa-${item.vbmapp.programa}`,
+          label: `${
+            item.vbmapp.programa.charAt(0).toUpperCase() +
+            item.vbmapp.programa.slice(1)
+          }`,
+          children: [],
+        };
+      }
+
+      // Adiciona a atividade dentro do programa
+      acc[nivelKey].children[programaKey].children.push({
+        key: `${item.vbmapp.nivel}-nivel-${item.vbmapp.id}-programa-${item.vbmapp.programa}-atividade-${acc[nivelKey].children[programaKey].children.length}`,
+        label: item.vbmapp.nome,
+      });
+
+      return acc;
+    }, {});
+
+    // Converte o resultado para um array com a estrutura correta
+    return Object.values(groupedData).map((nivel: any) => ({
+      ...nivel,
+      children: Object.values(nivel.children),
+    }));
   }
 
   async createOrUpdatePostage(body: any, terapeutaId: number) {
