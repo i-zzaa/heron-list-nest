@@ -12,7 +12,8 @@ export class PeiService {
     await prisma.pei.create({
       data: {
         ...body,
-        metas: JSON.stringify(body.metas),
+        // metas: JSON.stringify(body.metas),
+        metas: body.metas,
         terapeutaId: Number(terapeutaId),
       },
     });
@@ -59,7 +60,8 @@ export class PeiService {
     });
 
     result.map((item: any) => {
-      item.metas = JSON.parse(item.metas);
+      // item.metas = JSON.parse(item.metas);
+      // item.metas = item.metas;
       item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
         (pe: any) => pe.id === item.procedimentoEnsinoId,
       )[0];
@@ -71,7 +73,8 @@ export class PeiService {
   async update({ data }: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const payload = { ...data, metas: JSON.stringify(data.metas) };
+    // const payload = { ...data, metas: JSON.stringify(data.metas) };
+    const payload = { ...data, metas: data.metas };
 
     return await prisma.pei.update({
       data: payload,
@@ -227,9 +230,11 @@ export class PeiService {
     });
 
     result.map((item) => {
-      let maintenanceParse = JSON.parse(item.maintenance);
+      // let maintenanceParse = JSON.parse(item.maintenance);
+      let maintenanceParse = item.maintenance;
       let maintenance = [];
-      const selectedMaintenanceKeys = JSON.parse(item.selectedMaintenanceKeys);
+      // const selectedMaintenanceKeys = JSON.parse(item.selectedMaintenanceKeys);
+      const selectedMaintenanceKeys = item.selectedMaintenanceKeys;
 
       if (maintenanceParse.length > 0) {
         maintenance = this.filterTree(
