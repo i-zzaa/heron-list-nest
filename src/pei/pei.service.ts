@@ -110,14 +110,11 @@ export class PeiService {
       data: {
         ...data,
         terapeutaId,
-        atividades: JSON.stringify(data.atividades),
-        selectedKeys: JSON.stringify(data.selectedKeys),
+        atividades: data.atividades,
+        selectedKeys: data.selectedKeys,
 
-        maintenance: data.maintenance ? JSON.stringify(data.maintenance) : '',
-        selectedMaintenanceKeys: data.selectedMaintenanceKeys
-          ? JSON.stringify(data.selectedMaintenanceKeys)
-          : '',
-
+        maintenance: data.maintenance || [],
+        selectedMaintenanceKeys: data.selectedMaintenanceKeys || {},
         peisIds: JSON.stringify(data.peisIds),
       },
     });

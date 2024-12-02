@@ -372,11 +372,11 @@ model Sessao {
   id           Int    @id @default(autoincrement())
   resumo       String
   calendarioId Int?
-  sessao       Json
+  sessao       Json?
   pacienteId   Int
 
-  maintenance             Json
-  selectedMaintenanceKeys Json
+  maintenance             Json?
+  selectedMaintenanceKeys Json?
 
   portage             Json?
   selectedPortageKeys Json?
@@ -474,7 +474,7 @@ model VBMappResultado {
 
 model VBMappAtividades {
   id       Int    @id @default(autoincrement())
-  nome     String
+  nome     String @db.Text // Para valores longos, usamos `Text`
   nivel    Int
   programa String
 

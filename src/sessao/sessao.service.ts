@@ -94,9 +94,9 @@ export class SessaoService {
     });
 
     if (Boolean(data?.sessao)) {
-      data.sessao = JSON.parse(data.sessao);
+      data.sessao = data.sessao;
       data.selectedMaintenanceKeys = data.selectedMaintenanceKeys;
-      data.maintenance = JSON.parse(data.maintenance);
+      data.maintenance = data.maintenance;
 
       data.vbmapp = data.vbmapp || {};
       data.portage = data.portage || {};
@@ -107,7 +107,6 @@ export class SessaoService {
 
   async create(body: any, login: string) {
     const prisma = this.prismaService.getPrismaClient();
-
     const dateFim = dateAddtDay(body.date, 1);
 
     const evento = await this.agendaService.updateCalendarioMobile(
@@ -122,6 +121,7 @@ export class SessaoService {
     await prisma.sessao.create({
       data: {
         ...body,
+        sessao: body.sessao || [],
         calendarioId: evento.id,
       },
     });
@@ -254,7 +254,7 @@ export class SessaoService {
         pacienteId,
       },
       orderBy: {
-        id: 'desc', // Substitua 'id' pelo campo que deseja usar para ordenar os registros
+        id: 'desc', 
       },
       take: 3,
     });
