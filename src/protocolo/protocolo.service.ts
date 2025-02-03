@@ -363,6 +363,7 @@ export class ProtocoloService {
 
     // Percorre cada portage (ex: "Cognição", "Socialização")
     for (const portage in data) {
+      
       const faixasEtarias = data[portage];
       const filteredFaixasEtarias = {};
 
@@ -372,7 +373,7 @@ export class ProtocoloService {
 
         // Filtra as atividades removendo aquelas que têm selected === "1"
         const filteredAtividades = atividades.filter(
-          (activity) => activity.selected !== '1',
+          (activity) => activity.selected !== VALOR_PORTAGE.sim,
         );
 
         // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
@@ -393,37 +394,58 @@ export class ProtocoloService {
   convertToTreeStructure(filteredData: any) {
     const result = [];
     let metaIndex = 0; // Contador para meta
-
+  
     // Percorre o portage (ex: "Cognição", "Socialização")
     for (const portage in filteredData) {
       const faixasEtarias = filteredData[portage];
-
+  
       // Percorre as faixas etárias dentro do portage
       for (const faixaEtaria in faixasEtarias) {
         const atividades = faixasEtarias[faixaEtaria];
         const children = [];
         let subItemIndex = 0; // Contador para sub-item dentro de cada meta
-
+  
         // Percorre cada atividade dentro da faixa etária
         atividades.forEach((activity, index) => {
-          children.push({
-            key: `${metaIndex}-meta-${index}-sub-item-${subItemIndex}`, // Formata o key no estilo pedido
+          // Gera a chave base para o item atual
+          const itemKey = `${metaIndex}-meta-${index}-sub-item-${subItemIndex}`;
+  
+          // Cria o nó do item pai
+          const node: any = {
+            key: itemKey,
             label: activity.nome,
-          });
+          };
+  
+          // Se houver subitems preenchidos, adiciona-os como children
+          if (activity.subitems && Array.isArray(activity.subitems) && activity.subitems.length > 0) {
+            node.permiteSubitens = true;
+            node.children = []; // Cria o array para os subitens
+  
+            activity.subitems.forEach((subitem, subIndex) => {
+              // Gera uma chave para cada subitem (pode ser ajustado conforme a necessidade)
+              const subItemKey = `${itemKey}-${subIndex}`;
+              node.children.push({
+                key: subItemKey,
+                label: subitem.nome,
+              });
+            });
+          }
+  
+          children.push(node);
           subItemIndex++; // Incrementa o contador de sub-item
         });
-
-        // Adiciona ao resultado final no formato desejado
+  
+        // Adiciona o nó de meta com os children (atividades) processados
         result.push({
-          key: `${metaIndex}-meta`, // Chave de meta
+          key: `${metaIndex}-meta`, // Chave da meta
           label: `${portage} ${faixaEtaria}`,
           children: children,
         });
-
+  
         metaIndex++; // Incrementa o contador de meta
       }
     }
-
+  
     return result;
   }
 
@@ -472,6 +494,11 @@ export class ProtocoloService {
         }
 
         const filter = this.filterDataBySelected(portage.portage);
+
+        // console.log(filter);
+        
+
+        //aqui
         const convertToTree = this.convertToTreeStructure(filter);
 
         return convertToTree;
