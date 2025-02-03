@@ -451,8 +451,13 @@ model Portage {
   respostaDate2 DateTime? // Campo opcional
   respostaDate3 DateTime? // Campo opcional
   respostaDate4 DateTime? // Campo opcional
-  createdAt     DateTime? @default(now()) // Campo opcional com valor padrão
-  updatedAt     DateTime? @updatedAt // Atualiza automaticamente ao modificar
+
+  estimuloDiscriminativo     String?
+  resposta                   String?
+  estimuloReforcadorPositivo String?
+
+  createdAt DateTime? @default(now()) // Campo opcional com valor padrão
+  updatedAt DateTime? @updatedAt // Atualiza automaticamente ao modificar
 
   // Relations
   paciente Paciente @relation(fields: [pacienteId], references: [id])

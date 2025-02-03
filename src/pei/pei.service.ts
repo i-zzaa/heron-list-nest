@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { METAS, PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
+import { TIPO_PROTOCOLO, TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
 
 @Injectable()
 export class PeiService {
@@ -29,45 +30,61 @@ export class PeiService {
     });
   }
 
-  async filtro({ paciente }: any) {
+  async filtro({ paciente, protocoloId }: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const result = await prisma.pei.findMany({
-      select: {
-        id: true,
-        estimuloDiscriminativo: true,
-        estimuloReforcadorPositivo: true,
-        procedimentoEnsinoId: true,
-        metas: true,
-        programa: {
+    switch (protocoloId.id) {
+      case TIPO_PROTOCOLO_ID.pei :
+        const resultPei =  await prisma.pei.findMany({
           select: {
-            nome: true,
             id: true,
+            estimuloDiscriminativo: true,
+            estimuloReforcadorPositivo: true,
+            procedimentoEnsinoId: true,
+            metas: true,
+            programa: {
+              select: {
+                nome: true,
+                id: true,
+              },
+            },
+            resposta: true,
+            terapeuta: true,
+            paciente: {
+              select: {
+                nome: true,
+                id: true,
+              },
+            },
           },
-        },
-        resposta: true,
-        terapeuta: true,
-        paciente: {
-          select: {
-            nome: true,
-            id: true,
+          where: {
+            pacienteId: Number(paciente.id),
           },
-        },
-      },
-      where: {
-        pacienteId: Number(paciente.id),
-      },
-    });
+        });
 
-    result.map((item: any) => {
-      // item.metas = JSON.parse(item.metas);
-      // item.metas = item.metas;
-      item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
-        (pe: any) => pe.id === item.procedimentoEnsinoId,
-      )[0];
-    });
+        resultPei.map((item: any) => {
+          // item.metas = JSON.parse(item.metas);
+          // item.metas = item.metas;
+          item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
+            (pe: any) => pe.id === item.procedimentoEnsinoId,
+          )[0];
+        });
+    
+        return resultPei;
+        
+      case TIPO_PROTOCOLO_ID.portage :
+        
+        break;
+    
+      default:
 
-    return result;
+      
+        break;
+    }
+
+
+
+
   }
 
   async update({ data }: any) {
@@ -187,31 +204,38 @@ export class PeiService {
 
   filterSelectedItemsTree(data: any, keys: any) {
     return data
-      .map((item: any) => {
-        if (item.children) {
-          // Recursivamente filtra os filhos
-          const filteredChildren = this.filterSelectedItemsTree(
-            item.children,
-            keys,
-          );
-
-          // Se houver filhos filtrados, monta o nó com os filhos
-          if (filteredChildren.length > 0) {
-            return { ...item, children: filteredChildren };
-          }
-        }
-
-        // Verifica se o item (última camada) está marcado como `checked = true`
-        if (keys[item.key]?.checked) {
-          return item;
-        }
-
-        return null;
-      })
-      .filter((item: any) => item !== null); // Remove nós nulos
+    .map((item: any) => {
+      let filteredChildren: any[] = [];
+  
+      // Verifica e filtra a propriedade `children` (caso exista)
+      if (item.children) {
+        filteredChildren = this.filterSelectedItemsTree(item.children, keys);
+      }
+  
+      // Verifica e filtra a propriedade `subitems` (caso exista)
+      if (item.subitems) {
+        const filteredSubitems = this.filterSelectedItemsTree(item.subitems, keys);
+        // Se já houver children, podemos mesclar ou, se preferir, manter separado,
+        // conforme o seu modelo. Aqui mesclamos ambos:
+        filteredChildren = [...filteredChildren, ...filteredSubitems];
+      }
+  
+      // Se houver filhos filtrados, monta o nó com os filhos (mantendo o conceito de árvore)
+      if (filteredChildren.length > 0) {
+        return { ...item, children: filteredChildren , subitems: item?.subitems};
+      }
+  
+      // Caso não haja filhos (nem children nem subitems), verifica se o nó está marcado
+      if (keys[item.key]?.checked) {
+        return item;
+      }
+  
+      return null;
+    })
+    .filter((item: any) => item !== null); // Remove nós nulos
   }
 
-  async activitySession(calendarioId: number) {
+  async activitySession(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
     const result: any = await prisma.atividadeSessao.findMany({
       select: {
@@ -225,7 +249,7 @@ export class PeiService {
       },
       where: {
         // calendarioId: calendarioId,
-        pacienteId: calendarioId,
+        pacienteId: pacienteId,
       },
     });
 
@@ -246,23 +270,25 @@ export class PeiService {
       let portageParse = item.portage;
       let portage = [];
 
-      if (portageParse.length) {
-        const selectedPortageKeys = item.selectedPortageKeys;
-
+      if (portageParse.length && item?.selectedPortageKeys) {
+      const selectedPortageKeys = item.selectedPortageKeys;
         portage = this.filterSelectedItemsTree(
           portageParse,
           selectedPortageKeys,
-        );
+        );        
       }
 
-      let vbMappParse = item.vbmapp;
+      let vbMappParse = item?.vbmapp;
       let vbMapp = [];
 
-      if (vbMappParse.length) {
-        const selectedVbMappKeys = item.selectedVbMappKeys;
+      if (vbMappParse.length && item?.selectedVbMappKeys) {
+
+        const selectedVbMappKeys = item?.selectedVbMappKeys;
 
         vbMapp = this.filterSelectedItemsTree(vbMappParse, selectedVbMappKeys);
-      }
+      }      
+
+
 
       item.atividades = item.atividades;
       item.maintenance = maintenance;
