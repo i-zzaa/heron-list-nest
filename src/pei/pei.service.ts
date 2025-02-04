@@ -206,19 +206,20 @@ export class PeiService {
     return data
     .map((item: any) => {
       let filteredChildren: any[] = [];
-  
+
       // Verifica e filtra a propriedade `children` (caso exista)
       if (item.children) {
         filteredChildren = this.filterSelectedItemsTree(item.children, keys);
       }
   
       // Verifica e filtra a propriedade `subitems` (caso exista)
-      if (item.subitems) {
-        const filteredSubitems = this.filterSelectedItemsTree(item.subitems, keys);
-        // Se já houver children, podemos mesclar ou, se preferir, manter separado,
-        // conforme o seu modelo. Aqui mesclamos ambos:
-        filteredChildren = [...filteredChildren, ...filteredSubitems];
-      }
+      // if (item.subitems) {
+
+      //   const filteredSubitems = this.filterSelectedItemsTree(item.subitems, keys);
+      //   // Se já houver children, podemos mesclar ou, se preferir, manter separado,
+      //   // conforme o seu modelo. Aqui mesclamos ambos:
+      //   filteredChildren = [...filteredChildren, ...filteredSubitems];
+      // }
   
       // Se houver filhos filtrados, monta o nó com os filhos (mantendo o conceito de árvore)
       if (filteredChildren.length > 0) {
@@ -275,7 +276,10 @@ export class PeiService {
         portage = this.filterSelectedItemsTree(
           portageParse,
           selectedPortageKeys,
-        );        
+        );    
+        
+        console.log(portage[0].children);
+        
       }
 
       let vbMappParse = item?.vbmapp;
