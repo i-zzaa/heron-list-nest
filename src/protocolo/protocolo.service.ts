@@ -416,8 +416,6 @@ export class ProtocoloService {
             label: activity.nome,
           };
   
-          console.log(activity);
-          
           // Se houver subitems preenchidos, adiciona-os como children
           if (activity.subitems && Array.isArray(activity.subitems) && activity.subitems.length > 0) {
             node.permiteSubitens = true;
