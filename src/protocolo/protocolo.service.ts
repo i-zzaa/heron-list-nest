@@ -416,10 +416,18 @@ export class ProtocoloService {
             label: activity.nome,
           };
   
+          console.log(activity);
+          
           // Se houver subitems preenchidos, adiciona-os como children
           if (activity.subitems && Array.isArray(activity.subitems) && activity.subitems.length > 0) {
             node.permiteSubitens = true;
             node.children = []; // Cria o array para os subitens
+
+            node.procedimentoEnsinoId = activity.procedimentoEnsinoId
+            node.estimuloDiscriminativo = activity.estimuloDiscriminativo
+            node.estimuloReforcadorPositivo = activity.estimuloReforcadorPositivo
+            node.resposta = activity.resposta
+            node.programaId = activity.programaId
   
             activity.subitems.forEach((subitem, subIndex) => {
               // Gera uma chave para cada subitem (pode ser ajustado conforme a necessidade)
