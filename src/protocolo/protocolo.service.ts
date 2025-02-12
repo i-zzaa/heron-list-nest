@@ -116,8 +116,18 @@ export class ProtocoloService {
     const result = {};
 
     data.forEach((item) => {
-      const { programa, id, nome, nivel } = item.vbmapp;
-      const selected = item.resposta;
+      
+      const { estimuloDiscriminativo,
+        respostaSessao,
+        resposta              ,
+        estimuloReforcadorPositivo,
+        procedimentoEnsinoId,
+        subitems, } = item;
+
+        const { programa, id, nome, nivel } = item.vbmapp;
+
+
+      const selected = respostaSessao;
 
       // Inicializa a categoria do programa se ainda não existe
       if (!result[programa]) {
@@ -139,6 +149,13 @@ export class ProtocoloService {
           nome,
           nivel,
           programa,
+          estimuloDiscriminativo,
+          resposta              ,
+          estimuloReforcadorPositivo,
+          procedimentoEnsinoId,
+          respostaSessao,
+          subitems,
+
           ...(selected && { selected }),
         });
       }
@@ -157,6 +174,11 @@ export class ProtocoloService {
       const list1 = data1[key] || [];
       const list2 = data2[key] || [];
 
+    //   if (key === 'mando') {
+    // console.log(data1);
+        
+    //   }
+
       // Cria um mapa para mesclar os itens por id, prevalecendo os do segundo array
       const map = new Map();
       list2.forEach((item) => map.set(item.id, item)); // itens do segundo array prevalecem
@@ -169,6 +191,8 @@ export class ProtocoloService {
       // Converte o mapa em um array e adiciona à chave correspondente
       mergedData[key] = Array.from(map.values());
     });
+
+    
 
     return mergedData;
   };
@@ -343,6 +367,10 @@ export class ProtocoloService {
             existeResposta: true,
           }),
         ]);
+
+
+        // console.log(preenchidoLista);
+
 
         const mergedData = this.mergeAtividadesVBMapp(
           dropdown,
@@ -522,9 +550,17 @@ export class ProtocoloService {
         const resultVBMapp = await prisma.vBMappResultado.findMany({
           select: {
             id: true,
-            resposta: true,
+            respostaSessao: true,
             vbmapp: true,
             createdAt: true,
+
+            estimuloDiscriminativo : true,
+            resposta               : true,
+            estimuloReforcadorPositivo: true,
+            procedimentoEnsinoId: true,
+          
+            subitems: true,
+
             paciente: {
               select: {
                 id: true,
@@ -700,6 +736,7 @@ export class ProtocoloService {
         nome: true,
         nivel: true,
         programa: true,
+        permiteSubitens: true,
         createdAt: true,
       },
       where: {
@@ -712,17 +749,34 @@ export class ProtocoloService {
 
   async vbmapCreate(dados, terapeutaId) {
     const prisma = this.prismaService.getPrismaClient();
+    
 
     try {
       for (const programa in dados.vbmapp) {
+
         for (const atividade of dados.vbmapp[programa]) {
+    
           if (atividade.selected !== undefined) {
+            let complemento = {}
+
+            if (atividade.subitems.length) {
+              complemento = {
+                estimuloDiscriminativo: atividade.estimuloDiscriminativo,
+                estimuloReforcadorPositivo: atividade.estimuloReforcadorPositivo,
+                procedimentoEnsinoId: atividade.procedimentoEnsinoId,
+                resposta: atividade.resposta,
+                subitems: atividade.subitems
+              }
+            }
+
+
             await prisma.vBMappResultado.create({
               data: {
                 vbmappId: atividade.id,
-                resposta: atividade.selected,
+                respostaSessao: atividade.selected,
                 pacienteId: dados.pacienteId,
                 usuarioId: Number(terapeutaId),
+                ...complemento
               },
             });
           }
@@ -805,7 +859,14 @@ export class ProtocoloService {
     const result = await prisma.vBMappResultado.findMany({
       select: {
         id: true,
-        resposta: true,
+        respostaSessao: true,
+
+        estimuloDiscriminativo     : true,
+        resposta                   : true,
+        estimuloReforcadorPositivo : true,
+        procedimentoEnsinoId  : true,
+        subitems : true,
+
         vbmapp: true,
         createdAt: true,
         paciente: {

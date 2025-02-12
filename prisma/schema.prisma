@@ -464,11 +464,18 @@ model Portage {
 }
 
 model VBMappResultado {
-  id         Int    @id @default(autoincrement())
-  resposta   String
-  vbmappId   Int
-  pacienteId Int
-  usuarioId  Int
+  id             Int    @id @default(autoincrement())
+  respostaSessao String
+  vbmappId       Int
+  pacienteId     Int
+  usuarioId      Int
+
+  estimuloDiscriminativo     String?
+  resposta                   String?
+  estimuloReforcadorPositivo String?
+  procedimentoEnsinoId       Int?
+
+  subitems Json?
 
   createdAt DateTime?        @default(now())
   updatedAt DateTime?        @updatedAt
@@ -478,10 +485,11 @@ model VBMappResultado {
 }
 
 model VBMappAtividades {
-  id       Int    @id @default(autoincrement())
-  nome     String @db.Text // Para valores longos, usamos `Text`
-  nivel    Int
-  programa String
+  id              Int     @id @default(autoincrement())
+  nome            String  @db.Text // Para valores longos, usamos `Text`
+  nivel           Int
+  programa        String
+  permiteSubitens Boolean @default(false)
 
   createdAt       DateTime?         @default(now())
   updatedAt       DateTime?         @updatedAt
