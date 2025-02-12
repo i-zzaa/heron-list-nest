@@ -759,12 +759,9 @@ export class ProtocoloService {
           if (atividade.selected !== undefined) {
             let complemento = {}
 
-            if (atividade.subitems.length) {
+            if (atividade?.subitems && atividade?.subitems?.length) {
               complemento = {
-                estimuloDiscriminativo: atividade.estimuloDiscriminativo,
-                estimuloReforcadorPositivo: atividade.estimuloReforcadorPositivo,
-                procedimentoEnsinoId: atividade.procedimentoEnsinoId,
-                resposta: atividade.resposta,
+  
                 subitems: atividade.subitems
               }
             }
@@ -776,6 +773,10 @@ export class ProtocoloService {
                 respostaSessao: atividade.selected,
                 pacienteId: dados.pacienteId,
                 usuarioId: Number(terapeutaId),
+                estimuloDiscriminativo: atividade?.estimuloDiscriminativo,
+                estimuloReforcadorPositivo: atividade?.estimuloReforcadorPositivo,
+                procedimentoEnsinoId: atividade?.procedimentoEnsinoId,
+                resposta: atividade?.resposta,
                 ...complemento
               },
             });
