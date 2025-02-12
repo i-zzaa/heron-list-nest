@@ -580,48 +580,60 @@ export class ProtocoloService {
     }
   }
 
-  formatDataVBMapMeta(dataArray: any[]): any[] {
-    // Agrupa os dados pelo nível e programa
+   formatDataVBMapMeta(dataArray: any[]): any[] {
     const groupedData = dataArray.reduce((acc, item) => {
-      const nivelKey = `nivel-${item.vbmapp.nivel}`;
-      const programaKey = `programa-${item.vbmapp.programa}`;
-
+      const { nivel, programa, id, nome } = item.vbmapp;
+      const { respostaSessao, subitems } = item;
+  
+      const nivelKey = `nivel-${nivel}`;
+      const programaKey = `programa-${programa}`;
+      const metaKey = `meta-${id}`;
+  
       // Verifica se o nível já existe no acumulador
       if (!acc[nivelKey]) {
         acc[nivelKey] = {
-          key: `${item.vbmapp.nivel}-nivel`,
-          label: `Nível ${item.vbmapp.nivel}`,
+          key: `${nivel}-nivel`,
+          label: `Nível ${nivel}`,
           children: {},
         };
       }
-
+  
       // Verifica se o programa já existe dentro do nível
       if (!acc[nivelKey].children[programaKey]) {
         acc[nivelKey].children[programaKey] = {
-          key: `${item.vbmapp.nivel}-nivel-${item.vbmapp.id}-programa-${item.vbmapp.programa}`,
-          label: `${
-            item.vbmapp.programa.charAt(0).toUpperCase() +
-            item.vbmapp.programa.slice(1)
-          }`,
+          key: `${nivel}-nivel-${id}-programa-${programa}`,
+          label: `${programa.charAt(0).toUpperCase() + programa.slice(1)}`,
           children: [],
         };
       }
-
-      // Adiciona a atividade dentro do programa
-      acc[nivelKey].children[programaKey].children.push({
-        key: `${item.vbmapp.nivel}-nivel-${item.vbmapp.id}-programa-${item.vbmapp.programa}-atividade-${acc[nivelKey].children[programaKey].children.length}`,
-        label: item.vbmapp.nome,
-      });
-
+  
+      // Cria o objeto da meta
+      const metaObj: any = {
+        key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}`,
+        label: nome,
+      };
+  
+      // Se houver subitems, adiciona um children
+      if (subitems && subitems.length > 0) {
+        metaObj.children = subitems.map((subitem: any, index: number) => ({
+          key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-subitem-${index}`,
+          label: subitem.nome,
+        }));
+      }
+  
+      // Adiciona a meta dentro do programa
+      acc[nivelKey].children[programaKey].children.push(metaObj);
+  
       return acc;
     }, {});
-
-    // Converte o resultado para um array com a estrutura correta
+  
+    // Converte o objeto para array
     return Object.values(groupedData).map((nivel: any) => ({
       ...nivel,
       children: Object.values(nivel.children),
     }));
   }
+  
 
   async createOrUpdatePostage(body: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
