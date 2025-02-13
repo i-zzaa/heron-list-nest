@@ -615,9 +615,12 @@ export class ProtocoloService {
   
       // Se houver subitems, adiciona um children
       if (subitems && subitems.length > 0) {
+        // metaObj.permiteSubitens = true
+           
         metaObj.children = subitems.map((subitem: any, index: number) => ({
           key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-subitem-${index}`,
           label: subitem.nome,
+          permiteSubitens: true
         }));
       }
   
