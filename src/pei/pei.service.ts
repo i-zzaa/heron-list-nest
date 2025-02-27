@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { METAS, PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
 import { TIPO_PROTOCOLO, TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
+import { VALOR_PORTAGE } from 'src/util/util';
 
 @Injectable()
 export class PeiService {
@@ -73,19 +74,164 @@ export class PeiService {
         return resultPei;
         
       case TIPO_PROTOCOLO_ID.portage :
-        
-        break;
+        const resultPortage = await prisma.portage.findFirst({
+          select: {
+            id: true,
+            resposta1: true,
+            resposta2: true,
+            resposta3: true,
+            resposta4: true,
+            paciente: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+          where: {
+            pacienteId: paciente.pacienteId,
+          },
+        });
+
+        if (!resultPortage) {
+          return [];
+        }
+
+        const oneResult = resultPortage;
+        const portage: any = {
+          paciente: paciente.pacienteId,
+          id: oneResult.id,
+        };
+
+
+        if (!oneResult.resposta2) {
+          portage.portage = oneResult.resposta1;
+        } else if (!oneResult.resposta3) {
+          portage.portage = oneResult.resposta2;
+        } else if (!oneResult.resposta4) {
+          portage.portage = oneResult.resposta3;
+        } else {
+          portage.portage = oneResult.resposta4;
+        }
+
+        const filter = this.filterDataBySelected(portage.portage);
+        const convertToTreeStructure = this.formatJsonPortageTelaPEI(filter, paciente)
+
+        return convertToTreeStructure
     
       default:
 
       
         break;
     }
-
-
-
-
   }
+
+  async formatJsonPortageTelaPEI(dados: any, paciente: any) {
+    const transformedArray = [];
+    const prisma = this.prismaService.getPrismaClient();
+  
+
+    for (const programaNome in dados) {
+      const [programa] =  await prisma.programa.findMany({
+        select: {
+          id: true,
+          nome: true,
+        },
+        where: {
+          nome: programaNome
+        }
+      });
+
+      const programaList = {
+        id: 29,
+        permiteSubitens: true,
+        procedimentoEnsinoId: 2,
+        estimuloDiscriminativo: "wrtttew",
+        estimuloReforcadorPositivo: "ttewt",
+        resposta: "Sentar e começar a brincar ",
+        metas: [],
+        programa,
+        procedimentoEnsino: {}
+      }
+      const faixaEtariaObj = dados[programaNome];
+
+      for (const faixaEtaria in faixaEtariaObj) {
+        if (faixaEtariaObj.hasOwnProperty(faixaEtaria)) {
+          const metas = faixaEtariaObj[faixaEtaria];
+
+          metas.forEach(async(meta) => {
+            const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
+
+            
+            programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo
+            programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId
+            programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo
+            programaList.resposta = meta.resposta
+            programaList.procedimentoEnsino = procedimentoEnsino || null
+            programaList.metas.push(
+              {
+                id: meta.id,
+                name: "meta",
+                type: "input-add",
+                value: meta.nome,
+                labelFor: "meta",
+                subitems: meta?.subitems ? meta.subitems.map(subitem => ({
+                  id: subitem.id,
+                  name: "item",
+                  type: "input-add",
+                  value: subitem.nome,
+                  labelFor: "item",
+                  buttonAdd: true,
+                  customCol: "col-span-5 sm:col-span-5",
+                  labelText: "Item"
+                })) : null,
+                buttonAdd: true,
+                customCol: "col-span-5 sm:col-span-5",
+                labelText: "Meta"
+              }
+            )
+          });
+        }
+      }
+
+      transformedArray.push(programaList)
+    }
+
+    return transformedArray;
+  }
+
+    filterDataBySelected(data: any) {
+      const result = {};
+  
+      // Percorre cada portage (ex: "Cognição", "Socialização")
+      for (const portage in data) {
+        
+        const faixasEtarias = data[portage];
+        const filteredFaixasEtarias = {};
+  
+        // Percorre cada faixa etária dentro do portage
+        for (const faixaEtaria in faixasEtarias) {
+          const atividades = faixasEtarias[faixaEtaria];
+  
+          // Filtra as atividades removendo aquelas que têm selected === "1"
+          const filteredAtividades = atividades.filter(
+            (activity) => activity.hasOwnProperty('selected') && activity.selected !== VALOR_PORTAGE.sim ,
+          );
+  
+          // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
+          if (filteredAtividades.length > 0) {
+            filteredFaixasEtarias[faixaEtaria] = filteredAtividades;
+          }
+        }
+  
+        // Adiciona o portage ao resultado se ainda tiver faixas etárias válidas
+        if (Object.keys(filteredFaixasEtarias).length > 0) {
+          result[portage] = filteredFaixasEtarias;
+        }
+      }
+  
+      return result;
+    }
 
   async update({ data }: any) {
     const prisma = this.prismaService.getPrismaClient();

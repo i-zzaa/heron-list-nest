@@ -401,7 +401,7 @@ export class ProtocoloService {
 
         // Filtra as atividades removendo aquelas que têm selected === "1"
         const filteredAtividades = atividades.filter(
-          (activity) => activity.selected !== VALOR_PORTAGE.sim,
+          (activity) => activity.hasOwnProperty('selected') && activity.selected !== VALOR_PORTAGE.sim ,
         );
 
         // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
@@ -529,7 +529,7 @@ export class ProtocoloService {
 
         const filter = this.filterDataBySelected(portage.portage);
 
-        // console.log(filter);
+        console.log(filter);
         
 
         //aqui
@@ -811,7 +811,7 @@ export class ProtocoloService {
       const programa = item.vbmapp.programa;
       const atividadeNome: any = item.vbmapp.nome;
       const data = dateFormatDDMMYYYY(item.createdAt); // Extrai a data (yyyy-mm-dd)
-      const resposta = parseFloat(item.resposta);
+      const resposta = parseFloat(item.respostaSessao);
 
       // Verifica se o nível já está no relatório
       if (!relatorio[nivel]) {
