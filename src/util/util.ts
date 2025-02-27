@@ -35,7 +35,7 @@ export enum TIPO_PORTAGE {
 }
 
 export enum VALOR_PORTAGE {
-  sim = '1',
+  sim = "1",
   asVezes = '0.5',
   nao = '0',
 }
