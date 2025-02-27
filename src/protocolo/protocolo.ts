@@ -5,30 +5,12 @@ export const PORTAGE_LIST = [
     faixaEtaria: '0 a 1',
     portage: 'Socialização',
     permiteSubitens: true,
-    subitems: [{
-      id: '0-meta-1-sub-item-0',
-      nome: 'teste',
-      faixaEtaria: '0 a 1',
-      portage: 'Socialização',
-    }]
   },
   {
     id: 2,
     nome: 'Sorri em resposta à atenção do adulto',
     faixaEtaria: '0 a 1',
     portage: 'Socialização',
-    subitems: [{
-      id: '0-meta-2-sub-item-0',
-      nome: 'teste',
-      faixaEtaria: '0 a 1',
-      portage: 'Socialização',
-    },
-    {
-      id: '0-meta-2-sub-item-1',
-      nome: 'teste 2',
-      faixaEtaria: '0 a 1',
-      portage: 'Socialização',
-    }] ,
     permiteSubitens: true
    },
   {
