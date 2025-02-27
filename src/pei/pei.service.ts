@@ -74,6 +74,7 @@ export class PeiService {
         return resultPei;
         
       case TIPO_PROTOCOLO_ID.portage :
+
         const resultPortage = await prisma.portage.findFirst({
           select: {
             id: true,
@@ -89,7 +90,7 @@ export class PeiService {
             },
           },
           where: {
-            pacienteId: paciente.pacienteId,
+            pacienteId:  Number(paciente.id),
           },
         });
 
@@ -99,10 +100,9 @@ export class PeiService {
 
         const oneResult = resultPortage;
         const portage: any = {
-          paciente: paciente.pacienteId,
+          paciente,
           id: oneResult.id,
         };
-
 
         if (!oneResult.resposta2) {
           portage.portage = oneResult.resposta1;
@@ -162,7 +162,6 @@ export class PeiService {
           metas.forEach(async(meta) => {
             const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
 
-            
             programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo
             programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId
             programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo
@@ -205,10 +204,9 @@ export class PeiService {
   
       // Percorre cada portage (ex: "Cognição", "Socialização")
       for (const portage in data) {
-        
         const faixasEtarias = data[portage];
         const filteredFaixasEtarias = {};
-  
+
         // Percorre cada faixa etária dentro do portage
         for (const faixaEtaria in faixasEtarias) {
           const atividades = faixasEtarias[faixaEtaria];
@@ -217,7 +215,7 @@ export class PeiService {
           const filteredAtividades = atividades.filter(
             (activity) => activity.hasOwnProperty('selected') && activity.selected !== VALOR_PORTAGE.sim ,
           );
-  
+
           // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
           if (filteredAtividades.length > 0) {
             filteredFaixasEtarias[faixaEtaria] = filteredAtividades;
