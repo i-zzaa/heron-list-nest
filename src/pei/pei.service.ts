@@ -120,11 +120,141 @@ export class PeiService {
         return convertToTreeStructure
     
       default:
+        const result = await prisma.vBMappResultado.findMany({
+          select: {
+            id: true,
+            respostaSessao: true,
+    
+            estimuloDiscriminativo     : true,
+            resposta                   : true,
+            estimuloReforcadorPositivo : true,
+            procedimentoEnsinoId  : true,
+            subitems : true,
+    
+            vbmapp: true,
+            createdAt: true,
+            paciente: {
+              select: {
+                id: true,
+                nome: true,
+                dataNascimento: true,
+              },
+            },
+          },
+          where: {
+            pacienteId: paciente.id,
+          },
+        });
 
+        const transformDataFilterVBMapp = this.transformDataFilterVBMapp(result)
+        const vbmPEI = this.transformJsonVBPPEI(transformDataFilterVBMapp)
       
-        break;
+        return vbmPEI
     }
   }
+
+  transformJsonVBPPEI(inputJson: any): any {
+    const transformedArray = [];
+
+    for (const programaNome in inputJson) {
+      if (inputJson.hasOwnProperty(programaNome)) {
+        const metasArray = inputJson[programaNome];
+
+        metasArray.forEach(meta => {
+          const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter((item: any) => item.id === meta.procedimentoEnsinoId)
+          const transformedObject = {
+            ...meta,
+            id: meta.programaId, // Usando o programaId como ID
+            permiteSubitens: meta.permiteSubitens,
+
+            metas: metasArray.map(m => ({
+              id: m.id,
+              name: "meta",
+              type: "input-add",
+              value: m.nome,
+              labelFor: "meta",
+              subitems: m.subitems && m.subitems.length > 0 ? 
+                m.subitems.map(subitem => ({
+                  id: subitem.id,
+                  name: "item",
+                  type: "input-add",
+                  value: subitem.nome,
+                  labelFor: "item",
+                  buttonAdd: true,
+                  customCol: "col-span-5 sm:col-span-5",
+                  labelText: "Item"
+                })) : null,
+              buttonAdd: true,
+              customCol: "col-span-5 sm:col-span-5",
+              labelText: "Meta"
+            })),
+            programa: {
+              id: meta.programaId,
+              nome: programaNome
+            },
+            procedimentoEnsino          };
+
+          transformedArray.push(transformedObject);
+        });
+      }
+    }
+
+    return transformedArray;
+  }
+
+
+  transformDataFilterVBMapp(data: any[]) {
+    const result = {};
+
+    data.forEach((item) => {
+      
+      const { estimuloDiscriminativo,
+        respostaSessao,
+        resposta              ,
+        estimuloReforcadorPositivo,
+        procedimentoEnsinoId,
+        subitems, } = item;
+
+        const { programa, id, nome, nivel } = item.vbmapp;
+
+
+      const selected = respostaSessao;
+
+      // Inicializa a categoria do programa se ainda não existe
+      if (!result[programa]) {
+        result[programa] = [];
+      }
+
+      // Verifica se o item já existe para evitar duplicatas
+      const existingItem = result[programa].find((i) => i.id === id);
+
+      if (existingItem) {
+        // Se já existe e `selected` ainda não foi definido, adiciona
+        if (!existingItem.selected) {
+          existingItem.selected = selected;
+        }
+      } else {
+        // Adiciona o item ao programa correspondente com ou sem `selected`
+        result[programa].push({
+          id,
+          nome,
+          nivel,
+          programa,
+          estimuloDiscriminativo,
+          resposta              ,
+          estimuloReforcadorPositivo,
+          procedimentoEnsinoId,
+          respostaSessao,
+          subitems,
+
+          ...(selected && { selected }),
+        });
+      }
+    });
+
+    return result;
+  }
+
 
   async formatJsonPortageTelaPEI(dados: any, paciente: any) {
     const transformedArray = [];
