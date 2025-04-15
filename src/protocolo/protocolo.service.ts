@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   PORTAGE_FAIXA_ETARIA,
-  PORTAGE_LIST,
   PORTAGE_TIPO,
   TIPO_PROTOCOLO,
 } from './protocolo';
@@ -390,9 +389,9 @@ export class ProtocoloService {
     const result = {};
 
     // Percorre cada portage (ex: "Cognição", "Socialização")
-    for (const portage in data) {
+    for (const programa in data) {
       
-      const faixasEtarias = data[portage];
+      const faixasEtarias = data[programa];
       const filteredFaixasEtarias = {};
 
       // Percorre cada faixa etária dentro do portage
@@ -412,7 +411,7 @@ export class ProtocoloService {
 
       // Adiciona o portage ao resultado se ainda tiver faixas etárias válidas
       if (Object.keys(filteredFaixasEtarias).length > 0) {
-        result[portage] = filteredFaixasEtarias;
+        result[programa] = filteredFaixasEtarias;
       }
     }
 
@@ -424,8 +423,8 @@ export class ProtocoloService {
     let metaIndex = 0; // Contador para meta
   
     // Percorre o portage (ex: "Cognição", "Socialização")
-    for (const portage in filteredData) {
-      const faixasEtarias = filteredData[portage];
+    for (const programa in filteredData) {
+      const faixasEtarias = filteredData[programa];
   
       // Percorre as faixas etárias dentro do portage
       for (const faixaEtaria in faixasEtarias) {
@@ -472,7 +471,7 @@ export class ProtocoloService {
         // Adiciona o nó de meta com os children (atividades) processados
         result.push({
           key: `${metaIndex}-meta`, // Chave da meta
-          label: `${portage} ${faixaEtaria}`,
+          label: `${programa} ${faixaEtaria}`,
           children: children,
         });
   
@@ -529,10 +528,6 @@ export class ProtocoloService {
 
         const filter = this.filterDataBySelected(portage.portage);
 
-        console.log(filter);
-        
-
-        //aqui
         const convertToTree = this.convertToTreeStructure(filter);
 
         return convertToTree;
@@ -705,27 +700,40 @@ export class ProtocoloService {
 
   groupedData(data: any) {
     return data.reduce((acc, item) => {
-      const { portage, faixaEtaria } = item;
+      const { programa, faixaEtaria } = item;
 
       // Verifica se a chave portage já existe
-      if (!acc[portage]) {
-        acc[portage] = {};
+      if (!acc[programa]) {
+        acc[programa] = {};
       }
 
       // Verifica se a chave faixaEtaria já existe dentro de portage
-      if (!acc[portage][faixaEtaria]) {
-        acc[portage][faixaEtaria] = [];
+      if (!acc[programa][faixaEtaria]) {
+        acc[programa][faixaEtaria] = [];
       }
 
       // Adiciona o item ao grupo correspondente
-      acc[portage][faixaEtaria].push(item);
+      acc[programa][faixaEtaria].push(item);
 
       return acc;
     }, {});
   }
 
   async dropdown() {
-    return this.groupedData(PORTAGE_LIST);
+    const prisma = this.prismaService.getPrismaClient();
+    const result = await prisma.portageAtividades.findMany({
+      select: {
+        id: true,
+        nome: true,
+        programa: true,
+        permiteSubitens: true,
+        faixaEtaria: true,
+      }
+    });
+
+    return this.groupedData(result);
+
+
   }
 
   agrupadoPorPrograma(atividades: any) {

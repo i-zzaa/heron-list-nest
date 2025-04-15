@@ -495,3 +495,14 @@ model VBMappAtividades {
   updatedAt       DateTime?         @updatedAt
   VBMappResultado VBMappResultado[]
 }
+
+model PortageAtividades {
+  id              Int     @id @default(autoincrement())
+  nome            String  @db.Text // Para valores longos, usamos `Text`
+  faixaEtaria     String
+  programa        String
+  permiteSubitens Boolean @default(false)
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
