@@ -15,16 +15,17 @@ import { ProgramaProps } from './programa.interface';
 import { responseError, responseSuccess } from 'src/util/response';
 import { AuthGuard } from '@nestjs/passport';
 import { ProgramaService } from './programa.service';
+import { TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('programa')
 export class ProgramaController {
   constructor(private programaService: ProgramaService) {}
 
-  @Get('dropdown')
-  async dropdown(@Response() response: any) {
+  @Get(':tipoProtocolo/dropdown')
+  async dropdown(@Param('tipoProtocolo') tipoProtocolo: string, @Response() response: any) {
     try {
-      const data = await this.programaService.dropdown();
+      const data = await this.programaService.dropdown(Number(tipoProtocolo));
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

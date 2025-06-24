@@ -118,7 +118,7 @@ export class ProgramaService {
     });
   }
 
-  async dropdown() {
+  async dropdown(tipoProtocolo: number) {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.programa.findMany({
@@ -126,6 +126,11 @@ export class ProgramaService {
         id: true,
         nome: true,
       },
+      where: {
+        tipoProtocolo : {
+          array_contains: tipoProtocolo //Feito assim para filtrar apenas quando for portage 
+        }
+      }
     });
   }
 }
