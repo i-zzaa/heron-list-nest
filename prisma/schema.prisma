@@ -442,17 +442,11 @@ model Pei {
 }
 
 model Portage {
-  id            Int       @id @default(autoincrement())
-  portage       Json?
-  pacienteId    Int
-  resposta1     Json? // Campo opcional
-  resposta2     Json? // Campo opcional
-  resposta3     Json? // Campo opcional
-  resposta4     Json? // Campo opcional
-  respostaDate1 DateTime? // Campo opcional
-  respostaDate2 DateTime? // Campo opcional
-  respostaDate3 DateTime? // Campo opcional
-  respostaDate4 DateTime? // Campo opcional
+  id                  Int       @id @default(autoincrement())
+  portage             Json?
+  pacienteId          Int
+  respostaPortage     Json?
+  respostaPortageDate DateTime?
 
   estimuloDiscriminativo     String?
   resposta                   String?
