@@ -78,10 +78,7 @@ export class PeiService {
         const resultPortage = await prisma.portage.findFirst({
           select: {
             id: true,
-            resposta1: true,
-            resposta2: true,
-            resposta3: true,
-            resposta4: true,
+            respostaPortage: true,
             paciente: {
               select: {
                 id: true,
@@ -91,6 +88,9 @@ export class PeiService {
           },
           where: {
             pacienteId:  Number(paciente.id),
+          },
+          orderBy: {
+            id: 'desc',
           },
         });
 
@@ -104,15 +104,7 @@ export class PeiService {
           id: oneResult.id,
         };
 
-        if (!oneResult.resposta2) {
-          portage.portage = oneResult.resposta1;
-        } else if (!oneResult.resposta3) {
-          portage.portage = oneResult.resposta2;
-        } else if (!oneResult.resposta4) {
-          portage.portage = oneResult.resposta3;
-        } else {
-          portage.portage = oneResult.resposta4;
-        }
+        portage.portage = oneResult.respostaPortage;
 
         const filter = this.filterDataBySelected(portage.portage);
         const convertToTreeStructure = this.formatJsonPortageTelaPEI(filter, paciente)

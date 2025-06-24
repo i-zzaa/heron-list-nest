@@ -237,14 +237,8 @@ export class ProtocoloService {
         const resultPortage: any = await prisma.portage.findMany({
           select: {
             id: true,
-            resposta1: true,
-            resposta2: true,
-            resposta3: true,
-            resposta4: true,
-            respostaDate1: true,
-            respostaDate2: true,
-            respostaDate3: true,
-            respostaDate4: true,
+            respostaPortage: true,
+            respostaPortageDate: true,
             paciente: {
               select: {
                 id: true,
@@ -256,6 +250,10 @@ export class ProtocoloService {
           where: {
             pacienteId: body.pacienteId,
           },
+          orderBy: {
+            id: 'desc', 
+          },
+          take: 3,
         });
 
         if (!resultPortage.length) return null;
@@ -266,28 +264,28 @@ export class ProtocoloService {
           const ref: any = {};
           const headers = [''];
 
-          if (oneResult.resposta1) {
-            ref.resposta1 = oneResult.resposta1;
+          if (oneResult) {
+            ref.resposta1 = oneResult.respostaPortage;
             headers.push(
-              `Avaliação ${dateFormatDDMMYYYY(oneResult.respostaDate1)}`,
+              `Avaliação ${dateFormatDDMMYYYY(oneResult.respostaPortageDate)}`,
             );
           }
-          if (Boolean(oneResult.resposta2)) {
-            ref.resposta2 = oneResult.resposta2;
+          if (Boolean(resultPortage[1])) {
+            ref.resposta2 = resultPortage[1].respostaPortage;
             headers.push(
-              `Reavaliação ${dateFormatDDMMYYYY(oneResult.respostaDate2)}`,
+              `Reavaliação ${dateFormatDDMMYYYY(resultPortage[1].respostaPortageDate)}`,
             );
           }
-          if (Boolean(oneResult.resposta3)) {
-            ref.resposta3 = oneResult.resposta3;
+          if (Boolean(resultPortage[2])) {
+            ref.resposta3 = resultPortage[2].respostaPortage;
             headers.push(
-              `Reavaliação ${dateFormatDDMMYYYY(oneResult.respostaDate3)}`,
+              `Reavaliação ${dateFormatDDMMYYYY(resultPortage[2].respostaPortageDate)}`,
             );
           }
-          if (Boolean(oneResult.resposta4)) {
-            ref.resposta4 = oneResult.resposta4;
+          if (Boolean(resultPortage[3])) {
+            ref.resposta4 = resultPortage[3].respostaPortage;
             headers.push(
-              `Reavaliação ${dateFormatDDMMYYYY(oneResult.respostaDate4)}`,
+              `Reavaliação ${dateFormatDDMMYYYY(resultPortage[3].respostaPortageDate)}`,
             );
           }
 
@@ -306,16 +304,7 @@ export class ProtocoloService {
           paciente: oneResult.paciente,
           id: oneResult.id,
         };
-
-        if (!oneResult.resposta2) {
-          portage.portage = oneResult.resposta1;
-        } else if (!oneResult.resposta3) {
-          portage.portage = oneResult.resposta2;
-        } else if (!oneResult.resposta4) {
-          portage.portage = oneResult.resposta3;
-        } else {
-          portage.portage = oneResult.resposta4;
-        }
+        portage.portage = oneResult.respostaPortage;
 
         return portage;
 
@@ -490,10 +479,7 @@ export class ProtocoloService {
         const resultPortage = await prisma.portage.findFirst({
           select: {
             id: true,
-            resposta1: true,
-            resposta2: true,
-            resposta3: true,
-            resposta4: true,
+            respostaPortage: true,
             paciente: {
               select: {
                 id: true,
@@ -503,6 +489,9 @@ export class ProtocoloService {
           },
           where: {
             pacienteId: body.pacienteId,
+          },
+          orderBy: {
+            id: 'desc',
           },
         });
 
@@ -516,15 +505,7 @@ export class ProtocoloService {
           id: oneResult.id,
         };
 
-        if (!oneResult.resposta2) {
-          portage.portage = oneResult.resposta1;
-        } else if (!oneResult.resposta3) {
-          portage.portage = oneResult.resposta2;
-        } else if (!oneResult.resposta4) {
-          portage.portage = oneResult.resposta3;
-        } else {
-          portage.portage = oneResult.resposta4;
-        }
+        portage.portage = oneResult.respostaPortage;
 
         const filter = this.filterDataBySelected(portage.portage);
 
@@ -640,47 +621,13 @@ export class ProtocoloService {
     const now = new Date();
 
     try {
-      // Busca registros existentes para o paciente
-      const registrosExistentes = await prisma.portage.findMany({
-        where: { pacienteId: pacienteId },
+      await prisma.portage.create({
+        data: {
+          respostaPortage: body.portage,
+          respostaPortageDate: now,
+          pacienteId: pacienteId,
+        },
       });
-
-      if (registrosExistentes.length) {
-        const registro = registrosExistentes[0];
-
-        // Verifica qual campo de resposta está vazio e salva no próximo disponível
-        const dadosAtualizados: any = {};
-        if (!registro.resposta2) {
-          dadosAtualizados.resposta2 = body.portage;
-          dadosAtualizados.respostaDate2 = now;
-        } else if (!registro.resposta3) {
-          dadosAtualizados.resposta3 = body.portage;
-          dadosAtualizados.respostaDate3 = now;
-        } else if (!registro.resposta4) {
-          dadosAtualizados.resposta4 = body.portage;
-          dadosAtualizados.respostaDate4 = now;
-        } else {
-          // Opcional: trate o caso onde todas as respostas estão preenchidas
-          throw new Error(
-            'Todas as respostas já estão preenchidas para este paciente.',
-          );
-        }
-
-        // Atualiza o registro com a próxima resposta disponível
-        await prisma.portage.update({
-          data: dadosAtualizados,
-          where: { id: registro.id },
-        });
-      } else {
-        // Cria um novo registro caso não exista
-        await prisma.portage.create({
-          data: {
-            resposta1: body.portage,
-            respostaDate1: now,
-            pacienteId: pacienteId,
-          },
-        });
-      }
     } catch (error) {
       console.log(error);
     }
