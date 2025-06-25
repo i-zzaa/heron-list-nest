@@ -356,10 +356,6 @@ export class ProtocoloService {
           }),
         ]);
 
-
-        // console.log(preenchidoLista);
-
-
         const mergedData = this.mergeAtividadesVBMapp(
           dropdown,
           preenchidoLista,
@@ -379,14 +375,13 @@ export class ProtocoloService {
 
     // Percorre cada portage (ex: "Cognição", "Socialização")
     for (const programa in data) {
-      
       const faixasEtarias = data[programa];
       const filteredFaixasEtarias = {};
 
       // Percorre cada faixa etária dentro do portage
       for (const faixaEtaria in faixasEtarias) {
         const atividades = faixasEtarias[faixaEtaria];
-
+        
         // Filtra as atividades removendo aquelas que têm selected === "1"
         const filteredAtividades = atividades.filter(
           (activity) => activity.hasOwnProperty('selected') && activity.selected !== VALOR_PORTAGE.sim ,
@@ -493,7 +488,7 @@ export class ProtocoloService {
           orderBy: {
             id: 'desc',
           },
-        });
+        });        
 
         if (!resultPortage) {
           return [];
@@ -503,9 +498,8 @@ export class ProtocoloService {
         const portage: any = {
           paciente: body.pacienteId,
           id: oneResult.id,
+          portage: oneResult.respostaPortage
         };
-
-        portage.portage = oneResult.respostaPortage;
 
         const filter = this.filterDataBySelected(portage.portage);
 
