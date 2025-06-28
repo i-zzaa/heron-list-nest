@@ -1,20 +1,27 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Response, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service';
-import { AutheticatedGuard } from './auth/autheticated.guard';
+import { AuthGuard } from '@nestjs/passport';
+import { responseSuccess, responseError } from './util/response';
 
 @Controller()
-// @UseGuards(AuthGuard('jwt'))
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getVersion(): string {
-    return this.appService.getVersion();
+  getVersion(@Response() response: any): any {
+    response.status(200).json({
+      data: this.appService.getVersion(),
+    });
   }
 
-  @Get('network')
-  @UseGuards(AutheticatedGuard)
-  getInterfaceNetwork() {
-    return this.appService.getInterfaceNetwork();
+  @UseGuards(AuthGuard('jwt'))
+  @Get('intervalo/dropdown')
+  async intervaloDropdown(@Response() response: any) {
+    try {
+      const data = await this.appService.intervaloDropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response);
+    }
   }
 }

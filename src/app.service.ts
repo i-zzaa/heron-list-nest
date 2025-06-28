@@ -1,34 +1,26 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma/prisma.service';
 const package_json = require('../package.json');
-const os = require('os');
 
 @Injectable()
 export class AppService {
+  constructor(private readonly prismaService: PrismaService) {}
+
   getVersion(): string {
     return 'versão backend ' + package_json.version.toString();
   }
 
-  async getInterfaceNetwork() {
-    let address: any = '';
-    // Obtém a lista de interfaces de rede
-    const networkInterfaces: any = os?.networkInterfaces();
+  async intervaloDropdown() {
+    const prisma = this.prismaService.getPrismaClient();
 
-    // Itera sobre as interfaces de rede
-    await Promise.all(
-      Object.keys(networkInterfaces).map((interfaceName) => {
-        const interfaces = networkInterfaces[interfaceName];
-
-        // Itera sobre os endereços da interface de rede
-        interfaces.forEach((interfaceData) => {
-          // Verifica se é um endereço IPv4 e não é o endereço loopback
-          if (interfaceData.family === 'IPv4' && !interfaceData.internal) {
-            console.log('Endereço IP da máquina:', interfaceData.address);
-            address = interfaceData.address;
-          }
-        });
-      }),
-    );
-
-    return address;
+    return prisma.intervalo.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
   }
 }

@@ -4,52 +4,501 @@ generator client {
 }
 
 datasource db {
-  // provider             = "sqlite"
   provider             = "mysql"
   url                  = env("DATABASE_URL")
   referentialIntegrity = "prisma"
 }
 
-model Catalog {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String
-  icon        String
-  services    Service[]
+model Convenio {
+  id       Int        @id @default(autoincrement())
+  nome     String
+  Paciente Paciente[]
 }
 
-model Service {
-  id          Int    @id @default(autoincrement())
-  title       String
-  description String
+model Paciente {
+  id                Int    @id @default(autoincrement())
+  nome              String
+  telefone          String
+  responsavel       String
+  dataNascimento    String
+  convenioId        Int
+  statusPacienteCod String
+  tipoSessaoId      Int
+  statusId          Int?
+  carteirinha       String @default("")
 
-  catalogId Int?
-  Catalog   Catalog? @relation(fields: [catalogId], references: [id])
+  emAtendimento Boolean @default(false)
+  disabled      Boolean @default(false)
+
+  vaga           Vaga?
+  calendario     Calendario[]
+  statusPaciente StatusPaciente @relation(fields: [statusPacienteCod], references: [cod])
+  convenio       Convenio?      @relation(fields: [convenioId], references: [id])
+  tipoSessao     TipoSessao?    @relation(fields: [tipoSessaoId], references: [id])
+  status         Status?        @relation(fields: [statusId], references: [id])
+
+  createdAt         DateTime            @default(now())
+  updateAt          DateTime            @default(now())
+  pacienteHistorico PacienteHistorico[]
+  Baixa             Baixa[]
+  Sessao            Sessao[]
+  Protocolo         Protocolo[]
+  AtividadeSessao   AtividadeSessao[]
+  Pei               Pei[]
+  Portage           Portage[]
+  VBMappResultado   VBMappResultado[]
 }
 
-model Ticket {
-  id     Int    @id @default(autoincrement())
-  ticket String @unique @default(uuid())
-
-  title    String
-  type     String
-  status   String
-  priority String
-  date     String
-
-  userId Int
-  detail Detail[]
+model StatusPaciente {
+  id       Int        @id @default(autoincrement())
+  nome     String
+  cod      String     @unique @default("therapy")
+  Paciente Paciente[]
 }
 
-model Detail {
-  id       Int @id @default(autoincrement())
-  ticketId Int
+model Vaga {
+  id          Int     @id @default(autoincrement())
+  pacienteId  Int     @unique
+  dataContato String
+  periodoId   Int
+  observacao  String?
+  naFila      Boolean @default(true)
 
-  title     String
-  attendant String
-  queue     String
-  detalhe   String
-  date      String
+  dataSaiuFila   String?
+  devolutiva     Boolean @default(false)
+  dataDevolutiva String?
+  dataVoltouAba  String?
+  diff           String?
+  dataRetorno    String?
 
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  periodo        Periodo?              @relation(fields: [periodoId], references: [id])
+  paciente       Paciente?             @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  especialidades VagaOnEspecialidade[]
+
+  createdAt DateTime @default(now())
+}
+
+model VagaOnEspecialidade {
+  agendado        Boolean @default(false)
+  dataAgendado    String?
+  vagaId          Int
+  especialidadeId Int
+
+  valor String @default("200")
+  km    String @default("0")
+
+  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
+  vaga          Vaga          @relation(fields: [vagaId], references: [id], onDelete: Cascade)
+
+  @@id([vagaId, especialidadeId])
+}
+
+model Periodo {
+  id   Int    @id @default(autoincrement())
+  nome String
+  vaga Vaga[]
+}
+
+model Especialidade {
+  id         Int                   @id @default(autoincrement())
+  nome       String
+  cor        String                @default("#000000")
+  Funcao     Funcao[]
+  calendario Calendario[]
+  terapeuta  Terapeuta[]
+  vagas      VagaOnEspecialidade[]
+}
+
+model Status {
+  id       Int        @id @default(autoincrement())
+  nome     String
+  paciente Paciente[]
+}
+
+model TipoSessao {
+  id       Int        @id @default(autoincrement())
+  nome     String
+  paciente Paciente[]
+}
+
+model Usuario {
+  id               Int     @id @default(autoincrement())
+  nome             String
+  login            String  @unique
+  senha            String
+  ativo            Boolean @default(true)
+  perfilId         Int
+  grupoPermissaoId Int?
+
+  createdAt DateTime @default(now())
+
+  perfil          Perfil            @relation(fields: [perfilId], references: [id])
+  grupo           GrupoPermissao?   @relation(fields: [grupoPermissaoId], references: [id])
+  calendario      Calendario[]
+  terapeuta       Terapeuta?
+  Baixa           Baixa[]
+  VBMappResultado VBMappResultado[]
+}
+
+model Perfil {
+  id      Int       @id @default(autoincrement())
+  nome    String
+  usuario Usuario[]
+}
+
+model Localidade {
+  id         Int          @id @default(autoincrement())
+  casa       String
+  sala       String
+  ativo      Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  calendario Calendario[]
+  Baixa      Baixa[]
+}
+
+model StatusEventos {
+  id         Int          @id @default(autoincrement())
+  nome       String
+  cobrar     Boolean      @default(false)
+  ativo      Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  calendario Calendario[]
+  Baixa      Baixa[]
+}
+
+model Frequencia {
+  id         Int          @id @default(autoincrement())
+  nome       String
+  ativo      Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  calendario Calendario[]
+}
+
+model Modalidade {
+  id         Int          @id @default(autoincrement())
+  nome       String
+  ativo      Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  calendario Calendario[]
+}
+
+model Intervalo {
+  id         Int          @id @default(autoincrement())
+  nome       String
+  ativo      Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  calendario Calendario[]
+}
+
+model Funcao {
+  id              Int      @id @default(autoincrement())
+  nome            String
+  especialidadeId Int
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
+  calendario    Calendario[]
+
+  terapeutas TerapeutaOnFuncao[]
+}
+
+model Terapeuta {
+  usuarioId       Int      @unique
+  especialidadeId Int
+  fazDevolutiva   Boolean? @default(true)
+  cargaHoraria    Json?
+
+  usuario       Usuario?       @relation(fields: [usuarioId], references: [id])
+  especialidade Especialidade? @relation(fields: [especialidadeId], references: [id])
+  calendario    Calendario[]
+
+  funcoes         TerapeutaOnFuncao[]
+  Baixa           Baixa[]
+  Protocolo       Protocolo[]
+  AtividadeSessao AtividadeSessao[]
+  Pei             Pei[]
+}
+
+model TerapeutaOnFuncao {
+  terapeutaId Int
+  funcaoId    Int
+  comissao    String? @default("80")
+  tipo        String? @default("Fixo")
+
+  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId], onDelete: Cascade)
+  funcao    Funcao?    @relation(fields: [funcaoId], references: [id], onDelete: Cascade)
+
+  @@id([terapeutaId, funcaoId])
+}
+
+model Calendario {
+  id      Int    @id @default(autoincrement())
+  groupId String
+
+  dataInicio     String
+  dataFim        String
+  start          String
+  end            String?
+  diasFrequencia String
+  exdate         String?
+  isExterno      Boolean @default(false)
+  isChildren     Boolean @default(false)
+  km             String  @default("0")
+
+  ciclo           String
+  observacao      String?
+  pacienteId      Int
+  modalidadeId    Int
+  especialidadeId Int
+  terapeutaId     Int
+  funcaoId        Int
+  localidadeId    Int
+  statusEventosId Int
+  frequenciaId    Int
+  intervaloId     Int
+  usuarioId       Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  // Relations
+  terapeuta     Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
+  paciente      Paciente      @relation(fields: [pacienteId], references: [id])
+  modalidade    Modalidade    @relation(fields: [modalidadeId], references: [id])
+  especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
+  funcao        Funcao        @relation(fields: [funcaoId], references: [id])
+  localidade    Localidade    @relation(fields: [localidadeId], references: [id])
+  statusEventos StatusEventos @relation(fields: [statusEventosId], references: [id])
+  frequencia    Frequencia    @relation(fields: [frequenciaId], references: [id])
+  intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
+
+  Baixa           Baixa[]
+  Sessao          Sessao[]
+  AtividadeSessao AtividadeSessao?
+}
+
+model Permissao {
+  id        Int    @id @default(autoincrement())
+  cod       String
+  descricao String
+
+  GrupoPermissaoOnPermissao GrupoPermissaoOnPermissao[]
+}
+
+model GrupoPermissao {
+  id         Int                         @id @default(autoincrement())
+  nome       String
+  permissoes GrupoPermissaoOnPermissao[]
+  Usuario    Usuario[]
+}
+
+model GrupoPermissaoOnPermissao {
+  grupoPermissaoId Int @map("grupoPermissaoId")
+  permissaoId      Int @map("permissaoId")
+
+  grupoPermissao GrupoPermissao @relation(fields: [grupoPermissaoId], references: [id])
+  permissao      Permissao      @relation(fields: [permissaoId], references: [id])
+
+  @@id([grupoPermissaoId, permissaoId])
+  @@map("GrupoPermissaoOnPermissao")
+}
+
+model PacienteHistorico {
+  id         Int  @id @default(autoincrement())
+  pacienteId Int
+  historico  Json
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Baixa {
+  id              Int     @id @default(autoincrement())
+  pacienteId      Int
+  terapeutaId     Int
+  statusEventosId Int
+  eventoId        Int?
+  usuarioId       Int?
+  localidadeId    Int
+  baixa           Boolean @default(false)
+  dataEvento      String
+
+  paciente   Paciente      @relation(fields: [pacienteId], references: [id])
+  terapeuta  Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
+  status     StatusEventos @relation(fields: [statusEventosId], references: [id])
+  usuario    Usuario?      @relation(fields: [usuarioId], references: [id])
+  localidade Localidade    @relation(fields: [localidadeId], references: [id])
+  evento     Calendario?   @relation(fields: [eventoId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Programa {
+  id            Int     @id @default(autoincrement())
+  nome          String
+  ativo         Boolean @default(true)
+  tipoProtocolo Json    @default("[2,3]") // Array de inteiros com valor padrão [3]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Pei Pei[]
+}
+
+model Protocolo {
+  id           Int  @id @default(autoincrement())
+  protocolo    Json
+  protocoloSet Json
+  terapeutaId  Int?
+  pacienteId   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
+  paciente  Paciente   @relation(fields: [pacienteId], references: [id])
+}
+
+model Sessao {
+  id           Int    @id @default(autoincrement())
+  resumo       String
+  calendarioId Int?
+  sessao       Json?
+  pacienteId   Int
+
+  maintenance             Json?
+  selectedMaintenanceKeys Json?
+
+  portage             Json?
+  selectedPortageKeys Json?
+
+  vbmapp             Json?
+  selectedVBMappKeys Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  paciente Paciente    @relation(fields: [pacienteId], references: [id])
+  evento   Calendario? @relation(fields: [calendarioId], references: [id])
+}
+
+model AtividadeSessao {
+  id           Int    @id @default(autoincrement())
+  calendarioId Int    @unique
+  peisIds      String
+
+  atividades   Json
+  selectedKeys Json
+
+  maintenance             Json?
+  selectedMaintenanceKeys Json?
+
+  portage             Json?
+  selectedPortageKeys Json?
+
+  vbmapp             Json?
+  selectedVbMappKeys Json?
+
+  terapeutaId Int
+  pacienteId  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  terapeuta Terapeuta  @relation(fields: [terapeutaId], references: [usuarioId])
+  paciente  Paciente   @relation(fields: [pacienteId], references: [id])
+  evento    Calendario @relation(fields: [calendarioId], references: [id])
+}
+
+model Pei {
+  id                   Int  @id @default(autoincrement())
+  procedimentoEnsinoId Int
+  pacienteId           Int
+  programaId           Int
+  terapeutaId          Int?
+
+  estimuloDiscriminativo     String
+  resposta                   String
+  estimuloReforcadorPositivo String
+  metas                      Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  paciente  Paciente   @relation(fields: [pacienteId], references: [id])
+  terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId])
+  programa  Programa   @relation(fields: [programaId], references: [id])
+}
+
+model Portage {
+  id                  Int       @id @default(autoincrement())
+  portage             Json?
+  pacienteId          Int
+  respostaPortage     Json?
+  respostaPortageDate DateTime?
+
+  estimuloDiscriminativo     String?
+  resposta                   String?
+  estimuloReforcadorPositivo String?
+
+  createdAt DateTime? @default(now()) // Campo opcional com valor padrão
+  updatedAt DateTime? @updatedAt // Atualiza automaticamente ao modificar
+
+  // Relations
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+}
+
+model VBMappResultado {
+  id             Int    @id @default(autoincrement())
+  respostaSessao String
+  vbmappId       Int
+  pacienteId     Int
+  usuarioId      Int
+
+  estimuloDiscriminativo     String?
+  resposta                   String?
+  estimuloReforcadorPositivo String?
+  procedimentoEnsinoId       Int?
+
+  subitems Json?
+
+  createdAt DateTime?        @default(now())
+  updatedAt DateTime?        @updatedAt
+  vbmapp    VBMappAtividades @relation(fields: [vbmappId], references: [id])
+  paciente  Paciente         @relation(fields: [pacienteId], references: [id])
+  terapeuta Usuario?         @relation(fields: [usuarioId], references: [id])
+}
+
+model VBMappAtividades {
+  id              Int     @id @default(autoincrement())
+  nome            String  @db.Text // Para valores longos, usamos `Text`
+  nivel           Int
+  programa        String
+  permiteSubitens Boolean @default(false)
+
+  createdAt       DateTime?         @default(now())
+  updatedAt       DateTime?         @updatedAt
+  VBMappResultado VBMappResultado[]
+}
+
+model PortageAtividades {
+  id              Int     @id @default(autoincrement())
+  nome            String  @db.Text // Para valores longos, usamos `Text`
+  faixaEtaria     String
+  programa        String
+  permiteSubitens Boolean @default(false)
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 }
