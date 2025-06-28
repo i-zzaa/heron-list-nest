@@ -1,6 +1,14 @@
-import { Controller, UseGuards, Post, Request } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import {
+  Controller,
+  UseGuards,
+  Post,
+  Request,
+  Response,
+  Get,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { responseError, responseSuccess } from 'src/util/response';
 
 @Controller('')
 export class AuthController {
@@ -8,7 +16,25 @@ export class AuthController {
 
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  login(@Request() req: any) {
-    return this.authService.login(req.user);
+  async login(@Request() req: any, @Response() res: any) {
+    try {
+      const data = await this.authService.login(req.user, req.headers.device);
+      res.status(200).json(data);
+      return data;
+    } catch (error) {
+      responseError(res);
+    }
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('logout')
+  async logout(@Response() res: any) {
+    try {
+      const data = await this.authService.logout();
+      res.status(200).json(data);
+      return data;
+    } catch (error) {
+      responseError(res);
+    }
   }
 }
