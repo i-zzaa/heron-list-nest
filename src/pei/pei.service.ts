@@ -31,7 +31,7 @@ export class PeiService {
     });
   }
 
-  async filtro({ paciente, protocoloId }: any) {
+  async filtro({ paciente, protocoloId, notSelected = [] }: any) {
     const prisma = this.prismaService.getPrismaClient();
 
     switch (protocoloId.id) {
@@ -106,7 +106,7 @@ export class PeiService {
 
         portage.portage = oneResult.respostaPortage;
 
-        const filter = this.filterDataBySelected(portage.portage);
+        const filter = this.filterDataBySelected(portage.portage, notSelected);
         const convertToTreeStructure = this.formatJsonPortageTelaPEI(filter, paciente)
 
         return convertToTreeStructure
@@ -321,7 +321,7 @@ export class PeiService {
     return transformedArray;
   }
 
-    filterDataBySelected(data: any) {
+    filterDataBySelected(data: any, notSelected: string[]) {
       const result = {};
   
       // Percorre cada portage (ex: "Cognição", "Socialização")
@@ -334,9 +334,16 @@ export class PeiService {
           const atividades = faixasEtarias[faixaEtaria];
   
           // Filtra as atividades removendo aquelas que têm selected === "1"
-          const filteredAtividades = atividades.filter(
-            (activity) => activity.hasOwnProperty('selected') && activity.selected !== VALOR_PORTAGE.sim ,
-          );
+          let filteredAtividades = []
+          if (notSelected.length) {
+            filteredAtividades = atividades.filter(
+              (activity) => activity.hasOwnProperty('selected') && notSelected.includes(activity.selected) ,
+            );
+          }else {
+            filteredAtividades = atividades.filter(
+              (activity) => activity.hasOwnProperty('selected'),
+            );
+          }
 
           // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
           if (filteredAtividades.length > 0) {
