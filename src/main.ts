@@ -4,6 +4,9 @@ import { ValidationPipe } from '@nestjs/common';
 import * as cron from 'node-cron';
 import { WhatsappService } from 'src/whatsApp/whatsApp.service';
 
+import * as session from 'express-session';
+import * as passport from 'passport';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
@@ -17,6 +20,17 @@ async function bootstrap() {
   });
 
   app.enableCors();
+
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  app.enableCors({
+    origin: [
+      'http://127.0.0.1:5173',
+      'https://fbuots.hospedagemelastica.com.br/',
+    ],
+    credentials: true,
+  });
 
   await app.listen(3000);
 }
