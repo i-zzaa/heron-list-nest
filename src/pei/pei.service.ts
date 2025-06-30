@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { METAS, PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
 import { TIPO_PROTOCOLO, TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
@@ -11,14 +11,22 @@ export class PeiService {
   async create(body: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
-    await prisma.pei.create({
+    try {
+      await prisma.pei.create({
       data: {
-        ...body,
-        // metas: JSON.stringify(body.metas),
+        estimuloDiscriminativo: body.estimuloDiscriminativo,
+        estimuloReforcadorPositivo: body.estimuloReforcadorPositivo,
+        pacienteId: body.pacienteId,
+        procedimentoEnsinoId: body.procedimentoEnsinoId,
+        programaId: body.programaId,
+        resposta: body.resposta,
         metas: body.metas,
         terapeutaId: Number(terapeutaId),
       },
     });
+    } catch (error) {
+       throw new HttpException(error, HttpStatus.NOT_FOUND)
+    }
   }
 
   async delete(programaId: number) {
@@ -362,16 +370,22 @@ export class PeiService {
       return result;
     }
 
-  async update({ data }: any) {
+  async update(body: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    // const payload = { ...data, metas: JSON.stringify(data.metas) };
-    const payload = { ...data, metas: data.metas };
-
     return await prisma.pei.update({
-      data: payload,
+      data: {
+        estimuloDiscriminativo: body.estimuloDiscriminativo,
+        estimuloReforcadorPositivo: body.estimuloReforcadorPositivo,
+        pacienteId: body.pacienteId,
+        procedimentoEnsinoId: body.procedimentoEnsinoId,
+        programaId: body.programaId,
+        resposta: body.resposta,
+        metas: body.metas,
+        id: body.id
+      },
       where: {
-        id: data.id,
+        id: body.id,
       },
     });
   }
@@ -553,9 +567,6 @@ export class PeiService {
           portageParse,
           selectedPortageKeys,
         );    
-        
-        console.log(portage[0].children);
-        
       }
 
       let vbMappParse = item?.vbmapp;
