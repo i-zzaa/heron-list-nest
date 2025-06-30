@@ -34,7 +34,9 @@ export class PeiService {
   async filtro({ paciente, protocoloId, notSelected = [] }: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    switch (protocoloId.id) {
+    const protocoloIdCurrent = protocoloId.id || protocoloId
+
+    switch (protocoloIdCurrent) {
       case TIPO_PROTOCOLO_ID.pei :
         const resultPei =  await prisma.pei.findMany({
           select: {
@@ -389,6 +391,7 @@ export class PeiService {
         selectedPortageKeys: true,
 
         vbmapp: true,
+        selectedVbMappKeys: true,
       },
       where: {
         calendarioId,

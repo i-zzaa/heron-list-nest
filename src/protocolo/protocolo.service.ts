@@ -468,7 +468,6 @@ export class ProtocoloService {
 
   async filterMeta(body: any) {
     const prisma = this.prismaService.getPrismaClient();
-
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:
         const resultPortage = await prisma.portage.findFirst({
@@ -816,8 +815,6 @@ export class ProtocoloService {
           },
         }
       : {};
-
-    const order = filter.nivel ? {} : {}
 
     const result = await prisma.vBMappResultado.findMany({
       select: {
