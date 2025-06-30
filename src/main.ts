@@ -21,6 +21,15 @@ async function bootstrap() {
 
   app.enableCors();
 
+  app.use(
+    session({
+      secret: process.env.JWT_PRIVATE_KEY,
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: false }, 
+    }),
+  );
+
   app.use(passport.initialize());
   app.use(passport.session());
 

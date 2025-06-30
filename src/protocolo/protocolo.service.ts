@@ -713,13 +713,10 @@ export class ProtocoloService {
 
   async vbmapCreate(dados, terapeutaId) {
     const prisma = this.prismaService.getPrismaClient();
-    
 
     try {
       for (const programa in dados.vbmapp) {
-
         for (const atividade of dados.vbmapp[programa]) {
-    
           if (atividade.selected !== undefined) {
             let complemento = {}
 
@@ -729,7 +726,6 @@ export class ProtocoloService {
                 subitems: atividade.subitems
               }
             }
-
 
             await prisma.vBMappResultado.create({
               data: {
