@@ -1,4 +1,5 @@
 export interface PeiProps {
+  procedimentoEnsinoId: string;
   estimuloDiscriminativo: string;
   estimuloReforcadorPositivo: string;
   estimuloReforcoPositivo: string;

@@ -62,12 +62,7 @@ export class PeiController {
     @Request() req: any,
   ) {
     try {
-      const data = await this.peiService.update({
-        data: body,
-        where: {
-          id: body.id,
-        },
-      });
+      const data = await this.peiService.update(body);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);
