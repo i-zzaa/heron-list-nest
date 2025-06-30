@@ -817,6 +817,8 @@ export class ProtocoloService {
         }
       : {};
 
+    const order = filter.nivel ? {} : {}
+
     const result = await prisma.vBMappResultado.findMany({
       select: {
         id: true,
@@ -841,6 +843,9 @@ export class ProtocoloService {
       where: {
         pacienteId: filter.pacienteId,
         ...vbmapp,
+      },
+      orderBy: {
+        createdAt: 'desc'  
       },
     });
 
