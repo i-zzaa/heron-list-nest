@@ -1,12 +1,12 @@
 {
   "name": "biridin-api",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "export NODE_OPTIONS='--max-old-space-size=8192' && nest build",
+    "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
