@@ -416,6 +416,9 @@ export class PeiService {
   async createAtividadeSessao(data: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
+    console.log(data);
+    
+
     return await prisma.atividadeSessao.create({
       data: {
         ...data,
@@ -432,10 +435,15 @@ export class PeiService {
 
   async updateAtividadeSessao(data: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
-
+    
     const atividade = await prisma.atividadeSessao.findFirst({
       where: { calendarioId: data.calendario },
     });
+    
+    if (!atividade) {
+      delete data.id
+      return this.createAtividadeSessao(data, terapeutaId)
+    }
 
     return await prisma.atividadeSessao.update({
       data: {
@@ -444,15 +452,16 @@ export class PeiService {
         atividades: data.atividades,
         selectedKeys: data.selectedKeys,
         maintenance: data.maintenance,
-        selectedPortageKeys: data.selectedPortageKeys,
+        selectedPortageKeys: data.selectedPortageKeys || {},
         portage: data.portage,
-        selectedMaintenanceKeys: data.selectedMaintenanceKeys,
+        selectedMaintenanceKeys: data.selectedMaintenanceKeys || {},
+        selectedVbMappKeys: data.selectedVbMappKeys || {},
         peisIds: JSON.stringify(data.peisIds),
       },
       where: {
         id: atividade.id,
       },
-    });
+    }); 
   }
 
   // getAllKeys(arr: any) {
