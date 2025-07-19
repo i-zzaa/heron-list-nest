@@ -108,7 +108,7 @@ export class PeiService {
           return [];
         }
 
-        const oneResult = resultPortage;
+        const oneResult = resultPortage;        
         const portage: any = {
           paciente,
           id: oneResult.id,
@@ -278,9 +278,9 @@ export class PeiService {
         id: 29,
         permiteSubitens: true,
         procedimentoEnsinoId: 2,
-        estimuloDiscriminativo: "wrtttew",
-        estimuloReforcadorPositivo: "ttewt",
-        resposta: "Sentar e começar a brincar ",
+        estimuloDiscriminativo: "",
+        estimuloReforcadorPositivo: "",
+        resposta: "",
         metas: [],
         programa,
         procedimentoEnsino: {}
@@ -347,7 +347,7 @@ export class PeiService {
           let filteredAtividades = []
           if (notSelected.length) {
             filteredAtividades = atividades.filter(
-              (activity) => activity.hasOwnProperty('selected') && notSelected.includes(activity.selected) ,
+              (activity) => activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected) ,
             );
           }else {
             filteredAtividades = atividades.filter(
