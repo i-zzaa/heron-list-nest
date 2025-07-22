@@ -116,7 +116,7 @@ export class PeiService {
 
         portage.portage = oneResult.respostaPortage;
 
-        const filter = this.filterDataBySelected(portage.portage, notSelected);
+        const filter = this.filterDataBySelected(portage.portage, notSelected);        
         const convertToTreeStructure = this.formatJsonPortageTelaPEI(filter, paciente)
 
         return convertToTreeStructure
@@ -261,7 +261,6 @@ export class PeiService {
   async formatJsonPortageTelaPEI(dados: any, paciente: any) {
     const transformedArray = [];
     const prisma = this.prismaService.getPrismaClient();
-  
 
     for (const programaNome in dados) {
       const [programa] =  await prisma.programa.findMany({
@@ -273,6 +272,8 @@ export class PeiService {
           nome: programaNome
         }
       });
+
+        // console.log(filter['Socialização']['0 a 1']);
 
       const programaList = {
         id: 29,
@@ -290,15 +291,17 @@ export class PeiService {
       for (const faixaEtaria in faixaEtariaObj) {
         if (faixaEtariaObj.hasOwnProperty(faixaEtaria)) {
           const metas = faixaEtariaObj[faixaEtaria];
-
           metas.forEach(async(meta) => {
-            const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
 
-            programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo
-            programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId
-            programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo
-            programaList.resposta = meta.resposta
-            programaList.procedimentoEnsino = procedimentoEnsino || null
+            if (meta.procedimentoEnsinoId) {
+              const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
+              programaList.procedimentoEnsino = procedimentoEnsino
+              programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo || "-"
+              programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId || "-"
+              programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo || "-"
+              programaList.resposta = meta.resposta || "-"
+            }
+
             programaList.metas.push(
               {
                 id: meta.id,
