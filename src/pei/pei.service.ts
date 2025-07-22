@@ -296,11 +296,12 @@ export class PeiService {
             if (meta.procedimentoEnsinoId) {
               const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
               programaList.procedimentoEnsino = procedimentoEnsino
-              programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo || "-"
-              programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId || "-"
-              programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo || "-"
-              programaList.resposta = meta.resposta || "-"
             }
+
+            programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo || "-"
+            programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId || "-"
+            programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo || "-"
+            programaList.resposta = meta.resposta || "-"
 
             programaList.metas.push(
               {
@@ -349,9 +350,17 @@ export class PeiService {
           // Filtra as atividades removendo aquelas que têm selected === "1"
           let filteredAtividades = []
           if (notSelected.length) {
-            filteredAtividades = atividades.filter(
-              (activity) => activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected) ,
-            );
+            // filteredAtividades = atividades.filter(
+            //   (activity) => activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected) ,
+            // );
+
+            filteredAtividades = atividades.filter((activity) => {
+              const isItemSelected =  activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected) ;
+
+              const hasSubItemSelected = activity.subitems ? activity.subitems?.some((sub: any) =>  sub.hasOwnProperty('selected') && !notSelected.includes(sub.selected) ) :  true;
+              return isItemSelected && hasSubItemSelected;
+            });
+
           }else {
             filteredAtividades = atividades.filter(
               (activity) => activity.hasOwnProperty('selected'),
