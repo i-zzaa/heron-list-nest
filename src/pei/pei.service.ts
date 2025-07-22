@@ -354,12 +354,18 @@ export class PeiService {
             //   (activity) => activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected) ,
             // );
 
-            filteredAtividades = atividades.filter((activity) => {
-              const isItemSelected =  activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected) ;
+            filteredAtividades = atividades.map((activity) => {
+              const cloned = { ...activity };
 
-              const hasSubItemSelected = activity.subitems ? activity.subitems?.some((sub: any) =>  sub.hasOwnProperty('selected') && !notSelected.includes(sub.selected) ) :  true;
-              return isItemSelected && hasSubItemSelected;
-            });
+              if (Array.isArray(cloned.subitems)) {
+                cloned.subitems = cloned.subitems.filter(
+                  (sub: any) => sub.hasOwnProperty('selected') && !notSelected.includes(sub.selected)
+                );
+              }
+
+              return cloned;
+            }).filter((activity) => activity.hasOwnProperty('selected') && !notSelected.includes(activity.selected));
+
 
           }else {
             filteredAtividades = atividades.filter(
