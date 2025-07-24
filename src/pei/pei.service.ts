@@ -295,16 +295,19 @@ export class PeiService {
 
             if (meta.procedimentoEnsinoId) {
               const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
-              programaList.procedimentoEnsino = procedimentoEnsino
+              meta.procedimentoEnsino = procedimentoEnsino
             }
 
-            programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo || "-"
-            programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId || "-"
-            programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo || "-"
-            programaList.resposta = meta.resposta || "-"
+            // console.log(meta.estimuloDiscriminativo, meta.procedimentoEnsinoId, meta.estimuloReforcadorPositivo, meta.resposta);
+            
+
+            // programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo || "-"
+            // programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo || "-"
+            // programaList.resposta = meta.resposta || "-"
 
             programaList.metas.push(
               {
+                ...meta,
                 id: meta.id,
                 name: "meta",
                 type: "input-add",
