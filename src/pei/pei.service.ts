@@ -145,7 +145,10 @@ export class PeiService {
           },
           where: {
             pacienteId: paciente.id,
-          },
+            respostaSessao: {
+              notIn: notSelected
+            }
+            },
         });
 
         const transformDataFilterVBMapp = this.transformDataFilterVBMapp(result)
@@ -155,54 +158,66 @@ export class PeiService {
     }
   }
 
-  transformJsonVBPPEI(inputJson: any): any {
-    const transformedArray = [];
+async transformJsonVBPPEI(inputJson: any) {
+  const transformedArray = [];
+  const prisma = this.prismaService.getPrismaClient();
 
-    for (const programaNome in inputJson) {
-      if (inputJson.hasOwnProperty(programaNome)) {
-        const metasArray = inputJson[programaNome];
+  for (const programaNome in inputJson) {
+    const metasArray = inputJson[programaNome];
 
-        metasArray.forEach(meta => {
-          const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter((item: any) => item.id === meta.procedimentoEnsinoId)
-          const transformedObject = {
-            ...meta,
-            id: meta.programaId, // Usando o programaId como ID
-            permiteSubitens: meta.permiteSubitens,
+    // 👉 Primeiro: encontrar a meta com campos preenchidos
+    const metaPreenchida = metasArray.find((m: any) =>
+      m.estimuloDiscriminativo || m.resposta || m.estimuloReforcadorPositivo
+    );
 
-            metas: metasArray.map(m => ({
-              id: m.id,
-              name: "meta",
+    // Se nenhuma estiver preenchida, ainda assim usamos a primeira como fallback
+    const metaReferencial = metaPreenchida || metasArray[0];
+
+    const { estimuloDiscriminativo, resposta, estimuloReforcadorPositivo, procedimentoEnsinoId } = metaReferencial;
+    const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter((item: any) => item.id === procedimentoEnsinoId);
+
+    // monta objeto final
+    const transformedObject = {
+      ...metaReferencial, // inclui outros dados úteis se houver
+      permiteSubitens: metaReferencial?.permiteSubitens,
+      metas: metasArray.map((m: any) => ({
+        id: m.id,
+        name: "meta",
+        type: "input-add",
+        value: m.nome,
+        labelFor: "meta",
+        subitems: m.subitems && m.subitems.length > 0
+          ? m.subitems.map((subitem: any) => ({
+              id: subitem.id,
+              name: "item",
               type: "input-add",
-              value: m.nome,
-              labelFor: "meta",
-              subitems: m.subitems && m.subitems.length > 0 ? 
-                m.subitems.map(subitem => ({
-                  id: subitem.id,
-                  name: "item",
-                  type: "input-add",
-                  value: subitem.nome,
-                  labelFor: "item",
-                  buttonAdd: true,
-                  customCol: "col-span-5 sm:col-span-5",
-                  labelText: "Item"
-                })) : null,
+              value: subitem.nome,
+              labelFor: "item",
               buttonAdd: true,
               customCol: "col-span-5 sm:col-span-5",
-              labelText: "Meta"
-            })),
-            programa: {
-              id: meta.programaId,
-              nome: programaNome
-            },
-            procedimentoEnsino          };
+              labelText: "Item"
+            }))
+          : null,
+        buttonAdd: true,
+        customCol: "col-span-5 sm:col-span-5",
+        labelText: "Meta"
+      })),
+      programa: {
+        id: metaReferencial.programaId,
+        nome: programaNome
+      },
+      estimuloDiscriminativo,
+      resposta,
+      estimuloReforcadorPositivo,
+      procedimentoEnsino
+    };
 
-          transformedArray.push(transformedObject);
-        });
-      }
-    }
-
-    return transformedArray;
+    transformedArray.push(transformedObject);
   }
+
+  return transformedArray;
+}
+
 
 
   transformDataFilterVBMapp(data: any[]) {
@@ -220,7 +235,7 @@ export class PeiService {
         const { programa, id, nome, nivel } = item.vbmapp;
 
 
-      const selected = respostaSessao;
+      const selected = respostaSessao;      
 
       // Inicializa a categoria do programa se ainda não existe
       if (!result[programa]) {
@@ -436,9 +451,6 @@ export class PeiService {
 
   async createAtividadeSessao(data: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
-
-    console.log(data);
-    
 
     return await prisma.atividadeSessao.create({
       data: {
