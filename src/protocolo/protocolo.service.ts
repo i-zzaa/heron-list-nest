@@ -540,7 +540,7 @@ export class ProtocoloService {
           where: {
             pacienteId: body.pacienteId,
             NOT: {
-              resposta: VBMAPP.um.toString(),
+              respostaSessao: VBMAPP.um.toString(),
             },
           },
         });
@@ -552,7 +552,7 @@ export class ProtocoloService {
    formatDataVBMapMeta(dataArray: any[]): any[] {
     const groupedData = dataArray.reduce((acc, item) => {
       const { nivel, programa, id, nome } = item.vbmapp;
-      const { respostaSessao, subitems } = item;
+      const { estimuloDiscriminativo, estimuloReforcadorPositivo, procedimentoEnsinoId, resposta , subitems } = item;
   
       const nivelKey = `nivel-${nivel}`;
       const programaKey = `programa-${programa}`;
@@ -573,6 +573,11 @@ export class ProtocoloService {
           key: `${nivel}-nivel-${id}-programa-${programa}`,
           label: `${programa.charAt(0).toUpperCase() + programa.slice(1)}`,
           children: [],
+          estimuloDiscriminativo, 
+          estimuloReforcadorPositivo, 
+          procedimentoEnsinoId, 
+          resposta,
+          permiteSubitens: subitems && subitems.length
         };
       }
   
@@ -585,8 +590,9 @@ export class ProtocoloService {
       // Se houver subitems, adiciona um children
       if (subitems && subitems.length > 0) {
         // metaObj.permiteSubitens = true
-           
-        metaObj.children = subitems.map((subitem: any, index: number) => ({
+       const subitemsFiltrados = subitems.filter((subitem: any) => subitem.selected !=  VBMAPP.um);
+
+        metaObj.children = subitemsFiltrados.map((subitem: any, index: number) => ({
           key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-subitem-${index}`,
           label: subitem.nome,
           permiteSubitens: true
