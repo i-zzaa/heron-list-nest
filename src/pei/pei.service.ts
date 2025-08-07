@@ -60,7 +60,7 @@ export class PeiService {
               },
             },
             resposta: true,
-            terapeuta: true,
+            // terapeuta: true,
             paciente: {
               select: {
                 nome: true,
