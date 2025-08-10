@@ -466,6 +466,55 @@ export class ProtocoloService {
     return result;
   }
 
+// const vbmappResposta = this.formatDataVBMapMeta(resultVBMapp);
+// const vbmappRespostaOrdenado = sortVBMappRespostaDeep(vbmappResposta);
+
+ sortVBMappRespostaDeep(data: any[]) {
+  const alpha = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true });
+
+  const asArray = (maybeArrOrObj: any) =>
+    Array.isArray(maybeArrOrObj) ? maybeArrOrObj : Object.values(maybeArrOrObj ?? {});
+
+  const getNivelNum = (key?: string, label?: string) => {
+    const s = String(key ?? '');
+    let m = s.match(/^(\d+)-nivel$/i) || s.match(/^nivel-(\d+)$/i);
+    if (!m && label) m = String(label).match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+  };
+
+  // Ordena subitens (children das metas)
+  const sortSubitens = (meta: any) => {
+    const subitens = asArray(meta.children)
+      .slice()
+      .sort((a: any, b: any) => alpha.compare(a?.label ?? '', b?.label ?? ''));
+    return { ...meta, children: subitens };
+  };
+
+  // Ordena metas dentro de cada programa (e já ordena seus subitens)
+  const sortMetas = (programa: any) => {
+    const metas = asArray(programa.children)
+      .slice()
+      .sort((a: any, b: any) => alpha.compare(a?.label ?? '', b?.label ?? ''))
+      .map(sortSubitens);
+    return { ...programa, children: metas };
+  };
+
+  // Ordena programas dentro de cada nível (e já ordena metas/subitens)
+  const sortProgramas = (nivel: any) => {
+    const programas = asArray(nivel.children)
+      .slice()
+      .sort((a: any, b: any) => alpha.compare(a?.label ?? '', b?.label ?? ''))
+      .map(sortMetas);
+    return { ...nivel, children: programas };
+  };
+
+  // Ordena níveis (1, 2, 3...) e encadeia ordenação interna
+  return (data ?? [])
+    .slice()
+    .sort((a: any, b: any) => getNivelNum(a.key, a.label) - getNivelNum(b.key, b.label))
+    .map(sortProgramas);
+}
+
   async filterMeta(body: any) {
     const prisma = this.prismaService.getPrismaClient();
     switch (body.protocoloId) {
@@ -516,102 +565,138 @@ export class ProtocoloService {
         return result;
 
       case TIPO_PROTOCOLO_ENUM.vbMapp:
-        const resultVBMapp = await prisma.vBMappResultado.findMany({
+       const rows = await prisma.vBMappResultado.findMany({
           select: {
             id: true,
             respostaSessao: true,
             vbmapp: true,
             createdAt: true,
-
-            estimuloDiscriminativo : true,
-            resposta               : true,
+            estimuloDiscriminativo: true,
+            resposta: true,
             estimuloReforcadorPositivo: true,
             procedimentoEnsinoId: true,
-          
             subitems: true,
-
-            paciente: {
-              select: {
-                id: true,
-                nome: true,
-              },
-            },
+            paciente: { select: { id: true, nome: true } },
           },
           where: {
             pacienteId: body.pacienteId,
-            NOT: {
-              respostaSessao: VBMAPP.um.toString(),
-            },
+            NOT: { respostaSessao: VBMAPP.um.toString() }, // exclui "1"
           },
+          // pega a MAIS NOVA por vbmappId
+          orderBy: [
+            { vbmappId: 'asc' },     // garante determinismo por chave
+            { createdAt: 'desc' },   // a 1ª por vbmappId será a mais recente
+          ],
+          distinct: ['vbmappId'],    // 1 linha por meta
         });
 
-        return this.formatDataVBMapMeta(resultVBMapp);
+        // exibição: mais novas primeiro
+        const resultVBMapp = rows.sort((a, b) => +b.createdAt - +a.createdAt);
+        const vbmappResposta: any = this.formatDataVBMapMeta(resultVBMapp);
+
+        const resultFinal = this.sortVBMappRespostaDeep(vbmappResposta)
+
+      return resultFinal
     }
   }
 
-   formatDataVBMapMeta(dataArray: any[]): any[] {
-    const groupedData = dataArray.reduce((acc, item) => {
-      const { nivel, programa, id, nome } = item.vbmapp;
-      const { estimuloDiscriminativo, estimuloReforcadorPositivo, procedimentoEnsinoId, resposta , subitems } = item;
-  
-      const nivelKey = `nivel-${nivel}`;
-      const programaKey = `programa-${programa}`;
-      const metaKey = `meta-${id}`;
-  
-      // Verifica se o nível já existe no acumulador
-      if (!acc[nivelKey]) {
-        acc[nivelKey] = {
-          key: `${nivel}-nivel`,
-          label: `Nível ${nivel}`,
-          children: {},
-        };
-      }
-  
-      // Verifica se o programa já existe dentro do nível
-      if (!acc[nivelKey].children[programaKey]) {
-        acc[nivelKey].children[programaKey] = {
-          key: `${nivel}-nivel-${id}-programa-${programa}`,
-          label: `${programa.charAt(0).toUpperCase() + programa.slice(1)}`,
-          children: [],
-          estimuloDiscriminativo, 
-          estimuloReforcadorPositivo, 
-          procedimentoEnsinoId, 
-          resposta,
-          permiteSubitens: subitems && subitems.length
-        };
-      }
-  
-      // Cria o objeto da meta
-      const metaObj: any = {
+ formatDataVBMapMeta(
+  dataArray: any[],
+  metasJaAdicionadasIds: number[] = []
+): any[] {
+  const adicionadasSet = new Set(metasJaAdicionadasIds);
+
+  const grouped = dataArray.reduce((acc: any, item: any) => {
+    console.log(item);
+    
+    const { nivel, programa, id, nome } = item.vbmapp;
+    const { subitems, procedimentoEnsinoId, estimuloReforcadorPositivo, resposta, estimuloDiscriminativo } = item;
+
+    // Se a meta já foi adicionada (opcional), ignora
+    if (adicionadasSet.has(id)) return acc;
+
+    const nivelKey = `nivel-${nivel}`;
+    const programaKey = `programa-${programa}`;
+    const metaKey = `meta-${id}`;
+
+    // Nível
+    if (!acc[nivelKey]) {
+      acc[nivelKey] = {
+        key: `${nivel}-nivel`,
+        label: `Nível ${nivel}`,
+        children: {}, // mapa de programas
+      };
+    }
+    const nivelNode = acc[nivelKey];
+
+    // Programa
+    if (!nivelNode.children[programaKey]) {
+
+      nivelNode.children[programaKey] = {
+        procedimentoEnsinoId,
+        estimuloReforcadorPositivo,
+        resposta,
+        estimuloDiscriminativo,
+        key: `${nivel}-nivel-programa-${programa}`,
+        label: programa ? programa.charAt(0).toUpperCase() + programa.slice(1) : '',
+        children: {}, // mapa de metas
+      };
+    }
+    const programaNode = nivelNode.children[programaKey];
+
+    // Meta (dedupe por id)
+    if (!programaNode.children[metaKey]) {
+      programaNode.children[metaKey] = {
         key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}`,
         label: nome,
+        // usaremos childrenMap para dedupe de subitens
+        childrenMap: {} as Record<string, any>,
       };
-  
-      // Se houver subitems, adiciona um children
-      if (subitems && subitems.length > 0) {
-        // metaObj.permiteSubitens = true
-       const subitemsFiltrados = subitems.filter((subitem: any) => subitem.selected !=  VBMAPP.um);
+    }
+    const metaNode = programaNode.children[metaKey];
 
-        metaObj.children = subitemsFiltrados.map((subitem: any, index: number) => ({
-          key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-subitem-${index}`,
-          label: subitem.nome,
-          permiteSubitens: true
-        }));
-      }
-  
-      // Adiciona a meta dentro do programa
-      acc[nivelKey].children[programaKey].children.push(metaObj);
-  
-      return acc;
-    }, {});
-  
-    // Converte o objeto para array
-    return Object.values(groupedData).map((nivel: any) => ({
-      ...nivel,
-      children: Object.values(nivel.children),
-    }));
-  }
-  
+    // Subitens (mantém regra atual: remover os com selected == VBMAPP.um)
+    if (Array.isArray(subitems) && subitems.length) {
+      subitems
+        .filter((s: any) => s.selected != VBMAPP.um)
+        .forEach((sub: any, index: number) => {
+          const subKey = sub.id
+            ? `subitem-${sub.id}`
+            : `subitem-${index}-${sub.nome}`;
+
+          if (!metaNode.childrenMap[subKey]) {
+            metaNode.childrenMap[subKey] = {
+              key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-${subKey}`,
+              label: sub.nome,
+              permiteSubitens: true,
+            };
+          } else {
+            // Se precisar atualizar label/props ao mesclar, faça aqui
+            metaNode.childrenMap[subKey].label = sub.nome;
+          }
+        });
+    }
+
+    return acc;
+  }, {});
+
+  // Converte mapas -> arrays
+  return Object.values(grouped).map((nivelNode: any) => {
+    const programas = Object.values(nivelNode.children).map((prog: any) => {
+      const metas = Object.values(prog.children).map((meta: any) => {
+        const out: any = { key: meta.key, label: meta.label };
+        const children = meta.childrenMap ? Object.values(meta.childrenMap) : [];
+        if (children.length) {
+          out.children = children;
+          out.permiteSubitens = true;
+        }
+        return out;
+      });
+      return { ...prog, children: metas };
+    });
+    return { ...nivelNode, children: programas };
+  });
+}
 
   async createOrUpdatePostage(body: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
