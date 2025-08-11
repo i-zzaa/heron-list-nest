@@ -41,12 +41,13 @@ export class PeiService {
 
   async filtro({ paciente, protocoloId, notSelected = [] }: any) {
     const prisma = this.prismaService.getPrismaClient();
-
-    const protocoloIdCurrent = protocoloId.id || protocoloId
+ 
+    const protocoloIdCurrent = typeof protocoloId == 'object' ? protocoloId.id : protocoloId
 
     switch (protocoloIdCurrent) {
       case TIPO_PROTOCOLO_ID.pei :
-        const resultPei =  await prisma.pei.findMany({
+        try {
+          const resultPei =  await prisma.pei.findMany({
           select: {
             id: true,
             estimuloDiscriminativo: true,
@@ -73,7 +74,7 @@ export class PeiService {
           },
         });
 
-        resultPei.map((item: any) => {
+          resultPei.map((item: any) => {
           // item.metas = JSON.parse(item.metas);
           // item.metas = item.metas;
           item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
@@ -82,7 +83,11 @@ export class PeiService {
         });
     
         return resultPei;
-        
+
+        } catch (error) {
+          console.log(error);
+          
+        }
       case TIPO_PROTOCOLO_ID.portage :
 
         const resultPortage = await prisma.portage.findFirst({
