@@ -353,7 +353,9 @@ model Programa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Pei Pei[]
+  Pei               Pei[]
+  VBMappAtividades  VBMappAtividades[]
+  PortageAtividades PortageAtividades[]
 }
 
 model Protocolo {
@@ -484,21 +486,25 @@ model VBMappAtividades {
   id              Int     @id @default(autoincrement())
   nome            String  @db.Text // Para valores longos, usamos `Text`
   nivel           Int
-  programa        String
+  programaId      Int
   permiteSubitens Boolean @default(false)
 
   createdAt       DateTime?         @default(now())
   updatedAt       DateTime?         @updatedAt
   VBMappResultado VBMappResultado[]
+
+  programa Programa @relation(fields: [programaId], references: [id])
 }
 
 model PortageAtividades {
   id              Int     @id @default(autoincrement())
   nome            String  @db.Text // Para valores longos, usamos `Text`
+  programaId      Int
   faixaEtaria     String
-  programa        String
   permiteSubitens Boolean @default(false)
 
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
+
+  programa Programa @relation(fields: [programaId], references: [id])
 }
