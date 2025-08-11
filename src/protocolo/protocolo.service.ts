@@ -731,7 +731,8 @@ export class ProtocoloService {
 
   groupedData(data: any) {
     return data.reduce((acc, item) => {
-      const { programa, faixaEtaria } = item;
+      const { faixaEtaria } = item;
+      const programa = item.programa.nome;
 
       // Verifica se a chave portage já existe
       if (!acc[programa]) {
@@ -756,20 +757,23 @@ export class ProtocoloService {
       select: {
         id: true,
         nome: true,
-        programa: true,
+        programa: {
+          select: {
+            nome: true,
+            id: true
+          }
+        },
         permiteSubitens: true,
         faixaEtaria: true,
       }
     });
 
     return this.groupedData(result);
-
-
   }
 
   agrupadoPorPrograma(atividades: any) {
     return atividades.reduce((acc, atividade) => {
-      const programaNome = atividade.programa;
+      const programaNome = atividade.programa.nome;
 
       if (!acc[programaNome]) {
         acc[programaNome] = [];
