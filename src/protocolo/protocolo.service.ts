@@ -123,8 +123,8 @@ export class ProtocoloService {
         procedimentoEnsinoId,
         subitems, } = item;
 
-        const { programa, id, nome, nivel } = item.vbmapp;
-
+      const {id, nome, nivel } = item.vbmapp;
+      const programa = item.vbmapp.programa.nome;
 
       const selected = respostaSessao;
 
@@ -922,7 +922,14 @@ export class ProtocoloService {
         procedimentoEnsinoId  : true,
         subitems : true,
 
-        vbmapp: true,
+        vbmapp: {
+          select: {
+            programa: true,
+            id: true,
+            nome: true, 
+            nivel: true
+          }
+        },
         createdAt: true,
         paciente: {
           select: {
