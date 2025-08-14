@@ -569,7 +569,15 @@ export class ProtocoloService {
           select: {
             id: true,
             respostaSessao: true,
-            vbmapp: true,
+            vbmapp: {
+              select: {
+                programa: true, 
+                id: true,
+                createdAt: true,
+                nivel: true,
+                nome: true,
+              }
+            },
             createdAt: true,
             estimuloDiscriminativo: true,
             resposta: true,
@@ -609,7 +617,8 @@ export class ProtocoloService {
   const grouped = dataArray.reduce((acc: any, item: any) => {
     console.log(item);
     
-    const { nivel, programa, id, nome } = item.vbmapp;
+    const { nivel, id, nome } = item.vbmapp;
+    const programa = item.vbmapp.programa.nome;
     const { subitems, procedimentoEnsinoId, estimuloReforcadorPositivo, resposta, estimuloDiscriminativo } = item;
 
     // Se a meta já foi adicionada (opcional), ignora
