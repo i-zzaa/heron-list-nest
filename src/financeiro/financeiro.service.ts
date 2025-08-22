@@ -122,7 +122,7 @@ export class FinanceiroService {
           evento.statusEventos.cobrar &&
           formaTime(duracaoEspecialidadeSessaoTotal);
 
-        console.log(evento.km);
+        // console.log(evento.km);
 
         const financeiro = new FinancialPaciente({
           paciente: evento.paciente.nome,

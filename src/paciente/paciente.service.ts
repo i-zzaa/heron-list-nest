@@ -353,7 +353,7 @@ export class PacienteService {
                 ...body.sessao.map((sessao: any) => {
                   const valor = sessao.valor.split('R$')[1];
 
-                  console.log(valor);
+                  // console.log(valor);
 
                   return {
                     especialidadeId: sessao.especialidadeId,

@@ -78,7 +78,7 @@ export class ProgramaController {
   @Delete(':id')
   async delete(@Param('id') id: number, @Response() response: any) {
     try {
-      console.log(id);
+      // console.log(id);
 
       const data = await this.programaService.delete(id);
       responseSuccess(response, data);

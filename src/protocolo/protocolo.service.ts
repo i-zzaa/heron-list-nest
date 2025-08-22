@@ -615,8 +615,6 @@ export class ProtocoloService {
   const adicionadasSet = new Set(metasJaAdicionadasIds);
 
   const grouped = dataArray.reduce((acc: any, item: any) => {
-    console.log(item);
-    
     const { nivel, id, nome } = item.vbmapp;
     const programa = item.vbmapp.programa.nome;
     const { subitems, procedimentoEnsinoId, estimuloReforcadorPositivo, resposta, estimuloDiscriminativo } = item;
