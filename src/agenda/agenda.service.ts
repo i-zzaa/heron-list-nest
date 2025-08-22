@@ -1077,7 +1077,7 @@ export class AgendaService {
         statusPacienteCod: evento.paciente.statusPacienteCod,
       });
 
-      console.log(evento.paciente.vaga.id);
+        // console.log(evento.paciente.vaga.id);
 
       await prisma.vaga.update({
         data: {

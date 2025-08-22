@@ -3,6 +3,20 @@ import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { dateAddtDay, dateFormatDDMMYYYY } from 'src/util/format-date';
 import { TYPE_DTT, calcAcertos } from 'src/util/util';
+import { inspect } from 'util';
+
+// --- helpers de chave estável ---
+type ProtocolKey = 'manual' | 'vbmapp' | 'portage';
+
+interface LeafEntry {
+  key: string;               // chave única do item/subitem (folha)
+  value: number;             // 0..100
+  path: Array<string | number>;
+  parentKey: string;         // chave única do pai (meta/bloco)
+  parentTree: any;           // a árvore que deve ir para manutenção (meta/bloco)
+  protocol: ProtocolKey;
+  parentLeafCount: number;   // total de folhas sob o pai
+}
 
 @Injectable()
 export class SessaoService {
@@ -98,8 +112,9 @@ export class SessaoService {
       data.selectedMaintenanceKeys = data.selectedMaintenanceKeys;
       data.maintenance = data.maintenance;
 
-      data.vbmapp = data.vbmapp || {};
-      data.portage = data.portage || {};
+      // por compatibilidade
+      data.vbmapp = data.vbmapp || [];
+      data.portage = data.portage || [];
     }
 
     return data;
@@ -109,24 +124,44 @@ export class SessaoService {
     const prisma = this.prismaService.getPrismaClient();
     const dateFim = dateAddtDay(body.date, 1);
 
-    const evento = await this.agendaService.updateCalendarioMobile(
-      body.calendarioId,
-      login,
-      body.date,
-      dateFim,
-    );
+    // const evento = await this.agendaService.updateCalendarioMobile(
+    //   body.calendarioId,
+    //   login,
+    //   body.date,
+    //   dateFim,
+    // );
+
+    const { groupId } = await prisma.calendario.findUnique({
+      select: {
+        groupId: true
+      },
+      where: {
+        id: body.calendarioId
+      }
+    })
+
+    const calendarioIdPai = await prisma.calendario.findFirst({
+      select: {
+        id: true
+      },
+      where: {
+       groupId
+      },
+      orderBy: { id: 'asc' },
+      take: 1
+    })
 
     delete body.date;
 
-    await prisma.sessao.create({
-      data: {
-        ...body,
-        sessao: body.sessao || [],
-        calendarioId: evento.id,
-      },
-    });
+    // await prisma.sessao.create({
+    //   data: {
+    //     ...body,
+    //     sessao: body.sessao || [],
+    //     calendarioId: evento.id,
+    //   },
+    // });
 
-    await this.updateMaintenance(body.pacienteId, body.calendarioId);
+    await this.updateMaintenance(body.pacienteId, calendarioIdPai.id);
 
     return;
   }
@@ -243,39 +278,135 @@ export class SessaoService {
     };
   }
 
+  // ===== helpers =====
+  private countLeavesManual(meta: any): number {
+    const itens = Array.isArray(meta?.children) ? meta.children : [];
+    return itens.length;
+  }
+
+  private countLeavesFlat(meta: any): number {
+    const itens = Array.isArray(meta?.children) ? meta.children : [];
+    return itens.length;
+  }
+
+  // ========== ATUALIZA MANUTENÇÃO (3 últimas sessões) ==========
   async updateMaintenance(pacienteId: number, calendarioId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
     const sessions = await prisma.sessao.findMany({
       select: {
-        sessao: true,
+        sessao: true,   // MANUAL (array de programas)
+        vbmapp: true,   // VB-MAPP (array plano de metas)
+        portage: true,  // PORTAGE (array plano de metas)
       },
-      where: {
-        pacienteId,
-      },
-      orderBy: {
-        id: 'desc', 
-      },
+      where: { pacienteId },
+      orderBy: { id: 'desc' },
       take: 3,
     });
 
-    const flat = sessions.flat();
 
-    const formatted = await Promise.all(
-      flat.map((session: any) => {
-        return session.sessao;
-      }),
+    if (sessions.length < 3) return;
+
+    const ordered = [...sessions].reverse();
+
+    // Garanta que tudo está em objeto (e não string JSON)
+    const parsed = ordered.map((s: any) => {
+// console.log(s);
+
+  return    {
+      sessao:  this.safeJsonParse(s.sessao)  ?? s.sessao,
+      vbmapp:  this.safeJsonParse(s.vbmapp)  ?? s.vbmapp,
+      portage: this.safeJsonParse(s.portage) ?? s.portage,
+    }
+    });
+
+    // console.log(parsed);
+
+    
+
+
+
+    // // Logs úteis
+    // console.log('3 últimas sessões (expandidas):\n',
+    //   inspect(parsed, { depth: null, colors: true })
+    // );
+    // console.log('Tamanhos:', {
+    //   sessao:  parsed.map(s => Array.isArray(s.sessao)  ? s.sessao.length  : 0),
+    //   vbmapp:  parsed.map(s => Array.isArray(s.vbmapp)  ? s.vbmapp.length  : 0),
+    //   portage: parsed.map(s => Array.isArray(s.portage) ? s.portage.length : 0),
+    // });
+
+
+    // extrai folhas de CADA sessão
+    const perSessionLeaves = parsed.map((s: any) => {
+      const manualLeaves  = this.extractLeavesFromManual(s.sessao);
+      const vbmappLeaves  = this.extractLeavesFromVbmappFlat(s.vbmapp);
+      const portageLeaves = this.extractLeavesFromPortageFlat(s.portage);
+      return [...manualLeaves, ...vbmappLeaves, ...portageLeaves];
+    });
+
+// console.log(perSessionLeaves);
+
+
+  const { manutencao, toRemove } = this.buildMaintenanceFromThreeSessions(perSessionLeaves);
+
+  // console.log(toRemove);
+   
+
+  // console.log('manutenção ->\n', inspect(manutencao, { depth: null, colors: true }));
+  // console.log('toRemove ->\n', inspect(toRemove, { depth: null, colors: true }));
+
+    // se nada bateu 3x 100%, não há o que promover
+    if (
+      !manutencao.manual.length &&
+      !manutencao.vbmapp.length &&
+      !manutencao.portage.length
+    ) return;    
+
+    // Carrega árvores ativas MAIS RECENTES (como arrays)
+    const latest        = ordered[2];
+
+    const manualAtivo   = this.safeJsonParse(latest?.sessao)   || [];
+    const vbmappAtivo   = this.safeJsonParse(latest?.vbmapp)   || []; // << array
+    const portageAtivo  = this.safeJsonParse(latest?.portage)  || []; // << array
+
+    // Podas específicas de cada protocolo
+    const manualFiltrado  = this.pruneManualActive(
+      manualAtivo,
+      new Set(toRemove.parents.manual),
+      new Set(toRemove.leafs),
     );
 
-    const result = this.processActivities(formatted);
+    const vbmappFiltrado  = this.pruneVbmappChildrenActive(     // << novo
+      vbmappAtivo,
+      new Set(toRemove.parents.vbmapp),
+      new Set(toRemove.leafs),
+    );
 
-    if (result.manutencao.length) {
-      this.updateAtividadeSessao({
-        maintenance: result.manutencao,
-        atividades: result.atividades,
-        calendarioId,
-      });
-    }
+    const portageFiltrado = this.prunePortageActive(            // << novo
+      portageAtivo,
+      new Set(toRemove.parents.portage),
+      new Set(toRemove.leafs),
+    );
+
+// console.log(manualFiltrado);
+
+
+    // Payload de manutenção
+    const maintenancePayload = {
+      manual:  manutencao.manual,
+      vbmapp:  manutencao.vbmapp,
+      portage: manutencao.portage,
+    };
+
+
+    await this.updateAtividadeSessao({
+      calendarioId,
+      maintenance: maintenancePayload,
+      atividades:  manualFiltrado,
+      vbmapp:  vbmappFiltrado,
+      portage: portageFiltrado,
+    });
   }
 
   async updateSumary(body: any) {
@@ -306,6 +437,8 @@ export class SessaoService {
   }
 
   async updateAtividadeSessao(body: any) {
+    // console.log(body);
+    
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.atividadeSessao.update({
@@ -493,35 +626,403 @@ export class SessaoService {
         return acc;
       }, []);
 
-      // const groupedData = programasFormatados.reduce((acc, current) => {
-      //   const programa = current.programa;
-      //   const existingProgram = acc.find((item) => item.programa === programa);
-
-      //   if (existingProgram) {
-      //     current.children.forEach((child) => {
-      //       const existingChild = existingProgram.children.find(
-      //         (c) => c.programa === child.programa,
-      //       );
-      //       if (existingChild) {
-      //         existingChild.dias.push(...child.dias);
-      //       } else {
-      //         existingProgram.children.push({ ...child });
-      //       }
-      //     });
-      //   } else {
-      //     acc.push({
-      //       programa: programa,
-      //       children: [...current.children],
-      //       qtdColumns: current.qtdColumns,
-      //     });
-      //   }
-
-      //   return acc;
-      // }, []);
-
       return groupedData;
     } catch (error) {
       console.log(error);
+    }
+  }
+
+  private makeKey(params: {
+    protocol: ProtocolKey;
+    levelPath: (string | number)[];
+    metaId?: string | number;
+    itemId?: string | number;
+    subitemId?: string | number;
+  }) {
+    const { protocol, levelPath, metaId, itemId, subitemId } = params;
+    return [
+      protocol,
+      ...levelPath.map(String),
+      metaId ?? '',
+      itemId ?? '',
+      subitemId ?? '',
+    ].join('|');
+  }
+
+  private makeParentKey(params: {
+    protocol: ProtocolKey;
+    levelPath: (string | number)[];
+    metaId?: string | number;
+  }) {
+    const { protocol, levelPath, metaId } = params;
+    return [protocol, ...levelPath.map(String), metaId ?? ''].join('|');
+  }
+
+  // --- EXTRATOR MANUAL (programas -> metas -> subitens) ---
+  private extractLeavesFromManual(sessaoField: any): LeafEntry[] {
+    if (!sessaoField) return [];
+    const programas = Array.isArray(sessaoField) ? sessaoField : this.safeJsonParse(sessaoField);
+    if (!Array.isArray(programas)) return [];
+
+    const out: LeafEntry[] = [];
+
+    for (const programa of programas) {
+      const levelPath: (string | number)[] = [programa?.id ?? programa?.key ?? programa?.label ?? 'prog'];
+
+      const metas = programa?.children ?? [];
+      for (const meta of metas) {
+        const metaId = meta?.id ?? meta?.key ?? meta?.label;
+        const parentKey = this.makeParentKey({ protocol: 'manual', levelPath, metaId });
+        const parentTree = meta;
+        const parentLeafCount = this.countLeavesManual(meta);
+
+        const items = meta?.children ?? [];
+        for (const item of items) {
+          const itemId = item?.id ?? item?.key ?? item?.label;
+          const percent = Number(calcAcertos(item?.children ?? [])) || 0;
+
+          const key = this.makeKey({
+            protocol: 'manual',
+            levelPath,
+            metaId,
+            itemId,
+          });
+
+          out.push({
+            key,
+            value: percent,
+            path: levelPath,
+            parentKey,
+            parentTree,
+            protocol: 'manual',
+            parentLeafCount,
+          });
+        }
+      }
+    }
+
+    return out;
+  }
+
+  private pruneVbmappChildrenActive(
+  vbmapp: any[],
+  toRemoveParents: Set<string>,
+  toRemoveLeafs: Set<string>,
+) {
+  const raiz = Array.isArray(vbmapp) ? vbmapp : [];
+
+  return raiz.map((nivel: any) => {
+    const nivelPath: (string | number)[] = [nivel?.key ?? nivel?.label ?? 'nivel'];
+    const programas = Array.isArray(nivel?.children) ? nivel.children : [];
+
+    const newProgramas = programas.map((programa: any) => {
+      const levelPath = [...nivelPath, programa?.key ?? programa?.label ?? 'programa'];
+      const metas = Array.isArray(programa?.children) ? programa.children : [];
+
+      const newMetas = metas
+        .map((meta: any) => {
+          const metaId = meta?.key ?? meta?.id ?? meta?.label;
+          const parentKey = this.makeParentKey({ protocol: 'vbmapp', levelPath, metaId });
+          if (toRemoveParents.has(parentKey)) return null;
+
+          const itens = Array.isArray(meta?.children) ? meta.children : [];
+          const newItens = itens.filter((item: any) => {
+            const itemId = item?.key ?? item?.id ?? item?.label;
+            const leafKey = this.makeKey({ protocol: 'vbmapp', levelPath, metaId, itemId });
+            return !toRemoveLeafs.has(leafKey);
+          });
+
+          if (!newItens.length) return null; // remove meta vazia
+          return { ...meta, children: newItens };
+        })
+        .filter(Boolean);
+
+      return { ...programa, children: newMetas };
+    });
+
+    return { ...nivel, children: newProgramas };
+  });
+}
+
+
+  // --- EXTRATOR VB-MAPP (array plano de metas -> subitens) ---
+  private extractLeavesFromVbmappFlat(vbmappField: any): LeafEntry[] {
+   const raiz = this.safeJsonParse(vbmappField);
+  if (!Array.isArray(raiz)) return [];
+
+  const out: LeafEntry[] = [];
+
+  for (const nivel of raiz) {
+    const nivelPath: (string | number)[] = [nivel?.key ?? nivel?.label ?? 'nivel'];
+    const programas = Array.isArray(nivel?.children) ? nivel.children : [];
+
+    for (const programa of programas) {
+      const levelPath = [...nivelPath, programa?.key ?? programa?.label ?? 'programa'];
+      const metas = Array.isArray(programa?.children) ? programa.children : [];
+
+      for (const meta of metas) {
+        const metaId = meta?.key ?? meta?.id ?? meta?.label;
+        const parentKey = this.makeParentKey({ protocol: 'vbmapp', levelPath, metaId });
+        const parentTree = meta;
+
+        const itens = Array.isArray(meta?.children) ? meta.children : [];
+        const parentLeafCount = itens.length || 1;
+
+        for (const item of itens) {
+          const itemId = item?.key ?? item?.id ?? item?.label;
+          const value = Number(calcAcertos(item?.children ?? [])) || 0;
+
+          const key = this.makeKey({
+            protocol: 'vbmapp',
+            levelPath,
+            metaId,
+            itemId,
+          });
+
+          out.push({
+            key,
+            value,
+            path: levelPath,
+            parentKey,
+            parentTree,
+            protocol: 'vbmapp',
+            parentLeafCount,
+          });
+        }
+      }
+    }
+  }
+
+  return out;
+  }
+
+  // --- EXTRATOR PORTAGE (array plano de metas -> subitens) ---
+  private extractLeavesFromPortageFlat(portageField: any): LeafEntry[] {
+ const raiz = this.safeJsonParse(portageField);
+  if (!Array.isArray(raiz)) return [];
+
+  const out: LeafEntry[] = [];
+  const levelPath: (string | number)[] = ['root'];
+
+  for (const meta of raiz) {
+    const metaId = meta?.key ?? meta?.id ?? meta?.label;
+    const parentKey = this.makeParentKey({ protocol: 'portage', levelPath, metaId });
+    const parentTree = meta;
+
+    const itens = Array.isArray(meta?.children) ? meta.children : [];
+    const parentLeafCount = itens.length || 1;
+
+    for (const item of itens) {
+      const itemId = item?.key ?? item?.id ?? item?.label;
+      const value = Number(calcAcertos(item?.children ?? [])) || 0;
+
+      const key = this.makeKey({
+        protocol: 'portage',
+        levelPath,
+        metaId,
+        itemId,
+      });
+
+      out.push({
+        key,
+        value,
+        path: levelPath,
+        parentKey,
+        parentTree,
+        protocol: 'portage',
+        parentLeafCount,
+      });
+    }
+  }
+
+  return out;
+  }
+
+  private prunePortageActive(
+  metas: any[],
+  toRemoveParents: Set<string>,
+  toRemoveLeafs: Set<string>,
+) {
+  const levelPath: (string | number)[] = ['root'];
+
+  return (metas || [])
+    .map((meta: any) => {
+      const metaId = meta?.key ?? meta?.id ?? meta?.label;
+      const parentKey = this.makeParentKey({ protocol: 'portage', levelPath, metaId });
+      if (toRemoveParents.has(parentKey)) return null;
+
+      const newItems = (meta?.children || []).filter((item: any) => {
+        const itemId = item?.key ?? item?.id ?? item?.label;
+        const leafKey = this.makeKey({ protocol: 'portage', levelPath, metaId, itemId });
+        return !toRemoveLeafs.has(leafKey);
+      });
+
+      if (!newItems.length) return null; // remove meta vazia
+      return { ...meta, children: newItems };
+    })
+    .filter(Boolean);
+}
+
+  // --- combinador e regra 3x 100% (com os 3 protocolos) ---
+  private buildMaintenanceFromThreeSessions(perSessionLeaves: LeafEntry[][]) {
+    const maintenanceByProtocol = {
+      manual: new Map<string, any>(),   // parentKey -> parentTree
+      vbmapp: new Map<string, any>(),
+      portage: new Map<string, any>(),
+    };
+
+    const toRemoveParents = {
+      manual: new Set<string>(),
+      vbmapp: new Set<string>(),
+      portage: new Set<string>(),
+    };
+    const toRemoveLeafs = new Set<string>(); // chaves das folhas a remover SEMPRE do ativo
+
+    // mapas por sessão para lookup rápido
+    const maps = perSessionLeaves.map((leaves) => {
+      const m = new Map<string, LeafEntry>();
+      for (const leaf of leaves) m.set(leaf.key, leaf);
+      return m;
+    });
+
+    if (maps.length < 3) {
+      return {
+        manutencao: { manual: [], vbmapp: [], portage: [] },
+        toRemove: { parents: { manual: [], vbmapp: [], portage: [] }, leafs: [] },
+      };
+    }
+
+    // folhas presentes nas 3 sessões e 100% em todas
+    const keys100 = [...maps[0].keys()].filter((k) => {
+      const a = maps[0].get(k), b = maps[1].get(k), c = maps[2].get(k);
+      return a && b && c && a.value === 100 && b.value === 100 && c.value === 100;
+    });
+
+    // qualquer folha 100% nas 3 sessões deve sair do ativo
+    keys100.forEach((k) => toRemoveLeafs.add(k));
+
+    // agrupa por pai (meta/bloco)
+    interface ParentInfo {
+      protocol: ProtocolKey;
+      parentTree: any;
+      parentLeafCount: number;     // total de folhas sob o pai
+      completedKeys: Set<string>;  // chaves de folhas concluídas (100% nas 3)
+    }
+    const byParent = new Map<string, ParentInfo>();
+
+    for (const k of keys100) {
+      const leaf = maps[2].get(k)!; // sessão mais recente
+      if (!byParent.has(leaf.parentKey)) {
+        byParent.set(leaf.parentKey, {
+          protocol: leaf.protocol,
+          parentTree: leaf.parentTree,
+          parentLeafCount: leaf.parentLeafCount || 1,
+          completedKeys: new Set<string>(),
+        });
+      }
+      byParent.get(leaf.parentKey)!.completedKeys.add(k);
+    }
+
+    // decide promoção e remoção do pai
+    for (const [parentKey, info] of byParent.entries()) {
+      const bucket = maintenanceByProtocol[info.protocol];
+
+      // promove SEMPRE para manutenção se houver pelo menos 1 folha 100% nas 3
+      if (!bucket.has(parentKey)) {
+        bucket.set(parentKey, info.parentTree);
+      }
+
+      const allDone = info.completedKeys.size >= (info.parentLeafCount || 1);
+      const onlyOne = (info.parentLeafCount || 1) === 1;
+
+      if (allDone || onlyOne) {
+        toRemoveParents[info.protocol].add(parentKey);
+      }
+    }
+
+    return {
+      manutencao: {
+        manual:  [...maintenanceByProtocol.manual.values()],
+        vbmapp:  [...maintenanceByProtocol.vbmapp.values()],
+        portage: [...maintenanceByProtocol.portage.values()],
+      },
+      toRemove: {
+        parents: {
+          manual:  [...toRemoveParents.manual],
+          vbmapp:  [...toRemoveParents.vbmapp],
+          portage: [...toRemoveParents.portage],
+        },
+        leafs: [...toRemoveLeafs],
+      },
+    };
+  }
+
+  // ===== podas (remoção do ativo) =====
+  // Manual: programa -> metas -> itens (cada item é uma folha)
+  private pruneManualActive(programas: any[], toRemoveParents: Set<string>, toRemoveLeafs: Set<string>) {
+    return (programas || []).map((prog) => {
+      const levelPath = [prog?.id ?? prog?.key ?? prog?.label ?? 'prog'];
+      const metas = (prog?.children || [])
+        .map((meta: any) => {
+          const metaId = meta?.id ?? meta?.key ?? meta?.label;
+          const parentKey = this.makeParentKey({ protocol: 'manual', levelPath, metaId });
+
+          // remove PAI inteiro?
+          if (toRemoveParents.has(parentKey)) return null;
+
+          // senão, filtra itens (folhas)
+          const items = (meta?.children || []).filter((item: any) => {
+            const itemId = item?.id ?? item?.key ?? item?.label;
+            const leafKey = this.makeKey({ protocol: 'manual', levelPath, metaId, itemId });
+            return !toRemoveLeafs.has(leafKey);
+          });
+
+          // meta vazia some
+          if (!items.length) return null;
+
+          return { ...meta, children: items };
+        })
+        .filter(Boolean);
+
+      return { ...prog, children: metas };
+    });
+  }
+
+  // VB-MAPP/PORTAGE: array plano de metas -> subitens
+  private pruneFlatProtocolActive(
+    metas: any[],
+    protocol: Extract<ProtocolKey, 'vbmapp' | 'portage'>,
+    toRemoveParents: Set<string>,
+    toRemoveLeafs: Set<string>,
+  ) {
+    const levelPath = ['root'];
+    const pruned = (Array.isArray(metas) ? metas : []).map((meta: any) => {
+      const metaId = meta?.id ?? meta?.key ?? meta?.label;
+      const parentKey = this.makeParentKey({ protocol, levelPath, metaId });
+
+      if (toRemoveParents.has(parentKey)) return null;
+
+      const children = (Array.isArray(meta?.children) ? meta.children : []).filter((item: any) => {
+        const itemId = item?.id ?? item?.key ?? item?.label;
+        const leafKey = this.makeKey({ protocol, levelPath, metaId, itemId });
+        return !toRemoveLeafs.has(leafKey);
+      });
+
+      if (!children.length) return null;
+      return { ...meta, children };
+    })
+    .filter(Boolean);
+
+    return pruned;
+  }
+
+  private safeJsonParse(v: any) {
+    if (!v) return null;
+    if (typeof v === 'object') return v;
+    try {
+      return JSON.parse(v);
+    } catch {
+      return null;
     }
   }
 }
