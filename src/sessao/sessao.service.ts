@@ -3,23 +3,22 @@ import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { dateAddtDay, dateFormatDDMMYYYY } from 'src/util/format-date';
 import { TYPE_DTT, calcAcertos } from 'src/util/util';
-import { inspect } from 'util';
 
 // --- helpers de chave estável ---
 type ProtocolKey = 'manual' | 'vbmapp' | 'portage';
 
 interface LeafEntry {
-  key: string; // chave única do item/subitem (folha)
+  key: string; // chave única do item (folha)
   value: number; // 0..100
-  path: Array<string | number>;
-  parentKey: string; // chave única do pai (meta/bloco)
-  parentTree: any; // a árvore que deve ir para manutenção (meta/bloco)
+  path: Array<string | number>; // caminho do 1º nível (programa / nível->programa / 'root')
+  parentKey: string; // chave única do pai (meta)
+  parentTree: any; // meta completo
   protocol: ProtocolKey;
-  parentLeafCount: number; // total de folhas sob o pai
+  parentLeafCount: number; // total de folhas sob o pai (itens)
   // ancestrais reais (para preservar labels do primeiro nível)
   programTree?: any; // MANUAL: programa
-  nivelTree?: any; // VBMAPP: nível
-  programaTree?: any; // VBMAPP: programa
+  nivelTree?: any; // VB-MAPP: nível
+  programaTree?: any; // VB-MAPP: programa
 }
 
 @Injectable()
@@ -29,6 +28,7 @@ export class SessaoService {
     private readonly agendaService: AgendaService,
   ) {}
 
+  // ===================== QUERIES BÁSICAS =====================
   async getAll(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
@@ -37,31 +37,16 @@ export class SessaoService {
         id: true,
         resumo: true,
         sessao: true,
-        paciente: {
-          select: {
-            nome: true,
-            responsavel: true,
-          },
-        },
+        paciente: { select: { nome: true, responsavel: true } },
         evento: {
           select: {
             especialidade: true,
             dataInicio: true,
-            terapeuta: {
-              select: {
-                usuario: {
-                  select: {
-                    nome: true,
-                  },
-                },
-              },
-            },
+            terapeuta: { select: { usuario: { select: { nome: true } } } },
           },
         },
       },
-      where: {
-        pacienteId: Number(pacienteId),
-      },
+      where: { pacienteId: Number(pacienteId) },
     });
 
     const result = await Promise.all(
@@ -75,18 +60,14 @@ export class SessaoService {
               const trueCount = children.loop.filter(
                 (child: any) => !!child,
               ).length;
-
               children.porcentagem = consecutive3
                 ? 100
                 : (trueCount / children.loop.length) * 100;
-
               return children;
             });
-
             return sessao;
           }),
         );
-
         return item;
       }),
     );
@@ -106,16 +87,10 @@ export class SessaoService {
         vbmapp: true,
         selectedMaintenanceKeys: true,
       },
-      where: {
-        calendarioId: Number(calendarioId),
-      },
+      where: { calendarioId: Number(calendarioId) },
     });
 
     if (Boolean(data?.sessao)) {
-      data.sessao = data.sessao;
-      data.selectedMaintenanceKeys = data.selectedMaintenanceKeys;
-      data.maintenance = data.maintenance;
-
       // por compatibilidade
       data.vbmapp = data.vbmapp || [];
       data.portage = data.portage || [];
@@ -128,173 +103,37 @@ export class SessaoService {
     const prisma = this.prismaService.getPrismaClient();
     const dateFim = dateAddtDay(body.date, 1);
 
-    // const evento = await this.agendaService.updateCalendarioMobile(
-    //   body.calendarioId,
-    //   login,
-    //   body.date,
-    //   dateFim,
-    // );
+    const evento = await this.agendaService.updateCalendarioMobile(
+      body.calendarioId,
+      login,
+      body.date,
+      dateFim,
+    );
 
     const { groupId } = await prisma.calendario.findUnique({
-      select: {
-        groupId: true,
-      },
-      where: {
-        id: body.calendarioId,
-      },
+      select: { groupId: true },
+      where: { id: body.calendarioId },
     });
 
     const calendarioIdPai = await prisma.calendario.findFirst({
-      select: {
-        id: true,
-      },
-      where: {
-        groupId,
-      },
+      select: { id: true },
+      where: { groupId },
       orderBy: { id: 'asc' },
       take: 1,
     });
 
     delete body.date;
 
-    // await prisma.sessao.create({
-    //   data: {
-    //     ...body,
-    //     sessao: body.sessao || [],
-    //     calendarioId: evento.id,
-    //   },
-    // });
+    await prisma.sessao.create({
+      data: { ...body, sessao: body.sessao || [], calendarioId: evento.id },
+    });
 
-    await this.updateMaintenance(body.pacienteId, calendarioIdPai.id);
-
+    await this.updateMaintenance(body.pacienteId, calendarioIdPai!.id);
     return;
   }
 
-  isTaskCompleted(childrenArray: any[]) {
-    const fourCWithNulls =
-      childrenArray.slice(0, 4).every((child) => child === 'C') &&
-      childrenArray.slice(4).every((child) => child === null);
-
-    const allCs = childrenArray.every((child) => child === 'C');
-
-    return fourCWithNulls || allCs;
-  }
-
-  processActivities(node: any[]) {
-    const taskCompletionCount: Record<string, number> = {};
-    const manutencao: any[] = [];
-
-    node.forEach((group: any[]) => {
-      group.forEach((item: any) => {
-        item.children.forEach((meta: any) => {
-          meta.children.forEach((task: any) => {
-            const taskKey = `${task.key}`;
-
-            if (this.isTaskCompleted(task.children)) {
-              // Contabiliza quantas vezes a tarefa foi completada 100%
-              if (taskCompletionCount[taskKey]) {
-                taskCompletionCount[taskKey]++;
-              } else {
-                taskCompletionCount[taskKey] = 1;
-              }
-
-              // Se completou 100% 3 vezes, move toda a árvore para manutenção
-              if (taskCompletionCount[taskKey] === 3) {
-                const existingIndex = manutencao.findIndex(
-                  (m) => m.key === item.key,
-                );
-
-                if (existingIndex !== -1) {
-                  const existingMetaIndex = manutencao[
-                    existingIndex
-                  ].children.findIndex((m: any) => m.key === meta.key);
-
-                  if (existingMetaIndex !== -1) {
-                    manutencao[existingIndex].children[
-                      existingMetaIndex
-                    ].children.push({
-                      key: task.key,
-                      label: task.label,
-                      disabled: task.disabled,
-                    });
-                  } else {
-                    manutencao[existingIndex].children.push({
-                      key: meta.key,
-                      label: meta.label,
-                      children: [
-                        {
-                          key: task.key,
-                          label: task.label,
-                          disabled: task.disabled,
-                        },
-                      ],
-                    });
-                  }
-                } else {
-                  manutencao.push({
-                    key: item.key,
-                    label: item.label,
-                    children: [
-                      {
-                        key: meta.key,
-                        label: meta.label,
-                        children: [
-                          {
-                            key: task.key,
-                            label: task.label,
-                            disabled: task.disabled,
-                          },
-                        ],
-                      },
-                    ],
-                  });
-                }
-              }
-            }
-          });
-        });
-      });
-    });
-
-    // Remove apenas as tarefas que foram movidas para manutenção do array original
-    node.forEach((group: any[]) => {
-      group.forEach((item: any) => {
-        item.data = item.key;
-
-        item.children.forEach((meta: any) => {
-          meta.data = meta.key;
-
-          meta.children = meta.children.filter((task: any) => {
-            task.data = task.key;
-            const taskKey = `${task.key}`;
-
-            delete task.children;
-            return !(taskCompletionCount[taskKey] === 3);
-          });
-        });
-      });
-    });
-
-    return {
-      manutencao,
-      atividades: node[0],
-    };
-  }
-
-  // ===== helpers =====
-  private countLeavesManual(meta: any): number {
-    const itens = Array.isArray(meta?.children) ? meta.children : [];
-    return itens.length;
-  }
-
-  private countLeavesFlat(meta: any): number {
-    const itens = Array.isArray(meta?.children) ? meta.children : [];
-    return itens.length;
-  }
-
-  // ===== Helpers p/ manutenção =====
-
-  // Clona raso SEM children (preserva label/props do nível)
+  // ===================== LÓGICA DE MANUTENÇÃO =====================
+  // Utilitário: clona raso SEM children (preserva label/props do nível)
   private shallowNoChildren(node: any) {
     if (!node || typeof node !== 'object') return node;
     const { children: _c, ...rest } = node;
@@ -308,7 +147,29 @@ export class SessaoService {
       const { children, ...rest } = it || {};
       return { ...rest }; // mantém dados do item, remove o array de respostas
     });
-    return { ...meta, children: cleanedItems };
+    return { ...this.shallowNoChildren(meta), children: cleanedItems };
+  }
+
+  // Filtra os ITENS de um meta para conter SOMENTE os promovidos (e remove respostas)
+  private filterMetaToPromotedItems(
+    meta: any,
+    protocol: ProtocolKey,
+    levelPath: (string | number)[],
+    completedLeafKeys: Set<string>,
+  ) {
+    const metaId = meta?.id ?? meta?.key ?? meta?.label;
+    const itens = Array.isArray(meta?.children) ? meta.children : [];
+    const kept = itens
+      .filter((item: any) => {
+        const itemId = item?.id ?? item?.key ?? item?.label;
+        const k = this.makeKey({ protocol, levelPath, metaId, itemId });
+        return completedLeafKeys.has(k);
+      })
+      .map((item: any) => {
+        const { children, ...rest } = item || {};
+        return { ...rest }; // remove respostas
+      });
+    return { ...this.shallowNoChildren(meta), children: kept };
   }
 
   // Monta wrapper do 1º nível preservando labels reais (manual/vbmapp). Portage não tem wrapper.
@@ -435,16 +296,12 @@ export class SessaoService {
     bucketMap.set(key, current);
   }
 
-  // ========== ATUALIZA MANUTENÇÃO (3 últimas sessões) ==========
+  // ========= ATUALIZA MANUTENÇÃO (considerando 3 últimas sessões) =========
   async updateMaintenance(pacienteId: number, calendarioId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
     const sessions = await prisma.sessao.findMany({
-      select: {
-        sessao: true, // MANUAL (array de programas)
-        vbmapp: true, // VB-MAPP (nível -> programa -> metas)
-        portage: true, // PORTAGE (lista de metas)
-      },
+      select: { sessao: true, vbmapp: true, portage: true },
       where: { pacienteId },
       orderBy: { id: 'desc' },
       take: 3,
@@ -454,16 +311,12 @@ export class SessaoService {
 
     const ordered = [...sessions].reverse();
 
-    // Garanta que tudo está em objeto (e não string JSON)
-    const parsed = ordered.map((s: any) => {
-      return {
-        sessao: this.safeJsonParse(s.sessao) ?? s.sessao,
-        vbmapp: this.safeJsonParse(s.vbmapp) ?? s.vbmapp,
-        portage: this.safeJsonParse(s.portage) ?? s.portage,
-      };
-    });
+    const parsed = ordered.map((s: any) => ({
+      sessao: this.safeJsonParse(s.sessao) ?? s.sessao,
+      vbmapp: this.safeJsonParse(s.vbmapp) ?? s.vbmapp,
+      portage: this.safeJsonParse(s.portage) ?? s.portage,
+    }));
 
-    // extrai folhas de CADA sessão
     const perSessionLeaves = parsed.map((s: any) => {
       const manualLeaves = this.extractLeavesFromManual(s.sessao);
       const vbmappLeaves = this.extractLeavesFromVbmappFlat(s.vbmapp);
@@ -474,7 +327,6 @@ export class SessaoService {
     const { manutencao, toRemove } =
       this.buildMaintenanceFromThreeSessions(perSessionLeaves);
 
-    // se nada bateu 3x 100%, não há o que promover
     if (
       !manutencao.manual.length &&
       !manutencao.vbmapp.length &&
@@ -482,14 +334,11 @@ export class SessaoService {
     )
       return;
 
-    // Carrega árvores ativas MAIS RECENTES (como arrays)
     const latest = ordered[2];
-
     const manualAtivo = this.safeJsonParse(latest?.sessao) || [];
     const vbmappAtivo = this.safeJsonParse(latest?.vbmapp) || [];
     const portageAtivo = this.safeJsonParse(latest?.portage) || [];
 
-    // Podas específicas de cada protocolo
     const manualFiltrado = this.pruneManualActive(
       manualAtivo,
       new Set(toRemove.parents.manual),
@@ -508,7 +357,6 @@ export class SessaoService {
       new Set(toRemove.leafs),
     );
 
-    // Payload de manutenção (1º nível preservado, último nível removido)
     const maintenancePayload = {
       manual: manutencao.manual,
       vbmapp: manutencao.vbmapp,
@@ -524,314 +372,42 @@ export class SessaoService {
     });
   }
 
-  async updateSumary(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    return await prisma.sessao.update({
-      data: body,
-      where: {
-        id: body.id,
-      },
-    });
-  }
-
-  async createProtocolo(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    return await prisma.protocolo.createMany({
-      data: body,
-    });
-  }
-
-  async createAtividadeSessao(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    return await prisma.atividadeSessao.createMany({
-      data: body,
-    });
-  }
-
-  async updateAtividadeSessao(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    return await prisma.atividadeSessao.update({
-      data: {
-        ...body,
-      },
-      where: {
-        calendarioId: body.calendarioId,
-      },
-    });
-  }
-
-  async delete(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    return await prisma.sessao.delete({
-      where: {
-        id: Number(id),
-      },
-    });
-  }
-
-  async getProtocoloByPacient(pacienteId: number) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    const result: any = await prisma.protocolo.findMany({
-      select: {
-        id: true,
-        protocolo: true,
-        protocoloSet: true,
-      },
-      where: {
-        pacienteId: Number(pacienteId),
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-
-    const last = result.at(-1);
-    return {
-      ...last,
-      protocolo: JSON.parse(last.protocolo),
-      protocoloSet: JSON.parse(last.protocoloSet),
-    };
-  }
-
-  async getAtividadeSessaoByPacient(pacienteId: number) {
-    const prisma = this.prismaService.getPrismaClient();
-
-    try {
-      const result: any = await prisma.sessao.findMany({
-        select: {
-          sessao: true,
-          createdAt: true,
-          evento: true,
-        },
-        where: {
-          pacienteId: Number(pacienteId),
-        },
-        orderBy: {
-          createdAt: 'asc',
-        },
-      });
-
-      const sessoes: any[] = [];
-      await Promise.all(
-        result.map((item: any) => {
-          const programas = Array.isArray(item.sessao)
-            ? item.sessao
-            : JSON.parse(item.sessao);
-
-          programas.map((programa: any) => {
-            const current: any[] = [];
-            const metas = programa.children;
-            metas.map((meta: any) => {
-              const subtItem = meta.children;
-
-              subtItem.map((sub: any) => {
-                current.push({
-                  programa: sub.label,
-                  primeiraResposta: sub.children[0] === TYPE_DTT.c,
-                  data: dateFormatDDMMYYYY(item.evento.dataInicio),
-                  porcentagem: calcAcertos(sub.children),
-                });
-              });
-            });
-
-            sessoes.push({
-              programa: programa.label,
-              children: current,
-            });
-          });
-
-          delete item.evento;
-        }),
-      );
-
-      const programasFormatados: any[] = [];
-
-      await Promise.all(
-        sessoes.map((item: any) => {
-          const formatted: any[] = [];
-
-          let qtdColumns = 0;
-
-          item.children.map((meta: any) => {
-            const se = formatted.filter(
-              (sessao: any) => sessao.programa === meta.programa,
-            )[0];
-
-            if (Boolean(se)) {
-              se.dias.push({
-                primeiraResposta: meta.primeiraResposta,
-                data: meta.data,
-                porcentagem: meta.porcentagem,
-              });
-            } else {
-              formatted.push({
-                programa: meta.programa,
-
-                dias: [
-                  {
-                    primeiraResposta: meta.primeiraResposta,
-                    data: meta.data,
-                    porcentagem: meta.porcentagem,
-                  },
-                ],
-              });
-            }
-
-            if (Boolean(se)) {
-              qtdColumns =
-                se.dias.length > qtdColumns ? se.dias.length : qtdColumns;
-            } else {
-              formatted.map((column) => {
-                qtdColumns =
-                  column.dias.length > qtdColumns
-                    ? column.dias.length
-                    : qtdColumns;
-              });
-            }
-          });
-
-          programasFormatados.push({
-            programa: item.programa,
-            children: formatted,
-            qtdColumns,
-          });
-        }),
-      );
-
-      const groupedData = programasFormatados.reduce(
-        (acc: any[], current: any) => {
-          const programa = current.programa;
-          const existingProgram = acc.find(
-            (item) => item.programa === programa,
-          );
-
-          if (existingProgram) {
-            current.children.forEach((child: any) => {
-              const existingChild = existingProgram.children.find(
-                (c: any) => c.programa === child.programa,
-              );
-              if (existingChild) {
-                existingChild.dias.push(...child.dias);
-              } else {
-                existingProgram.children.push({ ...child });
-              }
-            });
-
-            // Atualiza qtdColumns para o maior tamanho de dias encontrado
-            existingProgram.qtdColumns = Math.max(
-              ...existingProgram.children.map(
-                (child: any) => child.dias.length,
-              ),
-            );
-          } else {
-            // Inicia qtdColumns com o tamanho do primeiro children
-            const qtdColumns = Math.max(
-              ...current.children.map((child: any) => child.dias.length),
-            );
-            acc.push({
-              programa: programa,
-              children: [...current.children],
-              qtdColumns: qtdColumns,
-            });
-          }
-
-          return acc;
-        },
-        [],
-      );
-
-      return groupedData;
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  private makeKey(params: {
-    protocol: ProtocolKey;
-    levelPath: (string | number)[];
-    metaId?: string | number;
-    itemId?: string | number;
-    subitemId?: string | number;
-  }) {
-    const { protocol, levelPath, metaId, itemId, subitemId } = params;
-    return [
-      protocol,
-      ...levelPath.map(String),
-      metaId ?? '',
-      itemId ?? '',
-      subitemId ?? '',
-    ].join('|');
-  }
-
-  private makeParentKey(params: {
-    protocol: ProtocolKey;
-    levelPath: (string | number)[];
-    metaId?: string | number;
-  }) {
-    const { protocol, levelPath, metaId } = params;
-    return [protocol, ...levelPath.map(String), metaId ?? ''].join('|');
-  }
-
-  // --- EXTRATOR MANUAL (programas -> metas -> subitens) ---
-  private extractLeavesFromManual(sessaoField: any): LeafEntry[] {
-    if (!sessaoField) return [];
-    const programas = Array.isArray(sessaoField)
-      ? sessaoField
-      : this.safeJsonParse(sessaoField);
-    if (!Array.isArray(programas)) return [];
-
-    const out: LeafEntry[] = [];
-
-    for (const programa of programas) {
-      const levelPath: (string | number)[] = [
-        programa?.id ?? programa?.key ?? programa?.label ?? 'prog',
-      ];
-      const programTree = this.shallowNoChildren(programa); // mantém label real do programa
-
-      const metas = programa?.children ?? [];
-      for (const meta of metas) {
-        const metaId = meta?.id ?? meta?.key ?? meta?.label;
-        const parentKey = this.makeParentKey({
-          protocol: 'manual',
-          levelPath,
-          metaId,
-        });
-        const parentTree = meta;
-        const parentLeafCount = this.countLeavesManual(meta);
-
-        const items = meta?.children ?? [];
-        for (const item of items) {
-          const itemId = item?.id ?? item?.key ?? item?.label;
-          const percent = Number(calcAcertos(item?.children ?? [])) || 0;
-
-          const key = this.makeKey({
+  // ===================== PÓS-PROCESSO (poda dos ativos) =====================
+  private pruneManualActive(
+    programas: any[],
+    toRemoveParents: Set<string>,
+    toRemoveLeafs: Set<string>,
+  ) {
+    return (programas || []).map((prog) => {
+      const levelPath = [prog?.id ?? prog?.key ?? prog?.label ?? 'prog'];
+      const metas = (prog?.children || [])
+        .map((meta: any) => {
+          const metaId = meta?.id ?? meta?.key ?? meta?.label;
+          const parentKey = this.makeParentKey({
             protocol: 'manual',
             levelPath,
             metaId,
-            itemId,
+          });
+          if (toRemoveParents.has(parentKey)) return null; // remove meta inteira
+
+          const items = (meta?.children || []).filter((item: any) => {
+            const itemId = item?.id ?? item?.key ?? item?.label;
+            const leafKey = this.makeKey({
+              protocol: 'manual',
+              levelPath,
+              metaId,
+              itemId,
+            });
+            return !toRemoveLeafs.has(leafKey); // remove só as folhas 100%
           });
 
-          out.push({
-            key,
-            value: percent,
-            path: levelPath,
-            parentKey,
-            parentTree,
-            protocol: 'manual',
-            parentLeafCount,
-            programTree,
-          });
-        }
-      }
-    }
+          if (!items.length) return null; // meta vazia some
+          return { ...meta, children: items };
+        })
+        .filter(Boolean);
 
-    return out;
+      return { ...prog, children: metas };
+    });
   }
 
   private pruneVbmappChildrenActive(
@@ -890,7 +466,100 @@ export class SessaoService {
     });
   }
 
-  // --- EXTRATOR VB-MAPP (nível -> programa -> metas -> itens) ---
+  private prunePortageActive(
+    metas: any[],
+    toRemoveParents: Set<string>,
+    toRemoveLeafs: Set<string>,
+  ) {
+    const levelPath: (string | number)[] = ['root'];
+
+    return (metas || [])
+      .map((meta: any) => {
+        const metaId = meta?.key ?? meta?.id ?? meta?.label;
+        const parentKey = this.makeParentKey({
+          protocol: 'portage',
+          levelPath,
+          metaId,
+        });
+        if (toRemoveParents.has(parentKey)) return null;
+
+        const newItems = (meta?.children || []).filter((item: any) => {
+          const itemId = item?.key ?? item?.id ?? item?.label;
+          const leafKey = this.makeKey({
+            protocol: 'portage',
+            levelPath,
+            metaId,
+            itemId,
+          });
+          return !toRemoveLeafs.has(leafKey);
+        });
+
+        if (!newItems.length) return null; // remove meta vazia
+        return { ...meta, children: newItems };
+      })
+      .filter(Boolean);
+  }
+
+  // ===================== EXTRATORES DE FOLHAS =====================
+  // MANUAL (programas -> metas -> itens)
+  private extractLeavesFromManual(sessaoField: any): LeafEntry[] {
+    if (!sessaoField) return [];
+    const programas = Array.isArray(sessaoField)
+      ? sessaoField
+      : this.safeJsonParse(sessaoField);
+    if (!Array.isArray(programas)) return [];
+
+    const out: LeafEntry[] = [];
+
+    for (const programa of programas) {
+      const levelPath: (string | number)[] = [
+        programa?.id ?? programa?.key ?? programa?.label ?? 'prog',
+      ];
+      const programTree = this.shallowNoChildren(programa); // mantém label real do programa
+
+      const metas = programa?.children ?? [];
+      for (const meta of metas) {
+        const metaId = meta?.id ?? meta?.key ?? meta?.label;
+        const parentKey = this.makeParentKey({
+          protocol: 'manual',
+          levelPath,
+          metaId,
+        });
+        const parentTree = meta;
+        const parentLeafCount = Array.isArray(meta?.children)
+          ? meta.children.length
+          : 0;
+
+        const items = meta?.children ?? [];
+        for (const item of items) {
+          const itemId = item?.id ?? item?.key ?? item?.label;
+          const percent = Number(calcAcertos(item?.children ?? [])) || 0;
+
+          const key = this.makeKey({
+            protocol: 'manual',
+            levelPath,
+            metaId,
+            itemId,
+          });
+
+          out.push({
+            key,
+            value: percent,
+            path: levelPath,
+            parentKey,
+            parentTree,
+            protocol: 'manual',
+            parentLeafCount,
+            programTree,
+          });
+        }
+      }
+    }
+
+    return out;
+  }
+
+  // VB-MAPP (nível -> programa -> metas -> itens)
   private extractLeavesFromVbmappFlat(vbmappField: any): LeafEntry[] {
     const raiz = this.safeJsonParse(vbmappField);
     if (!Array.isArray(raiz)) return [];
@@ -901,7 +570,7 @@ export class SessaoService {
       const nivelPath: (string | number)[] = [
         nivel?.key ?? nivel?.label ?? 'nivel',
       ];
-      const nivelTree = this.shallowNoChildren(nivel); // label real do NÍVEL
+      const nivelTree = this.shallowNoChildren(nivel);
       const programas = Array.isArray(nivel?.children) ? nivel.children : [];
 
       for (const programa of programas) {
@@ -909,7 +578,7 @@ export class SessaoService {
           ...nivelPath,
           programa?.key ?? programa?.label ?? 'programa',
         ];
-        const programaTree = this.shallowNoChildren(programa); // label real do PROGRAMA
+        const programaTree = this.shallowNoChildren(programa);
         const metas = Array.isArray(programa?.children)
           ? programa.children
           : [];
@@ -956,7 +625,7 @@ export class SessaoService {
     return out;
   }
 
-  // --- EXTRATOR PORTAGE (lista de metas -> itens) ---
+  // PORTAGE (lista de metas -> itens)
   private extractLeavesFromPortageFlat(portageField: any): LeafEntry[] {
     const raiz = this.safeJsonParse(portageField);
     if (!Array.isArray(raiz)) return [];
@@ -1002,46 +671,12 @@ export class SessaoService {
     return out;
   }
 
-  private prunePortageActive(
-    metas: any[],
-    toRemoveParents: Set<string>,
-    toRemoveLeafs: Set<string>,
-  ) {
-    const levelPath: (string | number)[] = ['root'];
-
-    return (metas || [])
-      .map((meta: any) => {
-        const metaId = meta?.key ?? meta?.id ?? meta?.label;
-        const parentKey = this.makeParentKey({
-          protocol: 'portage',
-          levelPath,
-          metaId,
-        });
-        if (toRemoveParents.has(parentKey)) return null;
-
-        const newItems = (meta?.children || []).filter((item: any) => {
-          const itemId = item?.key ?? item?.id ?? item?.label;
-          const leafKey = this.makeKey({
-            protocol: 'portage',
-            levelPath,
-            metaId,
-            itemId,
-          });
-          return !toRemoveLeafs.has(leafKey);
-        });
-
-        if (!newItems.length) return null; // remove meta vazia
-        return { ...meta, children: newItems };
-      })
-      .filter(Boolean);
-  }
-
-  // --- combinador e regra 3x 100% (com os 3 protocolos) ---
+  // ===================== REGRA 3x 100% E PROMOÇÃO =====================
   private buildMaintenanceFromThreeSessions(perSessionLeaves: LeafEntry[][]) {
     const maintenanceByProtocol = {
-      manual: new Map<string, any>(), // chave 1º nível -> wrapper {programa -> [metas]}
-      vbmapp: new Map<string, any>(), // chave 1º nível -> wrapper {nível -> [programa -> [metas]]}
-      portage: new Map<string, any>(), // chave por meta (lista de metas)
+      manual: new Map<string, any>(), // {programa -> [metas]}
+      vbmapp: new Map<string, any>(), // {nível -> [programa -> [metas]]}
+      portage: new Map<string, any>(), // lista de metas
     };
 
     const toRemoveParents = {
@@ -1049,9 +684,8 @@ export class SessaoService {
       vbmapp: new Set<string>(),
       portage: new Set<string>(),
     };
-    const toRemoveLeafs = new Set<string>(); // chaves das folhas a remover SEMPRE do ativo
+    const toRemoveLeafs = new Set<string>();
 
-    // mapas por sessão para lookup rápido
     const maps = perSessionLeaves.map((leaves) => {
       const m = new Map<string, LeafEntry>();
       for (const leaf of leaves) m.set(leaf.key, leaf);
@@ -1068,7 +702,6 @@ export class SessaoService {
       };
     }
 
-    // folhas presentes nas 3 sessões e 100% em todas
     const keys100 = [...maps[0].keys()].filter((k) => {
       const a = maps[0].get(k),
         b = maps[1].get(k),
@@ -1078,16 +711,14 @@ export class SessaoService {
       );
     });
 
-    // qualquer folha 100% nas 3 sessões deve sair do ativo
     keys100.forEach((k) => toRemoveLeafs.add(k));
 
-    // agrupa por pai (meta/bloco)
     interface ParentInfo {
       protocol: ProtocolKey;
       parentTree: any;
-      parentLeafCount: number; // total de folhas sob o pai
-      completedKeys: Set<string>; // chaves de folhas concluídas (100% nas 3)
-      levelPath: (string | number)[]; // caminho para montar 1º nível
+      parentLeafCount: number;
+      completedKeys: Set<string>;
+      levelPath: (string | number)[];
       programTree?: any;
       nivelTree?: any;
       programaTree?: any;
@@ -1111,31 +742,49 @@ export class SessaoService {
       byParent.get(leaf.parentKey)!.completedKeys.add(k);
     }
 
-    // decide promoção e remoção do pai
+    // Regras de promoção:
+    // - ÚNICO (parentLeafCount=1) OU allDone: promove meta inteiro (sem respostas) e remove o PAI do ativo.
+    // - Parcial: promove apenas os itens concluídos; mantém o pai, removendo apenas as folhas concluídas.
     for (const [parentKey, info] of byParent.entries()) {
       const bucket = maintenanceByProtocol[info.protocol];
+      const allDone = info.completedKeys.size >= (info.parentLeafCount || 1);
+      const onlyOne = (info.parentLeafCount || 1) === 1;
 
-      // 1) limpa respostas (último nível)
-      const metaClean = this.stripItemResponses(info.parentTree);
-      // 2) embrulha no 1º nível (ou meta direta no portage) e faz merge no bucket
+      let metaForMaintenance: any;
+      if (onlyOne || allDone) {
+        metaForMaintenance = this.stripItemResponses(info.parentTree);
+        toRemoveParents[info.protocol].add(parentKey); // remove meta inteira do ativo
+      } else {
+        metaForMaintenance = this.filterMetaToPromotedItems(
+          info.parentTree,
+          info.protocol,
+          info.levelPath,
+          info.completedKeys,
+        );
+      }
+
+      if (
+        !Array.isArray(metaForMaintenance?.children) ||
+        metaForMaintenance.children.length === 0
+      ) {
+        continue; // nada a promover
+      }
+
+      // Sempre removemos do ativo as folhas concluídas
+      for (const k of info.completedKeys) toRemoveLeafs.add(k);
+
+      // Envelopa no 1º nível e faz merge por protocolo
       this.mergeIntoMaintenanceBucket(
         bucket,
         info.protocol,
         info.levelPath,
-        metaClean,
+        metaForMaintenance,
         {
           programTree: info.programTree,
           nivelTree: info.nivelTree,
           programaTree: info.programaTree,
         },
       );
-
-      const allDone = info.completedKeys.size >= (info.parentLeafCount || 1);
-      const onlyOne = (info.parentLeafCount || 1) === 1;
-
-      if (allDone || onlyOne) {
-        toRemoveParents[info.protocol].add(parentKey);
-      }
     }
 
     return {
@@ -1155,79 +804,211 @@ export class SessaoService {
     };
   }
 
-  // ===== podas (remoção do ativo) =====
-  // Manual: programa -> metas -> itens (cada item é uma folha)
-  private pruneManualActive(
-    programas: any[],
-    toRemoveParents: Set<string>,
-    toRemoveLeafs: Set<string>,
-  ) {
-    return (programas || []).map((prog: any) => {
-      const levelPath = [prog?.id ?? prog?.key ?? prog?.label ?? 'prog'];
-      const metas = (prog?.children || [])
-        .map((meta: any) => {
-          const metaId = meta?.id ?? meta?.key ?? meta?.label;
-          const parentKey = this.makeParentKey({
-            protocol: 'manual',
-            levelPath,
-            metaId,
-          });
+  // ===================== OUTRAS AÇÕES =====================
+  async updateSumary(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+    return await prisma.sessao.update({ data: body, where: { id: body.id } });
+  }
 
-          // remove PAI inteiro?
-          if (toRemoveParents.has(parentKey)) return null;
+  async createProtocolo(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+    return await prisma.protocolo.createMany({ data: body });
+  }
 
-          // senão, filtra itens (folhas)
-          const items = (meta?.children || []).filter((item: any) => {
-            const itemId = item?.id ?? item?.key ?? item?.label;
-            const leafKey = this.makeKey({
-              protocol: 'manual',
-              levelPath,
-              metaId,
-              itemId,
-            });
-            return !toRemoveLeafs.has(leafKey);
-          });
+  async createAtividadeSessao(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+    return await prisma.atividadeSessao.createMany({ data: body });
+  }
 
-          // meta vazia some
-          if (!items.length) return null;
-
-          return { ...meta, children: items };
-        })
-        .filter(Boolean);
-
-      return { ...prog, children: metas };
+  async updateAtividadeSessao(body: any) {
+    const prisma = this.prismaService.getPrismaClient();
+    return await prisma.atividadeSessao.update({
+      data: { ...body },
+      where: { calendarioId: body.calendarioId },
     });
   }
 
-  // VB-MAPP/PORTAGE: array plano de metas -> subitens (genérico, mantido por compatibilidade)
-  private pruneFlatProtocolActive(
-    metas: any[],
-    protocol: Extract<ProtocolKey, 'vbmapp' | 'portage'>,
-    toRemoveParents: Set<string>,
-    toRemoveLeafs: Set<string>,
-  ) {
-    const levelPath = ['root'];
-    const pruned = (Array.isArray(metas) ? metas : [])
-      .map((meta: any) => {
-        const metaId = meta?.id ?? meta?.key ?? meta?.label;
-        const parentKey = this.makeParentKey({ protocol, levelPath, metaId });
+  async delete(id: number) {
+    const prisma = this.prismaService.getPrismaClient();
+    return await prisma.sessao.delete({ where: { id: Number(id) } });
+  }
 
-        if (toRemoveParents.has(parentKey)) return null;
+  async getProtocoloByPacient(pacienteId: number) {
+    const prisma = this.prismaService.getPrismaClient();
 
-        const children = (
-          Array.isArray(meta?.children) ? meta.children : []
-        ).filter((item: any) => {
-          const itemId = item?.id ?? item?.key ?? item?.label;
-          const leafKey = this.makeKey({ protocol, levelPath, metaId, itemId });
-          return !toRemoveLeafs.has(leafKey);
-        });
+    const result: any = await prisma.protocolo.findMany({
+      select: { id: true, protocolo: true, protocoloSet: true },
+      where: { pacienteId: Number(pacienteId) },
+      orderBy: { createdAt: 'asc' },
+    });
 
-        if (!children.length) return null;
-        return { ...meta, children };
-      })
-      .filter(Boolean);
+    const last = result.at(-1);
+    return {
+      ...last,
+      protocolo: JSON.parse(last.protocolo),
+      protocoloSet: JSON.parse(last.protocoloSet),
+    };
+  }
 
-    return pruned;
+  async getAtividadeSessaoByPacient(pacienteId: number) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    try {
+      const result: any = await prisma.sessao.findMany({
+        select: { sessao: true, createdAt: true, evento: true },
+        where: { pacienteId: Number(pacienteId) },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const sessoes: any[] = [];
+      await Promise.all(
+        result.map((item: any) => {
+          const programas = Array.isArray(item.sessao)
+            ? item.sessao
+            : JSON.parse(item.sessao);
+
+          programas.map((programa: any) => {
+            const current: any[] = [];
+            const metas = programa.children;
+            metas.map((meta: any) => {
+              const subtItem = meta.children;
+
+              subtItem.map((sub: any) => {
+                current.push({
+                  programa: sub.label,
+                  primeiraResposta: sub.children[0] === TYPE_DTT.c,
+                  data: dateFormatDDMMYYYY(item.evento.dataInicio),
+                  porcentagem: calcAcertos(sub.children),
+                });
+              });
+            });
+
+            sessoes.push({ programa: programa.label, children: current });
+          });
+
+          delete item.evento;
+        }),
+      );
+
+      const programasFormatados: any[] = [];
+
+      await Promise.all(
+        sessoes.map((item: any) => {
+          const formatted: any[] = [];
+          let qtdColumns = 0;
+
+          item.children.map((meta: any) => {
+            const se = formatted.filter(
+              (sessao: any) => sessao.programa === meta.programa,
+            )[0];
+
+            if (Boolean(se)) {
+              se.dias.push({
+                primeiraResposta: meta.primeiraResposta,
+                data: meta.data,
+                porcentagem: meta.porcentagem,
+              });
+            } else {
+              formatted.push({
+                programa: meta.programa,
+                dias: [
+                  {
+                    primeiraResposta: meta.primeiraResposta,
+                    data: meta.data,
+                    porcentagem: meta.porcentagem,
+                  },
+                ],
+              });
+            }
+
+            if (Boolean(se)) {
+              qtdColumns =
+                se.dias.length > qtdColumns ? se.dias.length : qtdColumns;
+            } else {
+              formatted.map((column) => {
+                qtdColumns =
+                  column.dias.length > qtdColumns
+                    ? column.dias.length
+                    : qtdColumns;
+              });
+            }
+          });
+
+          programasFormatados.push({
+            programa: item.programa,
+            children: formatted,
+            qtdColumns,
+          });
+        }),
+      );
+
+      const groupedData = programasFormatados.reduce(
+        (acc: any[], current: any) => {
+          const programa = current.programa;
+          const existingProgram = acc.find(
+            (item) => item.programa === programa,
+          );
+
+          if (existingProgram) {
+            current.children.forEach((child: any) => {
+              const existingChild = existingProgram.children.find(
+                (c: any) => c.programa === child.programa,
+              );
+              if (existingChild) {
+                existingChild.dias.push(...child.dias);
+              } else {
+                existingProgram.children.push({ ...child });
+              }
+            });
+
+            existingProgram.qtdColumns = Math.max(
+              ...existingProgram.children.map(
+                (child: any) => child.dias.length,
+              ),
+            );
+          } else {
+            const qtdColumns = Math.max(
+              ...current.children.map((child: any) => child.dias.length),
+            );
+            acc.push({ programa, children: [...current.children], qtdColumns });
+          }
+
+          return acc;
+        },
+        [],
+      );
+
+      return groupedData;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  // ===================== CHAVES & JSON =====================
+  private makeKey(params: {
+    protocol: ProtocolKey;
+    levelPath: (string | number)[];
+    metaId?: string | number;
+    itemId?: string | number;
+    subitemId?: string | number;
+  }) {
+    const { protocol, levelPath, metaId, itemId, subitemId } = params;
+    return [
+      protocol,
+      ...levelPath.map(String),
+      metaId ?? '',
+      itemId ?? '',
+      subitemId ?? '',
+    ].join('|');
+  }
+
+  private makeParentKey(params: {
+    protocol: ProtocolKey;
+    levelPath: (string | number)[];
+    metaId?: string | number;
+  }) {
+    const { protocol, levelPath, metaId } = params;
+    return [protocol, ...levelPath.map(String), metaId ?? ''].join('|');
   }
 
   private safeJsonParse(v: any) {
