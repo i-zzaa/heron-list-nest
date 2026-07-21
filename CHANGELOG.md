@@ -15,6 +15,50 @@
 - Inclui Resumo de sessão
 - mudar rota /usuarios/terapeutas para /terapeuta/dropdown
 
+[0.11.0-beta.0]
+Módulo de guias Amil implementado
+O backend agora possui uma base inicial do módulo de gestão de guias Amil, seguindo a estrutura existente do NestJS e integrando-se ao Prisma.
+
+O que foi adicionado
+Novo módulo em guia-amil
+Controller para guias em guia-amil.controller.ts
+Controller para lotes em lote-guia.controller.ts
+Service com operações básicas de:
+criação e atualização de guia
+preparação para envio
+envio individual
+criação de lote
+consulta de lote
+reprocessamento
+histórico
+Integração do módulo no app em app.module.ts
+Persistência
+Modelos adicionados ao Prisma em schema.prisma:
+GuiaAmil
+LoteGuia
+LoteGuiaItem
+GuiaAmilHistorico
+TransacaoAmil
+Testes
+Testes iniciais adicionados em guia-amil.service.spec.ts
+Validação
+Testes executados com sucesso:
+4/4 suites
+10/10 testes
+Observação
+A implementação atual cobre a estrutura inicial e os fluxos principais de cadastro, preparação e lote, mas ainda precisa de refinamentos adicionais para cobrir:
+
+validação XML/XSD real,
+integração HTTP/SOAP com a Amil,
+processamento assíncrono com filas,
+consulta automática de protocolos,
+idempotência completa e rastreio detalhado.
+Se quiser, o próximo passo pode ser aprofundar essa implementação com:
+
+integração real com os endpoints da Amil,
+geração e validação de XML TISS,
+filas/cron para envio e consulta automática.
+
 
 [0.10.0-beta.0]
 
