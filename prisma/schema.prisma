@@ -47,6 +47,7 @@ model Paciente {
   Pei               Pei[]
   Portage           Portage[]
   VBMappResultado   VBMappResultado[]
+  guiaAmil          GuiaAmil[]
 }
 
 model StatusPaciente {
@@ -373,26 +374,118 @@ model Protocolo {
 }
 
 model Sessao {
-  id           Int    @id @default(autoincrement())
-  resumo       String
-  calendarioId Int?
-  sessao       Json?
-  pacienteId   Int
+  id                       Int     @id @default(autoincrement())
+  resumo                   String
+  calendarioId            Int?
+  sessao                   Json?
+  pacienteId               Int
 
   maintenance             Json?
   selectedMaintenanceKeys Json?
 
-  portage             Json?
-  selectedPortageKeys Json?
+  portage                 Json?
+  selectedPortageKeys     Json?
 
-  vbmapp             Json?
-  selectedVBMappKeys Json?
+  vbmapp                  Json?
+  selectedVBMappKeys      Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
   paciente Paciente    @relation(fields: [pacienteId], references: [id])
   evento   Calendario? @relation(fields: [calendarioId], references: [id])
+
+  guiaAmil GuiaAmil[]
+}
+
+model GuiaAmil {
+  id                 Int       @id @default(autoincrement())
+  numeroGuia         String
+  tipoGuia           String
+  pacienteId         Int
+  sessaoId           Int?
+  prestadorId        Int?
+  status             String    @default("RASCUNHO")
+  dadosGuia          Json?
+  valorTotal         Decimal?  @db.Decimal(10, 2)
+  prontoParaEnvioEm  DateTime?
+  enviadoEm          DateTime?
+  processadoEm       DateTime?
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @updatedAt
+  loteId             Int?
+
+  paciente           Paciente  @relation(fields: [pacienteId], references: [id])
+  sessao             Sessao?   @relation(fields: [sessaoId], references: [id])
+  loteGuiaItems      LoteGuiaItem[]
+  historico          GuiaAmilHistorico[]
+}
+
+model LoteGuia {
+  id               Int       @id @default(autoincrement())
+  numeroLote       String?
+  origem           String    @default("MANUAL")
+  status           String    @default("CRIADO")
+  protocolo        String?
+  idempotencyKey   String?   @unique
+  quantidadeGuias  Int       @default(0)
+  xmlEnvio         String?   @db.Text
+  xmlRetorno       String?   @db.Text
+  enviadoEm        DateTime?
+  consultadoEm     DateTime?
+  processadoEm     DateTime?
+  criadoEm         DateTime  @default(now())
+  atualizadoEm     DateTime  @updatedAt
+
+  itens            LoteGuiaItem[]
+  transacoes       TransacaoAmil[]
+}
+
+model LoteGuiaItem {
+  id                 Int       @id @default(autoincrement())
+  loteId             Int
+  guiaId             Int
+  status             String    @default("AGUARDANDO_LOTE")
+  codigoRetorno      String?
+  mensagemRetorno    String?
+  valorApresentado   Decimal?  @db.Decimal(10, 2)
+  valorProcessado    Decimal?  @db.Decimal(10, 2)
+  valorGlosado       Decimal?  @db.Decimal(10, 2)
+
+  lote               LoteGuia  @relation(fields: [loteId], references: [id])
+  guia               GuiaAmil  @relation(fields: [guiaId], references: [id])
+}
+
+model GuiaAmilHistorico {
+  id               Int       @id @default(autoincrement())
+  guiaId           Int
+  loteId           Int?
+  statusAnterior   String?
+  statusNovo       String?
+  acao             String?
+  mensagem         String?
+  detalhes         Json?
+  usuarioId        Int?
+  criadoEm         DateTime  @default(now())
+
+  guia             GuiaAmil  @relation(fields: [guiaId], references: [id])
+}
+
+model TransacaoAmil {
+  id               Int       @id @default(autoincrement())
+  loteId           Int
+  tipo             String
+  statusHttp       Int?
+  sucesso          Boolean   @default(false)
+  tentativa        Int       @default(1)
+  duracaoMs        Int?
+  codigoErro       String?
+  mensagemErro     String?
+  xmlEnvio         String?   @db.Text
+  xmlRetorno       String?   @db.Text
+  criadoEm         DateTime  @default(now())
+
+  lote             LoteGuia  @relation(fields: [loteId], references: [id])
 }
 
 model AtividadeSessao {
