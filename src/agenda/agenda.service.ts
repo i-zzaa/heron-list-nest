@@ -1077,8 +1077,6 @@ export class AgendaService {
         statusPacienteCod: evento.paciente.statusPacienteCod,
       });
 
-        // console.log(evento.paciente.vaga.id);
-
       await prisma.vaga.update({
         data: {
           naFila: true,
@@ -1102,9 +1100,11 @@ export class AgendaService {
   async getFilterFinancialPaciente({
     dataInicio,
     dataFim,
+    datatFim,
     pacienteId,
     statusEventosId,
   }: any) {
+    const filtroDataFim = dataFim || datatFim;
     const prisma = this.prismaService.getPrismaClient();
 
     const eventos = await prisma.calendario.findMany({
@@ -1185,7 +1185,7 @@ export class AgendaService {
       },
       where: {
         dataInicio: {
-          lte: dataFim, // menor que o ultimo dia do mes
+          lte: filtroDataFim, // menor que o ultimo dia do mes
         },
         OR: [
           {
@@ -1209,14 +1209,18 @@ export class AgendaService {
       },
     });
 
+    console.log(eventos);
+
     return eventos;
   }
 
   getFilterFinancialTerapeuta = async ({
     dataInicio,
     dataFim,
+    datatFim,
     terapeutaId,
   }: any) => {
+    const filtroDataFim = dataFim || datatFim;
     const prisma = this.prismaService.getPrismaClient();
 
     const eventos = await prisma.calendario.findMany({
@@ -1298,7 +1302,7 @@ export class AgendaService {
       where: {
         terapeutaId: terapeutaId,
         dataInicio: {
-          lte: dataFim, // menor que o ultimo dia do mes
+          lte: filtroDataFim, // menor que o ultimo dia do mes
         },
         OR: [
           {

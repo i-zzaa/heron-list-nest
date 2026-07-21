@@ -16,6 +16,7 @@ import {
   FinancialTerapeutaProps,
 } from './financeiro.interface';
 import * as moment from 'moment';
+import { log } from 'console';
 
 @Injectable()
 export class FinanceiroService {
@@ -30,13 +31,15 @@ export class FinanceiroService {
     // agrupa por paciente
 
     const { pacienteId, datatFim, dataInicio, statusEventosId } = body;
+    const dataFim = datatFim || dataInicio;
 
     const eventosBrutos = await this.agendaService.getFilterFinancialPaciente({
       pacienteId,
-      datatFim,
+      dataFim,
       dataInicio,
     });
 
+    console.log(eventosBrutos);
     if (!eventosBrutos.length)
       return {
         data: [],
@@ -48,13 +51,16 @@ export class FinanceiroService {
     const eventos: any = [];
     await Promise.all(
       eventosBrutos.map((event: any) => {
-        const dataFimParam = event?.dataFim || datatFim;
+        const dataFimParam = event?.dataFim || dataFim;
+        const diasFrequencia = event?.diasFrequencia
+          ? event.diasFrequencia.split(',')
+          : [];
 
         const newEvents = getDatesWhiteEvents(
-          event?.diasFrequencia.split(','),
+          diasFrequencia,
           event.dataInicio,
           dataFimParam,
-          event.intervalo.id,
+          event.intervalo?.id || 1,
           event,
         );
 
@@ -85,33 +91,42 @@ export class FinanceiroService {
 
         if (
           exdate.includes(evento.dataInicio) ||
-          !dateBetween(evento.dataInicio, datatFim, dataInicio) ||
+          !dateBetween(evento.dataInicio, dataFim, dataInicio) ||
           (statusEventosId && evento.statusEventos.id != statusEventosId)
         ) {
           return;
         }
 
-        // console.log(evento);
-
-        const sessao = evento.paciente?.vaga.especialidades.filter(
+        const especialidadesPaciente =
+          evento.paciente?.vaga?.especialidades || [];
+        const sessao = especialidadesPaciente.filter(
           (especialidadePaciente: any) =>
             especialidadePaciente.especialidadeId === evento.especialidade.id,
         )[0];
 
-        if (!sessao) {
+        const sessaoValor = sessao?.valor ? parseFloat(sessao.valor || 0) : 0;
+
+        if (!sessao && !evento.especialidade?.id) {
           return;
         }
 
-        paciente = evento.paciente.nome;
+        paciente = evento.paciente?.nome || 'Paciente não informado';
 
-        const start = formatDateTime(evento.start, evento.dataInicio);
-        const end = formatDateTime(evento.end, evento.dataInicio);
+        const start = evento.start
+          ? formatDateTime(evento.start, evento.dataInicio)
+          : null;
+        const end = evento.end
+          ? formatDateTime(evento.end, evento.dataInicio)
+          : null;
 
-        let diff = moment(end, 'YYYY-MM-DD HH:mm').diff(
-          moment(start, 'YYYY-MM-DD HH:mm'),
-        );
+        const diff =
+          start && end
+            ? moment(end, 'YYYY-MM-DD HH:mm').diff(
+                moment(start, 'YYYY-MM-DD HH:mm'),
+              )
+            : 0;
 
-        let duracaoTotal = moment.duration(
+        const duracaoTotal = moment.duration(
           especialidadeTimeSessions[evento.especialidade.nome] || 0,
         );
         const duracaoEspecialidadeSessaoTotal = duracaoTotal.add(
@@ -125,19 +140,16 @@ export class FinanceiroService {
         // console.log(evento.km);
 
         const financeiro = new FinancialPaciente({
-          paciente: evento.paciente.nome,
-          terapeuta: evento.terapeuta.usuario.nome,
+          paciente: evento.paciente?.nome || 'Paciente não informado',
+          terapeuta:
+            evento.terapeuta?.usuario?.nome || 'Terapeuta não informado',
           data: moment(evento.dataInicio).format('DD/MM/YYYY'),
-          sessao: evento.statusEventos.cobrar ? parseFloat(sessao.valor) : 0,
+          sessao: evento.statusEventos.cobrar ? sessaoValor : 0,
           km: !!evento.km ? parseFloat(evento.km) : 0,
           status: evento.statusEventos.nome,
-          valorSessao: evento.statusEventos.cobrar
-            ? parseFloat(sessao.valor)
-            : 0,
-          funcao: evento.funcao.nome,
-          valorTotal: evento.statusEventos.cobrar
-            ? parseFloat(sessao.valor)
-            : 0,
+          valorSessao: evento.statusEventos.cobrar ? sessaoValor : 0,
+          funcao: evento.funcao?.nome || 'Função não informada',
+          valorTotal: evento.statusEventos.cobrar ? sessaoValor : 0,
           horas: formaTime(moment.duration(diff)),
           especialidade: evento.especialidade.nome,
         });
@@ -184,30 +196,37 @@ export class FinanceiroService {
 
   async terapeuta(body: FinancialProps) {
     const { terapeutaId, datatFim, dataInicio, statusEventosId } = body;
+    const dataFim = datatFim || dataInicio;
 
     const eventosBrutos = await this.agendaService.getFilterFinancialTerapeuta({
       terapeutaId,
-      datatFim,
+      dataFim,
       dataInicio,
     });
 
-    if (!eventosBrutos.length)
+    console.log(eventosBrutos);
+
+    if (!eventosBrutos.length) {
       return {
         data: [],
         valorTotal: 0,
         terapeuta: '',
       };
+    }
 
     const eventos: any = [];
     await Promise.all(
       eventosBrutos.map((event: any) => {
-        const dataFimParam = event?.dataFim || datatFim;
+        const dataFimParam = event?.dataFim || dataFim;
+        const diasFrequencia = event?.diasFrequencia
+          ? event.diasFrequencia.split(',')
+          : [];
 
         const newEvents = getDatesWhiteEvents(
-          event?.diasFrequencia.split(','),
+          diasFrequencia,
           event.dataInicio,
           dataFimParam,
-          event.intervalo.id,
+          event.intervalo?.id || 1,
           event,
         );
 
@@ -234,46 +253,57 @@ export class FinanceiroService {
         const exdate = evento?.exdate ? evento.exdate.split(',') : [];
         if (
           exdate.includes(evento.dataInicio) ||
-          !dateBetween(evento.dataInicio, datatFim, dataInicio) ||
+          !dateBetween(evento.dataInicio, dataFim, dataInicio) ||
           (statusEventosId && evento.statusEventos.id != statusEventosId)
         ) {
           return;
         }
 
-        const sessao = evento.paciente?.vaga.especialidades.filter(
+        const especialidadesPaciente =
+          evento.paciente?.vaga?.especialidades || [];
+        const sessao = especialidadesPaciente.filter(
           (especialidadePaciente: any) =>
             especialidadePaciente.especialidadeId === evento.especialidade.id,
         )[0];
 
-        if (!sessao) {
+        if (!sessao && !evento.especialidade?.id) {
           return;
         }
-        const comissao = evento.terapeuta.funcoes.filter(
+        const comissao = evento.terapeuta?.funcoes?.filter(
           (funcao: any) => funcao.funcaoId === evento.funcao.id,
         )[0];
 
-        const sessaoValor = parseFloat(sessao.valor);
-        const comissaoValor = parseFloat(comissao.comissao);
+        const sessaoValor = sessao?.valor ? parseFloat(sessao.valor || 0) : 0;
+        const comissaoValor = parseFloat(comissao?.comissao || 0);
 
-        const isDevolutiva = evento.modalidade.nome === 'Devolutiva';
+        const isDevolutiva = evento.modalidade?.nome === 'Devolutiva';
 
-        const start = formatDateTime(evento.start, evento.dataInicio);
-        const end = formatDateTime(evento.end, evento.dataInicio);
+        const start = evento.start
+          ? formatDateTime(evento.start, evento.dataInicio)
+          : null;
+        const end = evento.end
+          ? formatDateTime(evento.end, evento.dataInicio)
+          : null;
 
-        var diff = moment(end, 'YYYY-MM-DD HH:mm').diff(
-          moment(start, 'YYYY-MM-DD HH:mm'),
-        );
+        const diff =
+          start && end
+            ? moment(end, 'YYYY-MM-DD HH:mm').diff(
+                moment(start, 'YYYY-MM-DD HH:mm'),
+              )
+            : 0;
 
-        terapeuta = evento.terapeuta.usuario.nome;
-        especialidade = evento.especialidade.nome;
+        terapeuta =
+          evento.terapeuta?.usuario?.nome || 'Terapeuta não informado';
+        especialidade =
+          evento.especialidade?.nome || 'Especialidade não informada';
         const financeiro = new FinancialTerapeuta({
-          paciente: evento.paciente.nome,
+          paciente: evento.paciente?.nome || 'Paciente não informado',
           terapeuta: terapeuta,
           data: moment(evento.dataInicio).format('DD/MM/YYYY'),
           sessao: sessaoValor,
           km: Number(evento.km),
           comissao: comissaoValor,
-          tipo: comissao.tipo,
+          tipo: comissao?.tipo || 'fixo',
           status: evento.statusEventos.nome,
           devolutiva: isDevolutiva,
           horas: formaTime(moment.duration(diff)),
@@ -304,7 +334,7 @@ export class FinanceiroService {
         const valorKmEvento = Number(evento.km) * 0.9;
         let valorSessao = 0;
 
-        switch (comissao.tipo.toLowerCase()) {
+        switch ((comissao?.tipo || 'fixo').toLowerCase()) {
           case 'fixo':
             valorSessao = comissaoValor;
             break;
