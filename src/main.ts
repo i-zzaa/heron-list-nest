@@ -43,7 +43,7 @@ async function bootstrap() {
 
   app.use(
     session({
-      secret: process.env.JWT_PRIVATE_KEY,
+      secret: process.env.JWT_PRIVATE_KEY || 'dev-secret-key',
       resave: false,
       saveUninitialized: false,
       cookie: { secure: false },

@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GuiaAmilCreateDto, GuiaAmilListQuery, GuiaAmilUpdateDto } from './guia-amil.interface';
+import { AmilClientService } from './amil-client.service';
 
 @Injectable()
 export class GuiaAmilService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    @Optional() private readonly amilClientService?: AmilClientService,
+  ) {}
 
   async create(body: GuiaAmilCreateDto) {
     const prisma = this.prismaService.getPrismaClient();
@@ -37,6 +41,28 @@ export class GuiaAmilService {
         ...(body.dadosGuia ? { dadosGuia: body.dadosGuia } : {}),
         ...(body.valorTotal !== undefined ? { valorTotal: body.valorTotal } : {}),
         ...(body.status ? { status: body.status } : {}),
+      },
+    });
+  }
+
+  async dropdown() {
+    const prisma = this.prismaService.getPrismaClient();
+
+    return prisma.guiaAmil.findMany({
+      select: {
+        id: true,
+        numeroGuia: true,
+        tipoGuia: true,
+        status: true,
+        paciente: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+      },
+      orderBy: {
+        numeroGuia: 'asc',
       },
     });
   }
@@ -101,6 +127,20 @@ export class GuiaAmilService {
     });
   }
 
+  private gerarXmlGuia(guia: any) {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<GuiaAmil>
+  <numeroGuia>${guia.numeroGuia}</numeroGuia>
+  <tipoGuia>${guia.tipoGuia}</tipoGuia>
+  <pacienteId>${guia.pacienteId}</pacienteId>
+  <valorTotal>${guia.valorTotal || 0}</valorTotal>
+</GuiaAmil>`;
+  }
+
+  private validarXml(xml: string) {
+    return typeof xml === 'string' && xml.includes('<GuiaAmil>') && xml.includes('</GuiaAmil>');
+  }
+
   async enviarGuia(id: number, usuario: any) {
     const prisma = this.prismaService.getPrismaClient();
     const guia = await prisma.guiaAmil.findUnique({ where: { id } });
@@ -110,7 +150,7 @@ export class GuiaAmilService {
     const lote = await prisma.loteGuia.create({
       data: {
         origem: 'MANUAL',
-        status: 'CRIADO',
+        status: 'VALIDANDO',
         quantidadeGuias: 1,
         idempotencyKey: `guia-${id}-${Date.now()}`,
       },
@@ -127,12 +167,59 @@ export class GuiaAmilService {
     await prisma.guiaAmil.update({
       where: { id },
       data: {
-        status: 'AGUARDANDO_LOTE',
+        status: 'VALIDANDO',
         loteId: lote.id,
       },
     });
 
-    return { guiaId: guia.id, loteId: lote.id };
+    const xml = this.gerarXmlGuia(guia);
+    const valido = this.validarXml(xml);
+
+    if (!valido) {
+      await prisma.loteGuia.update({
+        where: { id: lote.id },
+        data: { status: 'INVALIDO' },
+      });
+      await prisma.guiaAmil.update({ where: { id }, data: { status: 'ERRO_VALIDACAO' } });
+      throw new Error('XML inválido');
+    }
+
+    const resposta = this.amilClientService
+      ? await this.amilClientService.enviarLote(xml, lote.idempotencyKey || '')
+      : { sucesso: false, codigoErro: 'CLIENT_NOT_INJECTED', mensagemErro: 'Cliente Amil não configurado', statusHttp: 0, xmlRetorno: '' };
+
+    await prisma.transacaoAmil.create({
+      data: {
+        loteId: lote.id,
+        tipo: 'ENVIO_LOTE',
+        statusHttp: resposta.statusHttp,
+        sucesso: resposta.sucesso,
+        codigoErro: resposta.codigoErro,
+        mensagemErro: resposta.mensagemErro,
+        xmlEnvio: xml,
+        xmlRetorno: resposta.xmlRetorno,
+      },
+    });
+
+    await prisma.loteGuia.update({
+      where: { id: lote.id },
+      data: {
+        status: resposta.sucesso ? 'COM_PROTOCOLO' : 'ERRO_COMUNICACAO',
+        xmlEnvio: xml,
+        xmlRetorno: resposta.xmlRetorno,
+        enviadoEm: new Date(),
+      },
+    });
+
+    await prisma.guiaAmil.update({
+      where: { id },
+      data: {
+        status: resposta.sucesso ? 'ENVIADA' : 'ERRO_COMUNICACAO',
+        enviadoEm: resposta.sucesso ? new Date() : null,
+      },
+    });
+
+    return { guiaId: guia.id, loteId: lote.id, sucesso: resposta.sucesso };
   }
 
   async historico(id: number) {
