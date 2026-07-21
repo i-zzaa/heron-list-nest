@@ -19,6 +19,16 @@ import { GuiaAmilService } from './guia-amil.service';
 export class GuiaAmilController {
   constructor(private readonly service: GuiaAmilService) {}
 
+  @Get('dropdown')
+  async dropdown(@Response() res: any) {
+    try {
+      const data = await this.service.dropdown();
+      responseSuccess(res, data);
+    } catch (error) {
+      responseError(res);
+    }
+  }
+
   @Get()
   async list(@Request() req: any, @Response() res: any) {
     try {

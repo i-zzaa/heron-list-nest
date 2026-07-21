@@ -8,6 +8,27 @@ describe('GuiaAmilService', () => {
     service = new GuiaAmilService({} as PrismaService);
   });
 
+  it('should list guides for dropdown', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 1, numeroGuia: 'G-001', tipoGuia: 'CONSULTA', status: 'RASCUNHO', paciente: { id: 1, nome: 'Paciente' } },
+    ]);
+
+    const prisma = {
+      guiaAmil: {
+        findMany,
+      },
+    };
+
+    (service as any).prismaService = {
+      getPrismaClient: () => prisma,
+    };
+
+    const result = await service.dropdown();
+
+    expect(findMany).toHaveBeenCalled();
+    expect(result[0]).toMatchObject({ id: 1, numeroGuia: 'G-001' });
+  });
+
   it('should create a draft guide', async () => {
     const create = jest.fn().mockResolvedValue({ id: 1, status: 'RASCUNHO' });
 
