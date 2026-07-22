@@ -125,12 +125,26 @@ export class TerapeutaService {
   }
 
   private buildEventKey(day: string, event: any) {
-    const start = event?.start || event?.data?.start || '';
-    const end = event?.end || event?.data?.end || '';
+    const start = this.normalizeHour(event?.data?.start || event?.start);
+    const end = this.normalizeHour(event?.data?.end || event?.end);
     const pacienteId = event?.paciente?.id || 'free';
-    const id = event?.id || event?.groupId || 'free';
+    const id = event?.groupId || event?.id || 'free';
 
     return `${day}:${id}:${pacienteId}:${start}:${end}`;
+  }
+
+  private normalizeHour(value: any) {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) {
+      return value;
+    }
+
+    const normalized = moment(value);
+
+    return normalized.isValid() ? normalized.format('HH:mm') : String(value);
   }
 
   private buildFreeSlot(day: string, hour: string, terapeuta: any) {
