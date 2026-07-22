@@ -5,6 +5,7 @@ describe('GuiaAmilService', () => {
   let service: GuiaAmilService;
 
   beforeEach(() => {
+    delete process.env.AMIL_MOCK_MODE;
     service = new GuiaAmilService({} as PrismaService);
   });
 
@@ -27,6 +28,29 @@ describe('GuiaAmilService', () => {
 
     expect(findMany).toHaveBeenCalled();
     expect(result[0]).toMatchObject({ id: 1, numeroGuia: 'G-001' });
+  });
+
+  it('should return mock guide data when mock mode is enabled', async () => {
+    process.env.AMIL_MOCK_MODE = 'true';
+
+    const result = await service.dropdown();
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result[0]).toMatchObject({
+      numeroGuia: 'GUIA-MOCK-001',
+      tipoGuia: 'CONSULTA',
+    });
+  });
+
+  it('should return paginated guide list when mock mode is enabled', async () => {
+    process.env.AMIL_MOCK_MODE = 'true';
+
+    const result = await service.list({ page: 1, limit: 10 } as any);
+
+    expect(result).toHaveProperty('data');
+    expect(result).toHaveProperty('pagination');
+    expect(result.pagination).toMatchObject({ currentPage: 1, pageSize: 10 });
+    expect(Array.isArray(result.data)).toBe(true);
   });
 
   it('should create a draft guide', async () => {
