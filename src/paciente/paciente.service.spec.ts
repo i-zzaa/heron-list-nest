@@ -49,6 +49,83 @@ describe('PacienteService', () => {
     expect(findMany.mock.calls[0][0].where.vaga).toBeUndefined();
   });
 
+  it('should include therapy records when filtering by crud_therapy status', async () => {
+    const findMany = jest
+      .fn()
+      .mockResolvedValueOnce([{ id: 1, dataNascimento: '2000-01-01' }])
+      .mockResolvedValueOnce([{ id: 1 }]);
+
+    const prismaClient = {
+      paciente: {
+        findMany,
+      },
+    };
+
+    service = new PacienteService({
+      getPrismaClient: () => prismaClient,
+    } as any);
+
+    await service.filterSinglePatients(
+      { statusPacienteCod: 'crud_therapy', pacientes: 79 },
+      1,
+      10,
+    );
+
+    expect(findMany.mock.calls[0][0].where.statusPacienteCod.in).toEqual([
+      'therapy',
+      'crud_therapy',
+    ]);
+  });
+
+  it('should filter patients by patient id on the paciente model when pacientes is provided', async () => {
+    const findMany = jest
+      .fn()
+      .mockResolvedValueOnce([{ id: 79, dataNascimento: '2000-01-01' }])
+      .mockResolvedValueOnce([{ id: 79 }]);
+
+    const prismaClient = {
+      paciente: {
+        findMany,
+      },
+    };
+
+    service = new PacienteService({
+      getPrismaClient: () => prismaClient,
+    } as any);
+
+    await service.filterPatients(1, 10, ['crud_therapy'], {
+      disabled: false,
+      pacientes: 79,
+    } as any);
+
+    expect(findMany.mock.calls[0][0].where.id).toEqual({ in: [79] });
+  });
+
+  it('should search patients by name, responsible or phone using the paciente model', async () => {
+    const findMany = jest.fn().mockResolvedValue([{ id: 1, nome: 'Paciente' }]);
+    const prismaClient = {
+      paciente: {
+        findMany,
+      },
+    };
+
+    service = new PacienteService({
+      getPrismaClient: () => prismaClient,
+    } as any);
+
+    await service.search('paciente');
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({ nome: { contains: 'paciente' } }),
+          ]),
+        }),
+      }),
+    );
+  });
+
   it('should resolve a vaga when updating a patient without vagaId', async () => {
     const deleteMany = jest.fn().mockResolvedValue({ count: 0 });
     const findMany = jest.fn().mockResolvedValue([]);

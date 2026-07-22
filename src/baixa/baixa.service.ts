@@ -6,6 +6,8 @@ import {
   dateFormatDDMMYYYY,
   dateFormatDDMMYYYYHHMM,
 } from 'src/util/format-date';
+import { buildPagination } from 'src/util/pagination';
+import { buildQueryFilter } from 'src/util/filters';
 
 @Injectable()
 export class BaixaService {
@@ -16,53 +18,9 @@ export class BaixaService {
 
     const skip = (page - 1) * pageSize;
 
-    const filter: any = {};
-
-    if (!query || typeof query !== 'object') {
-      query = {} as any;
-    }
-
-    Object.keys(query).forEach((key: string) => {
-      const value = query[key];
-
-      switch (key) {
-        case 'baixa':
-          if (value !== undefined && value !== null && value !== '') {
-            filter[key] =
-              value === true ||
-              value === 'true' ||
-              value === 1 ||
-              value === '1';
-          }
-          break;
-        case 'convenioId':
-          if (value !== undefined && value !== null && value !== '') {
-            filter.paciente = {
-              convenio: {
-                id: Number(value),
-              },
-            };
-          }
-          break;
-        case 'pacienteId':
-        case 'terapeutaId':
-        case 'localidadeId':
-        case 'statusEventosId':
-        case 'usuarioId':
-          if (value !== undefined && value !== null && value !== '') {
-            filter[key] = Number(value);
-          }
-          break;
-        default:
-          if (value !== undefined && value !== null && value !== '') {
-            filter[key] =
-              typeof value === 'string' && /^-?\d+$/.test(value)
-                ? Number(value)
-                : value;
-          }
-          break;
-      }
-    });
+    const filter = buildQueryFilter(
+      !query || typeof query !== 'object' ? ({} as any) : query,
+    );
 
     const [result, totalItems] = await Promise.all([
       prisma.baixa.findMany({
@@ -150,11 +108,7 @@ export class BaixaService {
       }),
     );
 
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }

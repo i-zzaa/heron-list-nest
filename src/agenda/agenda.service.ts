@@ -19,6 +19,8 @@ import * as bcrypt from 'bcryptjs';
 import { VagaService } from 'src/vaga/vaga.service';
 import { BaixaService } from 'src/baixa/baixa.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
+import { getPrismaClient } from 'src/util/crud';
+import { buildDateRangeWhere } from 'src/util/filters';
 
 @Injectable()
 export class AgendaService {
@@ -189,7 +191,7 @@ export class AgendaService {
   }
 
   async getFilter(params: any, query: any, login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const inicioDoMes = params.start;
     const ultimoDiaDoMes = params.end;
@@ -266,23 +268,7 @@ export class AgendaService {
       },
       where: {
         ...filter,
-
-        dataInicio: {
-          lte: ultimoDiaDoMes, // menor que o ultimo dia do mes
-        },
-        OR: [
-          {
-            dataFim: '',
-          },
-          {
-            dataFim: {
-              // lte: ultimoDiaDoMes, // menor que o ultimo dia do mes
-              gte: inicioDoMes, // maior que o primeiro dia do mes
-            },
-          },
-        ],
-        // pacienteId: Number(query?.pacientes),
-        // statusEventosId: Number(query?.statusEventos),
+        ...buildDateRangeWhere(inicioDoMes, ultimoDiaDoMes),
       },
     });
 
@@ -293,7 +279,7 @@ export class AgendaService {
   }
 
   async getRange(params: any, device: string, login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     let inicioDoMes = params.start;
     let ultimoDiaDoMes = params.end;
@@ -370,27 +356,7 @@ export class AgendaService {
           },
         },
       },
-      where: {
-        AND: [
-          {
-            OR: [
-              {
-                dataFim: '',
-              },
-              {
-                dataFim: {
-                  gte: inicioDoMes,
-                },
-              },
-            ],
-          },
-          {
-            dataInicio: {
-              lte: ultimoDiaDoMes,
-            },
-          },
-        ],
-      },
+      where: buildDateRangeWhere(inicioDoMes, ultimoDiaDoMes),
     });
 
     const eventosFormat = await this.formatEvents(eventos, login);
@@ -441,7 +407,7 @@ export class AgendaService {
     frequencia: any,
     user: any,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const filter = Object.keys(body).filter(
       (key: string) =>
@@ -503,7 +469,7 @@ export class AgendaService {
     frequencia: any,
     user: any,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const hash: string = await this.getHashGroupId(
       body.paciente.id,
@@ -557,7 +523,7 @@ export class AgendaService {
   }
 
   async updateCalendario_(body: any, login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     let dataFim = dateSubtractDay(body.dataAtual, 2);
     const isCanceled = body.statusEventos.nome.includes('permanente');
@@ -674,7 +640,7 @@ export class AgendaService {
     login: string,
     hasDataFim: boolean = false,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const eventoSalvo: any[] = await prisma.calendario.findMany({
       where: { groupId: body.groupId },
@@ -754,7 +720,7 @@ export class AgendaService {
     login: string,
     hasDataFim: boolean = false,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     let evento;
     switch (event.frequencia.id) {
@@ -794,7 +760,7 @@ export class AgendaService {
     dataAtual?: string,
     dataFim?: string,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const [statusEventos, evento]: any = await Promise.all([
       prisma.statusEventos.findFirst({
@@ -865,7 +831,7 @@ export class AgendaService {
   }
 
   async updateCalendarioAtestado(body: any, login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const statusEventos = await prisma.statusEventos.findFirst({
       where: {
@@ -891,7 +857,7 @@ export class AgendaService {
     login: string,
     hasDataFim: boolean = false,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const data = this.formatEvent(event);
 
@@ -973,7 +939,7 @@ export class AgendaService {
     login: string,
     isCanceled?: boolean,
   ) => {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const evento: any = await prisma.calendario.findFirst({
       where: { id: event.id },
@@ -1048,7 +1014,7 @@ export class AgendaService {
   };
 
   async delete(eventId: number, login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     try {
       const { id } = await this.userService.getUser(login);
@@ -1105,7 +1071,7 @@ export class AgendaService {
     statusEventosId,
   }: any) {
     const filtroDataFim = dataFim || datatFim;
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const eventos = await prisma.calendario.findMany({
       select: {
@@ -1184,19 +1150,7 @@ export class AgendaService {
         },
       },
       where: {
-        dataInicio: {
-          lte: filtroDataFim, // menor que o ultimo dia do mes
-        },
-        OR: [
-          {
-            dataFim: '',
-          },
-          {
-            dataFim: {
-              gte: dataInicio, // maior que o primeiro dia do mes
-            },
-          },
-        ],
+        ...buildDateRangeWhere(dataInicio, filtroDataFim),
         pacienteId: pacienteId,
         statusEventosId: statusEventosId,
       },
@@ -1221,7 +1175,7 @@ export class AgendaService {
     terapeutaId,
   }: any) => {
     const filtroDataFim = dataFim || datatFim;
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const eventos = await prisma.calendario.findMany({
       select: {
@@ -1301,19 +1255,7 @@ export class AgendaService {
       },
       where: {
         terapeutaId: terapeutaId,
-        dataInicio: {
-          lte: filtroDataFim, // menor que o ultimo dia do mes
-        },
-        OR: [
-          {
-            dataFim: '',
-          },
-          {
-            dataFim: {
-              gte: dataInicio, // maior que o primeiro dia do mes
-            },
-          },
-        ],
+        ...buildDateRangeWhere(dataInicio, filtroDataFim),
       },
       orderBy: {
         paciente: {
@@ -1326,7 +1268,7 @@ export class AgendaService {
   };
 
   async getEventsMessage(dataInicio: string, datatFim: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const eventosBrutos = await prisma.calendario.findMany({
       select: {
@@ -1350,28 +1292,8 @@ export class AgendaService {
         start: true,
       },
       where: {
-        AND: [
-          {
-            OR: [
-              {
-                dataFim: '',
-              },
-              {
-                dataFim: {
-                  gte: dataInicio,
-                },
-              },
-            ],
-          },
-          {
-            dataInicio: {
-              lte: datatFim,
-            },
-          },
-          {
-            statusEventosId: STATUS_EVENTOS_ID.avisar,
-          },
-        ],
+        ...buildDateRangeWhere(dataInicio, datatFim),
+        statusEventosId: STATUS_EVENTOS_ID.avisar,
       },
     });
 

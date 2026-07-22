@@ -1,7 +1,8 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
-import * as moment from 'moment';
+import moment from 'moment';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { getPrismaClient } from 'src/util/crud';
 import {
   HOURS,
   dateFormatYYYYMMDD,
@@ -11,6 +12,7 @@ import {
   weekDay,
 } from 'src/util/format-date';
 import { DEVICE } from 'src/util/util';
+import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
 
 @Injectable()
 export class TerapeutaService {
@@ -141,8 +143,7 @@ export class TerapeutaService {
   ) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const filter: any = {};
-    Object.keys(query).map((key: string) => (filter[key] = Number(query[key])));
+    const filter = buildQueryFilter(query);
 
     const terapeutaId = parseInt(query.terapeutaId);
     const [terapeuta, events, datas] = await Promise.all([
@@ -225,21 +226,7 @@ export class TerapeutaService {
         where: {
           ...filter,
           terapeutaId: terapeutaId,
-          dataInicio: {
-            lte: endDate, // menor que o ultimo dia do mes
-            // gte: inicioDoMes, // maior que o primeiro dia do mes
-          },
-          OR: [
-            {
-              dataFim: '',
-            },
-            {
-              dataFim: {
-                // lte: ultimoDiaDoMes, // menor que o ultimo dia do mes
-                gte: startDate, // maior que o primeiro dia do mes
-              },
-            },
-          ],
+          ...buildDateRangeWhere(startDate, endDate),
         },
         orderBy: {
           dataInicio: 'asc',
@@ -289,7 +276,7 @@ export class TerapeutaService {
       );
     });
 
-    let cargaHoraria: any =
+    const cargaHoraria: any =
       terapeuta?.cargaHoraria && typeof terapeuta.cargaHoraria === 'string'
         ? JSON.parse(terapeuta.cargaHoraria)
         : {};

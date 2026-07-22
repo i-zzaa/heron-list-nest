@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { AgendaService } from 'src/agenda/agenda.service';
-import { PacienteService } from 'src/paciente/paciente.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   dateBetween,
@@ -16,7 +15,6 @@ import {
   FinancialTerapeutaProps,
 } from './financeiro.interface';
 import * as moment from 'moment';
-import { log } from 'console';
 
 @Injectable()
 export class FinanceiroService {
@@ -24,6 +22,51 @@ export class FinanceiroService {
     private readonly prismaService: PrismaService,
     private readonly agendaService: AgendaService,
   ) {}
+
+  private async expandEvents(eventosBrutos: any[], dataFim: string) {
+    const eventos: any[] = [];
+
+    await Promise.all(
+      eventosBrutos.map((event: any) => {
+        const dataFimParam = event?.dataFim || dataFim;
+        const diasFrequencia = event?.diasFrequencia
+          ? event.diasFrequencia.split(',')
+          : [];
+
+        const newEvents = getDatesWhiteEvents(
+          diasFrequencia,
+          event?.dataInicio,
+          dataFimParam,
+          event?.intervalo?.id || 1,
+          event,
+        );
+
+        eventos.push(...newEvents);
+      }),
+    );
+
+    return eventos;
+  }
+
+  private shouldSkipEvent(
+    evento: any,
+    dataFim: string,
+    dataInicio: string,
+    statusEventosId?: number,
+  ) {
+    const exdate = evento?.exdate ? evento.exdate.split(',') : [];
+    const statusEventos = evento?.statusEventos || {};
+    const statusCobrar = Boolean(statusEventos?.cobrar);
+    const statusNome = statusEventos?.nome || 'Status não informado';
+    const eventoDataInicio = evento?.dataInicio || '';
+
+    const skip =
+      exdate.includes(eventoDataInicio) ||
+      !dateBetween(eventoDataInicio, dataFim, dataInicio) ||
+      (statusEventosId && statusEventos?.id != statusEventosId);
+
+    return { skip, statusCobrar, statusNome };
+  }
 
   async paciente(body: FinancialProps) {
     // filtra eventos por terapeuta no peridodo
@@ -39,7 +82,6 @@ export class FinanceiroService {
       dataInicio,
     });
 
-    console.log(eventosBrutos);
     if (!eventosBrutos.length)
       return {
         data: [],
@@ -48,25 +90,7 @@ export class FinanceiroService {
         valorKm: 0,
       };
 
-    const eventos: any = [];
-    await Promise.all(
-      eventosBrutos.map((event: any) => {
-        const dataFimParam = event?.dataFim || dataFim;
-        const diasFrequencia = event?.diasFrequencia
-          ? event.diasFrequencia.split(',')
-          : [];
-
-        const newEvents = getDatesWhiteEvents(
-          diasFrequencia,
-          event.dataInicio,
-          dataFimParam,
-          event.intervalo?.id || 1,
-          event,
-        );
-
-        eventos.push(...newEvents);
-      }),
-    );
+    const eventos = await this.expandEvents(eventosBrutos, dataFim);
 
     if (!eventos.length)
       return {
@@ -88,11 +112,14 @@ export class FinanceiroService {
     await Promise.all(
       eventos.map((evento: any) => {
         const exdate = evento?.exdate ? evento.exdate.split(',') : [];
+        const statusEventos = evento?.statusEventos || {};
+        const statusCobrar = Boolean(statusEventos?.cobrar);
+        const statusNome = statusEventos?.nome || 'Status não informado';
 
         if (
           exdate.includes(evento.dataInicio) ||
           !dateBetween(evento.dataInicio, dataFim, dataInicio) ||
-          (statusEventosId && evento.statusEventos.id != statusEventosId)
+          (statusEventosId && statusEventos?.id != statusEventosId)
         ) {
           return;
         }
@@ -101,7 +128,7 @@ export class FinanceiroService {
           evento.paciente?.vaga?.especialidades || [];
         const sessao = especialidadesPaciente.filter(
           (especialidadePaciente: any) =>
-            especialidadePaciente.especialidadeId === evento.especialidade.id,
+            especialidadePaciente.especialidadeId === evento.especialidade?.id,
         )[0];
 
         const sessaoValor = sessao?.valor ? parseFloat(sessao.valor || 0) : 0;
@@ -111,6 +138,8 @@ export class FinanceiroService {
         }
 
         paciente = evento.paciente?.nome || 'Paciente não informado';
+        const especialidadeNome =
+          evento.especialidade?.nome || 'Especialidade não informada';
 
         const start = evento.start
           ? formatDateTime(evento.start, evento.dataInicio)
@@ -125,17 +154,15 @@ export class FinanceiroService {
                 moment(start, 'YYYY-MM-DD HH:mm'),
               )
             : 0;
+        const horasEvento = moment.duration(diff || 0);
 
         const duracaoTotal = moment.duration(
-          especialidadeTimeSessions[evento.especialidade.nome] || 0,
+          especialidadeTimeSessions[especialidadeNome] || 0,
         );
-        const duracaoEspecialidadeSessaoTotal = duracaoTotal.add(
-          moment.duration(diff),
-        );
+        const duracaoEspecialidadeSessaoTotal = duracaoTotal.add(horasEvento);
 
-        especialidadeTimeSessions[evento.especialidade.nome] =
-          evento.statusEventos.cobrar &&
-          formaTime(duracaoEspecialidadeSessaoTotal);
+        especialidadeTimeSessions[especialidadeNome] =
+          statusCobrar && formaTime(duracaoEspecialidadeSessaoTotal);
 
         // console.log(evento.km);
 
@@ -144,17 +171,17 @@ export class FinanceiroService {
           terapeuta:
             evento.terapeuta?.usuario?.nome || 'Terapeuta não informado',
           data: moment(evento.dataInicio).format('DD/MM/YYYY'),
-          sessao: evento.statusEventos.cobrar ? sessaoValor : 0,
+          sessao: statusCobrar ? sessaoValor : 0,
           km: !!evento.km ? parseFloat(evento.km) : 0,
-          status: evento.statusEventos.nome,
-          valorSessao: evento.statusEventos.cobrar ? sessaoValor : 0,
+          status: statusNome,
+          valorSessao: statusCobrar ? sessaoValor : 0,
           funcao: evento.funcao?.nome || 'Função não informada',
-          valorTotal: evento.statusEventos.cobrar ? sessaoValor : 0,
-          horas: formaTime(moment.duration(diff)),
-          especialidade: evento.especialidade.nome,
+          valorTotal: statusCobrar ? sessaoValor : 0,
+          horas: formaTime(horasEvento),
+          especialidade: especialidadeNome,
         });
 
-        if (!evento.statusEventos.cobrar) {
+        if (!statusCobrar) {
           relatorio.push(financeiro);
           return;
         }
@@ -164,7 +191,7 @@ export class FinanceiroService {
         // valorTotal += parseFloat(sessao.valor);
 
         valorTotal += financeiro.valorTotal;
-        horas = horas.add(financeiro.horas);
+        horas = horas.add(horasEvento);
         valorKm += financeiro.km;
 
         return;
@@ -214,25 +241,7 @@ export class FinanceiroService {
       };
     }
 
-    const eventos: any = [];
-    await Promise.all(
-      eventosBrutos.map((event: any) => {
-        const dataFimParam = event?.dataFim || dataFim;
-        const diasFrequencia = event?.diasFrequencia
-          ? event.diasFrequencia.split(',')
-          : [];
-
-        const newEvents = getDatesWhiteEvents(
-          diasFrequencia,
-          event.dataInicio,
-          dataFimParam,
-          event.intervalo?.id || 1,
-          event,
-        );
-
-        eventos.push(...newEvents);
-      }),
-    );
+    const eventos = await this.expandEvents(eventosBrutos, dataFim);
 
     if (!eventos.length)
       return {
@@ -250,12 +259,14 @@ export class FinanceiroService {
 
     await Promise.all(
       eventos.map((evento: any) => {
-        const exdate = evento?.exdate ? evento.exdate.split(',') : [];
-        if (
-          exdate.includes(evento.dataInicio) ||
-          !dateBetween(evento.dataInicio, dataFim, dataInicio) ||
-          (statusEventosId && evento.statusEventos.id != statusEventosId)
-        ) {
+        const { skip, statusCobrar, statusNome } = this.shouldSkipEvent(
+          evento,
+          dataFim,
+          dataInicio,
+          statusEventosId,
+        );
+
+        if (skip) {
           return;
         }
 
@@ -263,14 +274,14 @@ export class FinanceiroService {
           evento.paciente?.vaga?.especialidades || [];
         const sessao = especialidadesPaciente.filter(
           (especialidadePaciente: any) =>
-            especialidadePaciente.especialidadeId === evento.especialidade.id,
+            especialidadePaciente.especialidadeId === evento.especialidade?.id,
         )[0];
 
         if (!sessao && !evento.especialidade?.id) {
           return;
         }
         const comissao = evento.terapeuta?.funcoes?.filter(
-          (funcao: any) => funcao.funcaoId === evento.funcao.id,
+          (funcao: any) => funcao.funcaoId === evento.funcao?.id,
         )[0];
 
         const sessaoValor = sessao?.valor ? parseFloat(sessao.valor || 0) : 0;
@@ -278,6 +289,8 @@ export class FinanceiroService {
 
         const isDevolutiva = evento.modalidade?.nome === 'Devolutiva';
 
+        const especialidadeNome =
+          evento.especialidade?.nome || 'Especialidade não informada';
         const start = evento.start
           ? formatDateTime(evento.start, evento.dataInicio)
           : null;
@@ -291,11 +304,11 @@ export class FinanceiroService {
                 moment(start, 'YYYY-MM-DD HH:mm'),
               )
             : 0;
+        const horasEvento = moment.duration(diff || 0);
 
         terapeuta =
           evento.terapeuta?.usuario?.nome || 'Terapeuta não informado';
-        especialidade =
-          evento.especialidade?.nome || 'Especialidade não informada';
+        especialidade = especialidadeNome;
         const financeiro = new FinancialTerapeuta({
           paciente: evento.paciente?.nome || 'Paciente não informado',
           terapeuta: terapeuta,
@@ -304,12 +317,12 @@ export class FinanceiroService {
           km: Number(evento.km),
           comissao: comissaoValor,
           tipo: comissao?.tipo || 'fixo',
-          status: evento.statusEventos.nome,
+          status: statusNome,
           devolutiva: isDevolutiva,
-          horas: formaTime(moment.duration(diff)),
+          horas: formaTime(horasEvento),
         });
 
-        if (!evento.statusEventos.cobrar) {
+        if (!statusCobrar) {
           financeiro.comissao = 0;
           financeiro.valorSessao = 0;
           financeiro.valorTotal = 0;
@@ -324,7 +337,7 @@ export class FinanceiroService {
           financeiro.valorTotal = 50;
 
           valorTotal += financeiro.valorTotal;
-          horas = horas.add(financeiro.horas);
+          horas = horas.add(horasEvento);
 
           relatorio.push(financeiro);
 
@@ -349,7 +362,7 @@ export class FinanceiroService {
 
         valorTotal += financeiro.valorTotal;
         valorKm += financeiro.valorKm;
-        horas = horas.add(financeiro.horas);
+        horas = horas.add(horasEvento);
 
         relatorio.push({ ...financeiro });
 

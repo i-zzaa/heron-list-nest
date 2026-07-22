@@ -2,6 +2,10 @@ import { Injectable, UseGuards } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { StatusEventosProps } from './status-evento.interface';
 import { AuthGuard } from '@nestjs/passport';
+import { buildPagination } from 'src/util/pagination';
+import { toNumberId } from 'src/util/normalizers';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class StatusEventoService {
@@ -31,13 +35,7 @@ export class StatusEventoService {
       }),
       prisma.statusEventos.count(),
     ]);
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -61,7 +59,7 @@ export class StatusEventoService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.statusEventos.findMany({
       select: {
@@ -73,16 +71,9 @@ export class StatusEventoService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
+      where: buildTextSearchWhere(word, ['nome'], {
         ativo: true,
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      }),
     });
   }
 
@@ -90,7 +81,7 @@ export class StatusEventoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.statusEventos.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar']),
     });
   }
 
@@ -98,13 +89,9 @@ export class StatusEventoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.statusEventos.update({
-      data: {
-        nome: body.nome,
-        ativo: body.ativo,
-        cobrar: body.cobrar,
-      },
+      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }

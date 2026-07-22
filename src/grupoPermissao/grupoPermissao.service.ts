@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GrupoPermissaoProps } from './grupoPermissao.interface';
+import { buildPagination } from 'src/util/pagination';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class GrupoPermissaoService {
@@ -48,13 +50,7 @@ export class GrupoPermissaoService {
       }),
     );
 
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -91,20 +87,7 @@ export class GrupoPermissaoService {
       orderBy: {
         cod: 'asc',
       },
-      where: {
-        OR: [
-          {
-            cod: {
-              contains: word,
-            },
-          },
-          {
-            descricao: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      where: buildTextSearchWhere(word, ['cod', 'descricao']),
     });
   }
 
