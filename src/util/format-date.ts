@@ -99,14 +99,14 @@ export function getDates(
         return null;
       }
 
-      // Dias salvos no banco usam 1-7 (domingo-sabado).
-      // Aqui normalizamos para o padrao do moment: 0-6 (domingo-sabado).
+      // Dias salvos no banco usam ISO weekday: 1-7 (segunda-domingo).
       if (parsed >= 1 && parsed <= 7) {
-        return (parsed - 1 + 7) % 7;
+        return parsed;
       }
 
+      // Compatibilidade com payloads antigos em 0-6 (domingo-sabado).
       if (parsed >= 0 && parsed <= 6) {
-        return parsed;
+        return parsed === 0 ? 7 : parsed;
       }
 
       return null;
@@ -120,7 +120,7 @@ export function getDates(
     const weekOffset = Math.floor(diffDays / 7);
     const isOnIntervalWeek = weekOffset % normalizedInterval === 0;
     const isMatchingWeekday =
-      weekDays.length === 0 || weekDays.includes(dataAtual.day());
+      weekDays.length === 0 || weekDays.includes(dataAtual.isoWeekday());
     const dateFormatted = dataAtual.format('YYYY-MM-DD');
 
     if (isOnIntervalWeek && isMatchingWeekday && !skipDates.has(dateFormatted)) {

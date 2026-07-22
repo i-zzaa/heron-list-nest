@@ -278,7 +278,15 @@ export class AgendaService {
         evento.canDelete = evento.usuarioId === usuario.id;
 
         const diasFrequencia: number[] = diasFrequenciaList.map(
-          (dia: string) => Number(dia) - 1,
+          (dia: string) => {
+            const parsed = Number(dia);
+
+            if (Number.isNaN(parsed)) {
+              return parsed;
+            }
+
+            return parsed === 7 ? 0 : parsed;
+          },
         );
 
         switch (true) {

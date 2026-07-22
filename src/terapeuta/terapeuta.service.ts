@@ -7,7 +7,6 @@ import {
   dateFormatYYYYMMDD,
   getDates,
   getDatesBetween,
-  horaEstaEntre,
   weekDay,
 } from 'src/util/format-date';
 import { DEVICE } from 'src/util/util';
@@ -197,14 +196,30 @@ export class TerapeutaService {
   }
 
   private isSlotOccupiedByEvent(slotHour: string, sessao: any) {
-    if (!sessao?.data?.start || !sessao?.data?.end) {
+    const eventStartRaw = sessao?.data?.start || sessao?.start;
+    const eventEndRaw = sessao?.data?.end || sessao?.end;
+
+    if (!eventStartRaw || !eventEndRaw) {
       return false;
     }
 
-    const slotStart = moment(slotHour, 'HH:mm');
-    const slotEnd = moment(slotHour, 'HH:mm').add(1, 'hour');
-    const eventStart = moment(sessao.data.start, 'HH:mm');
-    const eventEnd = moment(sessao.data.end, 'HH:mm');
+    const normalizedSlot = this.normalizeHour(slotHour);
+    const normalizedStart = this.normalizeHour(eventStartRaw);
+    const normalizedEnd = this.normalizeHour(eventEndRaw);
+
+    const slotStart = moment(normalizedSlot, 'HH:mm', true);
+    const slotEnd = moment(normalizedSlot, 'HH:mm', true).add(1, 'hour');
+    const eventStart = moment(normalizedStart, 'HH:mm', true);
+    const eventEnd = moment(normalizedEnd, 'HH:mm', true);
+
+    if (
+      !slotStart.isValid() ||
+      !slotEnd.isValid() ||
+      !eventStart.isValid() ||
+      !eventEnd.isValid()
+    ) {
+      return false;
+    }
 
     return eventStart.isBefore(slotEnd) && eventEnd.isAfter(slotStart);
   }
@@ -227,7 +242,7 @@ export class TerapeutaService {
   }
 
   private eventMatchesSlot(slot: string, event: any) {
-    return horaEstaEntre(slot, event.data.start);
+    return this.isSlotOccupiedByEvent(slot, event);
   }
 
   async dropdown() {
