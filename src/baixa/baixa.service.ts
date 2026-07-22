@@ -17,23 +17,49 @@ export class BaixaService {
     const skip = (page - 1) * pageSize;
 
     const filter: any = {};
-    Object.keys(query).map((key: string) => {
+
+    if (!query || typeof query !== 'object') {
+      query = {} as any;
+    }
+
+    Object.keys(query).forEach((key: string) => {
+      const value = query[key];
+
       switch (key) {
         case 'baixa':
-          filter[key] = query[key];
+          if (value !== undefined && value !== null && value !== '') {
+            filter[key] =
+              value === true ||
+              value === 'true' ||
+              value === 1 ||
+              value === '1';
+          }
           break;
         case 'convenioId':
-          filter.paciente = {
-            convenio: {
-              id: query.convenioId,
-            },
-          };
-
-          delete query.convenioId;
+          if (value !== undefined && value !== null && value !== '') {
+            filter.paciente = {
+              convenio: {
+                id: Number(value),
+              },
+            };
+          }
           break;
-
+        case 'pacienteId':
+        case 'terapeutaId':
+        case 'localidadeId':
+        case 'statusEventosId':
+        case 'usuarioId':
+          if (value !== undefined && value !== null && value !== '') {
+            filter[key] = Number(value);
+          }
+          break;
         default:
-          filter[key] = Number(query[key]);
+          if (value !== undefined && value !== null && value !== '') {
+            filter[key] =
+              typeof value === 'string' && /^-?\d+$/.test(value)
+                ? Number(value)
+                : value;
+          }
           break;
       }
     });
@@ -81,28 +107,45 @@ export class BaixaService {
         skip,
         take: pageSize,
       }),
-      prisma.baixa.count(),
+      prisma.baixa.count({ where: filter }),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize);
 
     const data = await Promise.all(
       result.map((item: any) => {
         const updatedAt = Boolean(item.updatedAt) ? item.updatedAt : '-';
+        const paciente = item.paciente || {};
+        const terapeuta = item.terapeuta?.usuario || {};
+        const localidade = item.localidade || {};
+        const evento = item.evento || {};
+        const status = item.status || {};
+        const convenio = paciente.convenio || {};
+
+        const dataEvento = item.dataEvento
+          ? dateFormatDDMMYYYY(item.dataEvento)
+          : '-';
+        const cargaHoraria =
+          evento.start && evento.end
+            ? calcHoursHHMM(evento.start, evento.end)
+            : '-';
 
         return {
           id: item.id,
-          paciente: item.paciente.nome,
-          carteirinha: item.paciente.carteirinha,
-          terapeuta: item.terapeuta.usuario.nome,
-          localidade: item.localidade.casa,
-          convenio: item.paciente.convenio.nome,
-          status: item.status.nome,
-          usuario: item.baixa ? item.usuario?.nome : '-',
+          paciente: paciente.nome || '-',
+          carteirinha: paciente.carteirinha || '-',
+          terapeuta: terapeuta.nome || '-',
+          localidade: localidade.casa || '-',
+          convenio: convenio.nome || '-',
+          status: status.nome || '-',
+          usuario: item.baixa ? item.usuario?.nome || '-' : '-',
           baixa: item.baixa,
-          dataBaixa: item.baixa ? dateFormatDDMMYYYYHHMM(updatedAt) : '-',
-          dataEvento: dateFormatDDMMYYYY(item.dataEvento),
-          cargaHoraria: calcHoursHHMM(item.evento.start, item.evento.end),
-          especialidade: item.evento.especialidade?.nome || '-',
+          dataBaixa:
+            item.baixa && updatedAt !== '-'
+              ? dateFormatDDMMYYYYHHMM(updatedAt)
+              : '-',
+          dataEvento,
+          cargaHoraria,
+          especialidade: evento.especialidade?.nome || '-',
         };
       }),
     );

@@ -16,6 +16,15 @@
 - mudar rota /usuarios/terapeutas para /terapeuta/dropdown
 
 [0.11.0-beta.0]
+
+✅ Erro corrigido
+A exceção vinha do mapeamento da listagem de baixa, onde o código acessava propriedades de relacionamentos que podiam estar nulos, principalmente em item.evento e item.paciente.
+
+O que foi ajustado
+Proteção para campos relacionados nulos
+Normalização da resposta para valores seguros como "-", em vez de quebrar a execução
+Cobertura adicionada com um teste de regressão para esse cenário
+
 Módulo de guias Amil implementado
 O backend agora possui uma base inicial do módulo de gestão de guias Amil, seguindo a estrutura existente do NestJS e integrando-se ao Prisma.
 

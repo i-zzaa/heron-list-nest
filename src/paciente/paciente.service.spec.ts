@@ -27,7 +27,8 @@ describe('PacienteService', () => {
   });
 
   it('should omit vaga filters when no vaga criteria are provided', async () => {
-    const findMany = jest.fn()
+    const findMany = jest
+      .fn()
       .mockResolvedValueOnce([{ id: 1, dataNascimento: '2000-01-01' }])
       .mockResolvedValueOnce([{ id: 1 }]);
 

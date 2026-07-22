@@ -10,9 +10,17 @@ describe('GuiaAmilService', () => {
   });
 
   it('should list guides for dropdown', async () => {
-    const findMany = jest.fn().mockResolvedValue([
-      { id: 1, numeroGuia: 'G-001', tipoGuia: 'CONSULTA', status: 'RASCUNHO', paciente: { id: 1, nome: 'Paciente' } },
-    ]);
+    const findMany = jest
+      .fn()
+      .mockResolvedValue([
+        {
+          id: 1,
+          numeroGuia: 'G-001',
+          tipoGuia: 'CONSULTA',
+          status: 'RASCUNHO',
+          paciente: { id: 1, nome: 'Paciente' },
+        },
+      ]);
 
     const prisma = {
       guiaAmil: {
@@ -90,7 +98,9 @@ describe('GuiaAmilService', () => {
   });
 
   it('should prepare a guide for sending', async () => {
-    const update = jest.fn().mockResolvedValue({ id: 1, status: 'PRONTA_PARA_ENVIO' });
+    const update = jest
+      .fn()
+      .mockResolvedValue({ id: 1, status: 'PRONTA_PARA_ENVIO' });
 
     const prisma = {
       guiaAmil: {

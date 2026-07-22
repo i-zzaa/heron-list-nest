@@ -1,6 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { GuiaAmilCreateDto, GuiaAmilListQuery, GuiaAmilUpdateDto } from './guia-amil.interface';
+import {
+  GuiaAmilCreateDto,
+  GuiaAmilListQuery,
+  GuiaAmilUpdateDto,
+} from './guia-amil.interface';
 import { AmilClientService } from './amil-client.service';
 import { guiaAmilMockResponse } from './guia-amil.mock';
 
@@ -57,7 +61,9 @@ export class GuiaAmilService {
         ...(body.sessaoId ? { sessaoId: body.sessaoId } : {}),
         ...(body.prestadorId ? { prestadorId: body.prestadorId } : {}),
         ...(body.dadosGuia ? { dadosGuia: body.dadosGuia } : {}),
-        ...(body.valorTotal !== undefined ? { valorTotal: body.valorTotal } : {}),
+        ...(body.valorTotal !== undefined
+          ? { valorTotal: body.valorTotal }
+          : {}),
         ...(body.status ? { status: body.status } : {}),
       },
     });
@@ -188,12 +194,16 @@ export class GuiaAmilService {
       };
     }
 
-    const resposta = await this.amilClientService.consultarProtocolo('mock-protocolo');
+    const resposta = await this.amilClientService.consultarProtocolo(
+      'mock-protocolo',
+    );
 
     return {
       sucesso: resposta.sucesso,
       mock: false,
-      mensagem: resposta.sucesso ? 'Conexão com a Amil realizada com sucesso' : resposta.mensagemErro || 'Falha ao conectar com a Amil',
+      mensagem: resposta.sucesso
+        ? 'Conexão com a Amil realizada com sucesso'
+        : resposta.mensagemErro || 'Falha ao conectar com a Amil',
       statusHttp: resposta.statusHttp,
       detalhes: resposta,
     };
@@ -229,7 +239,11 @@ export class GuiaAmilService {
   }
 
   private validarXml(xml: string) {
-    return typeof xml === 'string' && xml.includes('<GuiaAmil>') && xml.includes('</GuiaAmil>');
+    return (
+      typeof xml === 'string' &&
+      xml.includes('<GuiaAmil>') &&
+      xml.includes('</GuiaAmil>')
+    );
   }
 
   async enviarGuia(id: number, usuario: any) {
@@ -280,13 +294,22 @@ export class GuiaAmilService {
         where: { id: lote.id },
         data: { status: 'INVALIDO' },
       });
-      await prisma.guiaAmil.update({ where: { id }, data: { status: 'ERRO_VALIDACAO' } });
+      await prisma.guiaAmil.update({
+        where: { id },
+        data: { status: 'ERRO_VALIDACAO' },
+      });
       throw new Error('XML inválido');
     }
 
     const resposta = this.amilClientService
       ? await this.amilClientService.enviarLote(xml, lote.idempotencyKey || '')
-      : { sucesso: false, codigoErro: 'CLIENT_NOT_INJECTED', mensagemErro: 'Cliente Amil não configurado', statusHttp: 0, xmlRetorno: '' };
+      : {
+          sucesso: false,
+          codigoErro: 'CLIENT_NOT_INJECTED',
+          mensagemErro: 'Cliente Amil não configurado',
+          statusHttp: 0,
+          xmlRetorno: '',
+        };
 
     await prisma.transacaoAmil.create({
       data: {
