@@ -53,6 +53,15 @@ describe('GuiaAmilService', () => {
     expect(Array.isArray(result.data)).toBe(true);
   });
 
+  it('should test amil connection in mock mode', async () => {
+    process.env.AMIL_MOCK_MODE = 'true';
+
+    const result = await service.testarConexao();
+
+    expect(result.sucesso).toBe(true);
+    expect(result.mock).toBe(true);
+  });
+
   it('should create a draft guide', async () => {
     const create = jest.fn().mockResolvedValue({ id: 1, status: 'RASCUNHO' });
 

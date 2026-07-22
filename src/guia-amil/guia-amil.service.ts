@@ -171,6 +171,34 @@ export class GuiaAmilService {
     });
   }
 
+  async testarConexao() {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return {
+        sucesso: true,
+        mock: true,
+        mensagem: 'Conexão simulada com a Amil configurada com sucesso',
+      };
+    }
+
+    if (!this.amilClientService) {
+      return {
+        sucesso: false,
+        mock: false,
+        mensagem: 'Cliente Amil não configurado',
+      };
+    }
+
+    const resposta = await this.amilClientService.consultarProtocolo('mock-protocolo');
+
+    return {
+      sucesso: resposta.sucesso,
+      mock: false,
+      mensagem: resposta.sucesso ? 'Conexão com a Amil realizada com sucesso' : resposta.mensagemErro || 'Falha ao conectar com a Amil',
+      statusHttp: resposta.statusHttp,
+      detalhes: resposta,
+    };
+  }
+
   async prepararEnvio(id: number, usuario: any) {
     if (process.env.AMIL_MOCK_MODE === 'true') {
       return {
