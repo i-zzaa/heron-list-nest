@@ -82,51 +82,54 @@ export function getDates(
   intervaloSemana: number = 1,
   deleteDates: string[],
 ) {
-  // Crie uma matriz para armazenar as datas
-  let datas: string[] = [];
+  const datas: string[] = [];
+  const start = moment(startDate, 'YYYY-MM-DD').startOf('day');
+  const end = moment(endDate, 'YYYY-MM-DD').startOf('day');
+  const skipDates = new Set(
+    (deleteDates || []).map((d: string) => moment(d).format('YYYY-MM-DD')),
+  );
+  const normalizedInterval =
+    Number(intervaloSemana) > 0 ? Number(intervaloSemana) : 1;
 
-  // console.log(startDate, endDate);
-  // Defina a data de início e a data final como objetos moment
-  const start = momentBusinessDays(startDate); //.subtract(1);
-  const end = momentBusinessDays(endDate);
-  // const end = momentBusinessDays(endDate).add(1, 'days');
+  const weekDays = (diasDaSemana || [])
+    .map((day: string) => {
+      const parsed = Number(day);
 
-  // Defina um objeto moment para a próxima ocorrência do dia da semana especificado após a data de início
-  let dataAtual = start;
+      if (Number.isNaN(parsed)) {
+        return null;
+      }
 
-  // Itere enquanto a data atual for menor ou igual à data final
+      // Dias salvos no banco usam 1-7 (domingo-sabado).
+      // Aqui normalizamos para o padrao do moment: 0-6 (domingo-sabado).
+      if (parsed >= 1 && parsed <= 7) {
+        return (parsed - 1 + 7) % 7;
+      }
+
+      if (parsed >= 0 && parsed <= 6) {
+        return parsed;
+      }
+
+      return null;
+    })
+    .filter((day): day is number => day !== null);
+
+  const dataAtual = start.clone();
+
   while (dataAtual.isSameOrBefore(end)) {
-    // Adicione a data atual à matriz de datas
+    const diffDays = dataAtual.diff(start, 'days');
+    const weekOffset = Math.floor(diffDays / 7);
+    const isOnIntervalWeek = weekOffset % normalizedInterval === 0;
+    const isMatchingWeekday =
+      weekDays.length === 0 || weekDays.includes(dataAtual.day());
+    const dateFormatted = dataAtual.format('YYYY-MM-DD');
 
-    if (diasDaSemana.length) {
-      let diasPercorridos = 1;
-      diasDaSemana.map((day: string) => {
-        if (parseInt(day) == dataAtual.day()) {
-          datas.push(dataAtual.format('YYYY-MM-DD'));
-          dataAtual.nextBusinessDay();
-          diasPercorridos++;
-        }
-      });
-
-      if (diasPercorridos > 1) dataAtual.businessSubtract(diasPercorridos - 1);
-    } else {
-      datas.push(dataAtual.format('YYYY-MM-DD'));
+    if (isOnIntervalWeek && isMatchingWeekday && !skipDates.has(dateFormatted)) {
+      datas.push(dateFormatted);
     }
 
-    switch (intervaloSemana) {
-      case 1:
-        dataAtual = dataAtual.businessAdd(4);
-        break;
-      case 2:
-        dataAtual = dataAtual.businessAdd(10);
-        break;
-      case 3:
-        dataAtual = dataAtual.businessAdd(15);
-        break;
-    }
+    dataAtual.add(1, 'day');
   }
 
-  // Retorne a matriz de datas
   return datas;
 }
 
@@ -210,57 +213,23 @@ export function getDatesWhiteEvents(
   intervaloSemana: number = 1,
   events: any,
 ) {
-  // Crie uma matriz para armazenar as datas
-  let arrEvents: string[] = [];
+  const arrEvents: any[] = [];
+  const datas = getDates(
+    diasDaSemana,
+    startDate,
+    endDate,
+    intervaloSemana,
+    [],
+  );
 
-  // console.log(startDate, endDate);
-  // Defina a data de início e a data final como objetos moment
-  const start = momentBusinessDays(startDate);
-  const end = momentBusinessDays(endDate);
-
-  // Defina um objeto moment para a próxima ocorrência do dia da semana especificado após a data de início
-  let dataAtual = start;
-
-  // Itere enquanto a data atual for menor ou igual à data final
-  while (dataAtual.isSameOrBefore(end)) {
-    // Adicione a data atual à matriz de datas
-
-    const dataFim = moment(dataAtual).add(1, 'days').format('YYYY-MM-DD');
-    const newEvents = {
+  datas.forEach((dataInicio: string) => {
+    arrEvents.push({
       ...events,
-      dataInicio: dataAtual.format('YYYY-MM-DD'),
-      dataFim,
-    };
+      dataInicio,
+      dataFim: moment(dataInicio).add(1, 'days').format('YYYY-MM-DD'),
+    });
+  });
 
-    if (diasDaSemana.length) {
-      let diasPercorridos = 0;
-      diasDaSemana.map((day: string) => {
-        if (parseInt(day) == dataAtual.day()) {
-          arrEvents.push(newEvents);
-          dataAtual.nextBusinessDay();
-          diasPercorridos++;
-        }
-      });
-
-      if (diasPercorridos > 1) dataAtual.businessSubtract(diasPercorridos);
-    } else {
-      arrEvents.push(newEvents);
-    }
-
-    switch (intervaloSemana) {
-      case 1:
-        dataAtual = dataAtual.businessAdd(5);
-        break;
-      case 2:
-        dataAtual = dataAtual.businessAdd(10);
-        break;
-      case 3:
-        dataAtual = dataAtual.businessAdd(15);
-        break;
-    }
-  }
-
-  // Retorne a matriz de datas
   return arrEvents;
 }
 
