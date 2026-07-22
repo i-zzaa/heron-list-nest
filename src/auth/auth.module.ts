@@ -15,9 +15,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
     ConfigModule.forRoot(),
     PassportModule,
     JwtModule.register({
-      privateKey: process.env.JWT_PRIVATE_KEY,
+      privateKey: process.env.JWT_PRIVATE_KEY || 'dev-secret-key',
       signOptions: {
-        expiresIn: process.env.EXPIRES_IN_SECONDS,
+        expiresIn: process.env.EXPIRES_IN_SECONDS || '1h',
       },
     }),
   ],

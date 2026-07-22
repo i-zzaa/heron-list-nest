@@ -17,18 +17,14 @@ export class AmilClientService {
     }
 
     try {
-      const response = await axios.post(
-        this.baseUrl,
-        xml,
-        {
-          timeout: this.timeout,
-          headers: {
-            'Content-Type': 'application/xml',
-            'X-Idempotency-Key': idempotencyKey,
-            'X-Soap-Action': process.env.AMIL_SOAP_ACTION_LOTE || '',
-          },
+      const response = await axios.post(this.baseUrl, xml, {
+        timeout: this.timeout,
+        headers: {
+          'Content-Type': 'application/xml',
+          'X-Idempotency-Key': idempotencyKey,
+          'X-Soap-Action': process.env.AMIL_SOAP_ACTION_LOTE || '',
         },
-      );
+      });
 
       return {
         sucesso: true,

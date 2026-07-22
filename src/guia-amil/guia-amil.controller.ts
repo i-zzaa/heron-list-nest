@@ -72,7 +72,11 @@ export class GuiaAmilController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: any, @Response() res: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Response() res: any,
+  ) {
     try {
       const data = await this.service.update(Number(id), body);
       responseSuccess(res, data);
@@ -82,9 +86,16 @@ export class GuiaAmilController {
   }
 
   @Post(':id/preparar-envio')
-  async prepararEnvio(@Param('id') id: string, @Request() req: any, @Response() res: any) {
+  async prepararEnvio(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Response() res: any,
+  ) {
     try {
-      const data = await this.service.prepararEnvio(Number(id), req.headers.iduser);
+      const data = await this.service.prepararEnvio(
+        Number(id),
+        req.headers.iduser,
+      );
       responseSuccess(res, data);
     } catch (error) {
       responseError(res);
@@ -92,9 +103,16 @@ export class GuiaAmilController {
   }
 
   @Post(':id/enviar')
-  async enviar(@Param('id') id: string, @Request() req: any, @Response() res: any) {
+  async enviar(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Response() res: any,
+  ) {
     try {
-      const data = await this.service.enviarGuia(Number(id), req.headers.iduser);
+      const data = await this.service.enviarGuia(
+        Number(id),
+        req.headers.iduser,
+      );
       responseSuccess(res, data);
     } catch (error) {
       responseError(res);

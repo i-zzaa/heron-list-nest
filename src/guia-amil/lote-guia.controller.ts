@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Request, Response, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Request,
+  Response,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { responseError, responseSuccess } from 'src/util/response';
 import { GuiaAmilService } from './guia-amil.service';
@@ -9,9 +18,17 @@ export class LoteGuiaController {
   constructor(private readonly service: GuiaAmilService) {}
 
   @Post('enviar')
-  async enviarLote(@Body() body: any, @Request() req: any, @Response() res: any) {
+  async enviarLote(
+    @Body() body: any,
+    @Request() req: any,
+    @Response() res: any,
+  ) {
     try {
-      const data = await this.service.criarLote(body.guiaIds || [], body.origem || 'MANUAL', req.headers.iduser);
+      const data = await this.service.criarLote(
+        body.guiaIds || [],
+        body.origem || 'MANUAL',
+        req.headers.iduser,
+      );
       responseSuccess(res, data);
     } catch (error) {
       responseError(res);

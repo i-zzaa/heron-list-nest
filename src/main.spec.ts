@@ -1,4 +1,8 @@
-import { getAvailablePort, setupRuntimeCompat, setupShutdownHooks } from './main';
+import {
+  getAvailablePort,
+  setupRuntimeCompat,
+  setupShutdownHooks,
+} from './main';
 
 describe('setupRuntimeCompat', () => {
   it('should define global File when it is missing', () => {
@@ -15,9 +19,13 @@ describe('setupRuntimeCompat', () => {
   });
 
   it('should register shutdown hooks', () => {
-    const processOnSpy = jest.spyOn(process, 'on').mockImplementation(() => process);
+    const processOnSpy = jest
+      .spyOn(process, 'on')
+      .mockImplementation(() => process);
 
-    setupShutdownHooks({ close: jest.fn().mockResolvedValue(undefined) } as any);
+    setupShutdownHooks({
+      close: jest.fn().mockResolvedValue(undefined),
+    } as any);
 
     expect(processOnSpy).toHaveBeenCalled();
     processOnSpy.mockRestore();
@@ -41,7 +49,9 @@ describe('setupRuntimeCompat', () => {
       return server;
     });
 
-    await expect(getAvailablePort(3000)).rejects.toThrow('Port 3000 is already in use');
+    await expect(getAvailablePort(3000)).rejects.toThrow(
+      'Port 3000 is already in use',
+    );
 
     net.createServer = originalCreateServer;
   });

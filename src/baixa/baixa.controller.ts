@@ -29,8 +29,9 @@ export class BaixaController {
     try {
       const page = Number(req.query.page) || 1;
       const pageSize = Number(req.query.pageSize) || 10;
+      const filterBody = Body && Object.keys(Body).length ? Body : {};
 
-      const data = await this.baixaService.getAll(page, pageSize, Body);
+      const data = await this.baixaService.getAll(page, pageSize, filterBody);
       responseSuccess(response, data);
     } catch (error) {
       console.log(error);
