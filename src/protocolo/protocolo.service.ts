@@ -7,6 +7,7 @@ import {
 } from './protocolo';
 import { VALOR_PORTAGE, VBMAPP } from 'src/util/util';
 import { dateFormatDDMMYYYY, formatadataPadraoBD } from 'src/util/format-date';
+import { getPrismaClient } from 'src/util/crud';
 
 export enum TIPO_PROTOCOLO_ENUM {
   portage = 1,
@@ -115,16 +116,17 @@ export class ProtocoloService {
     const result = {};
 
     data.forEach((item) => {
-      
-      const { estimuloDiscriminativo,
+      const {
+        estimuloDiscriminativo,
         respostaSessao,
-        resposta              ,
+        resposta,
         estimuloReforcadorPositivo,
         procedimentoEnsinoId,
-        subitems, } = item;
+        subitems,
+      } = item;
 
-        const { programa, id, nome, nivel } = item.vbmapp;
-
+      const { id, nome, nivel } = item.vbmapp;
+      const programa = item.vbmapp.programa.nome;
 
       const selected = respostaSessao;
 
@@ -149,7 +151,7 @@ export class ProtocoloService {
           nivel,
           programa,
           estimuloDiscriminativo,
-          resposta              ,
+          resposta,
           estimuloReforcadorPositivo,
           procedimentoEnsinoId,
           respostaSessao,
@@ -173,10 +175,10 @@ export class ProtocoloService {
       const list1 = data1[key] || [];
       const list2 = data2[key] || [];
 
-    //   if (key === 'mando') {
-    // console.log(data1);
-        
-    //   }
+      //   if (key === 'mando') {
+      // console.log(data1);
+
+      //   }
 
       // Cria um mapa para mesclar os itens por id, prevalecendo os do segundo array
       const map = new Map();
@@ -190,8 +192,6 @@ export class ProtocoloService {
       // Converte o mapa em um array e adiciona à chave correspondente
       mergedData[key] = Array.from(map.values());
     });
-
-    
 
     return mergedData;
   };
@@ -229,8 +229,18 @@ export class ProtocoloService {
     return respostasCompletas;
   }
 
+  private buildPacienteFilter(
+    pacienteId: number,
+    extraWhere: Record<string, any> = {},
+  ) {
+    return {
+      pacienteId,
+      ...extraWhere,
+    };
+  }
+
   async filter(body: any, page: number, pageSize: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:
@@ -247,11 +257,9 @@ export class ProtocoloService {
               },
             },
           },
-          where: {
-            pacienteId: body.pacienteId,
-          },
+          where: this.buildPacienteFilter(body.pacienteId),
           orderBy: {
-            id: 'desc', 
+            id: 'desc',
           },
           take: 3,
         });
@@ -273,19 +281,25 @@ export class ProtocoloService {
           if (Boolean(resultPortage[1])) {
             ref.resposta2 = resultPortage[1].respostaPortage;
             headers.push(
-              `Reavaliação ${dateFormatDDMMYYYY(resultPortage[1].respostaPortageDate)}`,
+              `Reavaliação ${dateFormatDDMMYYYY(
+                resultPortage[1].respostaPortageDate,
+              )}`,
             );
           }
           if (Boolean(resultPortage[2])) {
             ref.resposta3 = resultPortage[2].respostaPortage;
             headers.push(
-              `Reavaliação ${dateFormatDDMMYYYY(resultPortage[2].respostaPortageDate)}`,
+              `Reavaliação ${dateFormatDDMMYYYY(
+                resultPortage[2].respostaPortageDate,
+              )}`,
             );
           }
           if (Boolean(resultPortage[3])) {
             ref.resposta4 = resultPortage[3].respostaPortage;
             headers.push(
-              `Reavaliação ${dateFormatDDMMYYYY(resultPortage[3].respostaPortageDate)}`,
+              `Reavaliação ${dateFormatDDMMYYYY(
+                resultPortage[3].respostaPortageDate,
+              )}`,
             );
           }
 
@@ -310,9 +324,7 @@ export class ProtocoloService {
 
       case TIPO_PROTOCOLO_ENUM.pei:
         const result = await prisma.pei.findMany({
-          where: {
-            pacienteId: body.pacienteId,
-          },
+          where: this.buildPacienteFilter(body.pacienteId),
         });
 
         return result;
@@ -381,10 +393,12 @@ export class ProtocoloService {
       // Percorre cada faixa etária dentro do portage
       for (const faixaEtaria in faixasEtarias) {
         const atividades = faixasEtarias[faixaEtaria];
-        
+
         // Filtra as atividades removendo aquelas que têm selected === "1"
         const filteredAtividades = atividades.filter(
-          (activity) => activity.hasOwnProperty('selected') && activity.selected !== VALOR_PORTAGE.sim ,
+          (activity) =>
+            activity.hasOwnProperty('selected') &&
+            activity.selected !== VALOR_PORTAGE.sim,
         );
 
         // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
@@ -405,39 +419,44 @@ export class ProtocoloService {
   convertToTreeStructure(filteredData: any) {
     const result = [];
     let metaIndex = 0; // Contador para meta
-  
+
     // Percorre o portage (ex: "Cognição", "Socialização")
     for (const programa in filteredData) {
       const faixasEtarias = filteredData[programa];
-  
+
       // Percorre as faixas etárias dentro do portage
       for (const faixaEtaria in faixasEtarias) {
         const atividades = faixasEtarias[faixaEtaria];
         const children = [];
         let subItemIndex = 0; // Contador para sub-item dentro de cada meta
-  
+
         // Percorre cada atividade dentro da faixa etária
         atividades.forEach((activity, index) => {
           // Gera a chave base para o item atual
           const itemKey = `${metaIndex}-meta-${index}-sub-item-${subItemIndex}`;
-  
+
           // Cria o nó do item pai
           const node: any = {
             key: itemKey,
             label: activity.nome,
           };
-  
+
           // Se houver subitems preenchidos, adiciona-os como children
-          if (activity.subitems && Array.isArray(activity.subitems) && activity.subitems.length > 0) {
+          if (
+            activity.subitems &&
+            Array.isArray(activity.subitems) &&
+            activity.subitems.length > 0
+          ) {
             node.permiteSubitens = true;
             node.children = []; // Cria o array para os subitens
 
-            node.procedimentoEnsinoId = activity.procedimentoEnsinoId
-            node.estimuloDiscriminativo = activity.estimuloDiscriminativo
-            node.estimuloReforcadorPositivo = activity.estimuloReforcadorPositivo
-            node.resposta = activity.resposta
-            node.programaId = activity.programaId
-  
+            node.procedimentoEnsinoId = activity.procedimentoEnsinoId;
+            node.estimuloDiscriminativo = activity.estimuloDiscriminativo;
+            node.estimuloReforcadorPositivo =
+              activity.estimuloReforcadorPositivo;
+            node.resposta = activity.resposta;
+            node.programaId = activity.programaId;
+
             activity.subitems.forEach((subitem, subIndex) => {
               // Gera uma chave para cada subitem (pode ser ajustado conforme a necessidade)
               const subItemKey = `${itemKey}-${subIndex}`;
@@ -447,28 +466,86 @@ export class ProtocoloService {
               });
             });
           }
-  
+
           children.push(node);
           subItemIndex++; // Incrementa o contador de sub-item
         });
-  
+
         // Adiciona o nó de meta com os children (atividades) processados
         result.push({
           key: `${metaIndex}-meta`, // Chave da meta
           label: `${programa} ${faixaEtaria}`,
           children: children,
         });
-  
+
         metaIndex++; // Incrementa o contador de meta
       }
     }
-  
+
     return result;
   }
 
-  async filterMeta(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+  // const vbmappResposta = this.formatDataVBMapMeta(resultVBMapp);
+  // const vbmappRespostaOrdenado = sortVBMappRespostaDeep(vbmappResposta);
 
+  sortVBMappRespostaDeep(data: any[]) {
+    const alpha = new Intl.Collator('pt-BR', {
+      sensitivity: 'base',
+      numeric: true,
+    });
+
+    const asArray = (maybeArrOrObj: any) =>
+      Array.isArray(maybeArrOrObj)
+        ? maybeArrOrObj
+        : Object.values(maybeArrOrObj ?? {});
+
+    const getNivelNum = (key?: string, label?: string) => {
+      const s = String(key ?? '');
+      let m = s.match(/^(\d+)-nivel$/i) || s.match(/^nivel-(\d+)$/i);
+      if (!m && label) m = String(label).match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+    };
+
+    // Ordena subitens (children das metas)
+    const sortSubitens = (meta: any) => {
+      const subitens = asArray(meta.children)
+        .slice()
+        .sort((a: any, b: any) =>
+          alpha.compare(a?.label ?? '', b?.label ?? ''),
+        );
+      return { ...meta, children: subitens };
+    };
+
+    // Ordena metas dentro de cada programa (e já ordena seus subitens)
+    const sortMetas = (programa: any) => {
+      const metas = asArray(programa.children)
+        .slice()
+        .sort((a: any, b: any) => alpha.compare(a?.label ?? '', b?.label ?? ''))
+        .map(sortSubitens);
+      return { ...programa, children: metas };
+    };
+
+    // Ordena programas dentro de cada nível (e já ordena metas/subitens)
+    const sortProgramas = (nivel: any) => {
+      const programas = asArray(nivel.children)
+        .slice()
+        .sort((a: any, b: any) => alpha.compare(a?.label ?? '', b?.label ?? ''))
+        .map(sortMetas);
+      return { ...nivel, children: programas };
+    };
+
+    // Ordena níveis (1, 2, 3...) e encadeia ordenação interna
+    return (data ?? [])
+      .slice()
+      .sort(
+        (a: any, b: any) =>
+          getNivelNum(a.key, a.label) - getNivelNum(b.key, b.label),
+      )
+      .map(sortProgramas);
+  }
+
+  async filterMeta(body: any) {
+    const prisma = getPrismaClient(this.prismaService);
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:
         const resultPortage = await prisma.portage.findFirst({
@@ -482,13 +559,11 @@ export class ProtocoloService {
               },
             },
           },
-          where: {
-            pacienteId: body.pacienteId,
-          },
+          where: this.buildPacienteFilter(body.pacienteId),
           orderBy: {
             id: 'desc',
           },
-        });        
+        });
 
         if (!resultPortage) {
           return [];
@@ -498,7 +573,7 @@ export class ProtocoloService {
         const portage: any = {
           paciente: body.pacienteId,
           id: oneResult.id,
-          portage: oneResult.respostaPortage
+          portage: oneResult.respostaPortage,
         };
 
         const filter = this.filterDataBySelected(portage.portage);
@@ -509,104 +584,159 @@ export class ProtocoloService {
 
       case TIPO_PROTOCOLO_ENUM.pei:
         const result = await prisma.pei.findMany({
-          where: {
-            pacienteId: body.pacienteId,
-          },
+          where: this.buildPacienteFilter(body.pacienteId),
         });
 
         return result;
 
       case TIPO_PROTOCOLO_ENUM.vbMapp:
-        const resultVBMapp = await prisma.vBMappResultado.findMany({
+        const rows = await prisma.vBMappResultado.findMany({
           select: {
             id: true,
             respostaSessao: true,
-            vbmapp: true,
-            createdAt: true,
-
-            estimuloDiscriminativo : true,
-            resposta               : true,
-            estimuloReforcadorPositivo: true,
-            procedimentoEnsinoId: true,
-          
-            subitems: true,
-
-            paciente: {
+            vbmapp: {
               select: {
+                programa: true,
                 id: true,
+                createdAt: true,
+                nivel: true,
                 nome: true,
               },
             },
+            createdAt: true,
+            estimuloDiscriminativo: true,
+            resposta: true,
+            estimuloReforcadorPositivo: true,
+            procedimentoEnsinoId: true,
+            subitems: true,
+            paciente: { select: { id: true, nome: true } },
           },
-          where: {
-            pacienteId: body.pacienteId,
-            NOT: {
-              resposta: VBMAPP.um.toString(),
-            },
-          },
+          where: this.buildPacienteFilter(body.pacienteId, {
+            NOT: { respostaSessao: VBMAPP.um.toString() },
+          }),
+          // pega a MAIS NOVA por vbmappId
+          orderBy: [
+            { vbmappId: 'asc' }, // garante determinismo por chave
+            { createdAt: 'desc' }, // a 1ª por vbmappId será a mais recente
+          ],
+          distinct: ['vbmappId'], // 1 linha por meta
         });
 
-        return this.formatDataVBMapMeta(resultVBMapp);
+        // exibição: mais novas primeiro
+        const resultVBMapp = rows.sort((a, b) => +b.createdAt - +a.createdAt);
+        const vbmappResposta: any = this.formatDataVBMapMeta(resultVBMapp);
+
+        const resultFinal = this.sortVBMappRespostaDeep(vbmappResposta);
+
+        return resultFinal;
     }
   }
 
-   formatDataVBMapMeta(dataArray: any[]): any[] {
-    const groupedData = dataArray.reduce((acc, item) => {
-      const { nivel, programa, id, nome } = item.vbmapp;
-      const { respostaSessao, subitems } = item;
-  
+  formatDataVBMapMeta(
+    dataArray: any[],
+    metasJaAdicionadasIds: number[] = [],
+  ): any[] {
+    const adicionadasSet = new Set(metasJaAdicionadasIds);
+
+    const grouped = dataArray.reduce((acc: any, item: any) => {
+      const { nivel, id, nome } = item.vbmapp;
+      const programa = item.vbmapp.programa.nome;
+      const {
+        subitems,
+        procedimentoEnsinoId,
+        estimuloReforcadorPositivo,
+        resposta,
+        estimuloDiscriminativo,
+      } = item;
+
+      // Se a meta já foi adicionada (opcional), ignora
+      if (adicionadasSet.has(id)) return acc;
+
       const nivelKey = `nivel-${nivel}`;
       const programaKey = `programa-${programa}`;
       const metaKey = `meta-${id}`;
-  
-      // Verifica se o nível já existe no acumulador
+
+      // Nível
       if (!acc[nivelKey]) {
         acc[nivelKey] = {
           key: `${nivel}-nivel`,
           label: `Nível ${nivel}`,
-          children: {},
+          children: {}, // mapa de programas
         };
       }
-  
-      // Verifica se o programa já existe dentro do nível
-      if (!acc[nivelKey].children[programaKey]) {
-        acc[nivelKey].children[programaKey] = {
-          key: `${nivel}-nivel-${id}-programa-${programa}`,
-          label: `${programa.charAt(0).toUpperCase() + programa.slice(1)}`,
-          children: [],
+      const nivelNode = acc[nivelKey];
+
+      // Programa
+      if (!nivelNode.children[programaKey]) {
+        nivelNode.children[programaKey] = {
+          procedimentoEnsinoId,
+          estimuloReforcadorPositivo,
+          resposta,
+          estimuloDiscriminativo,
+          key: `${nivel}-nivel-programa-${programa}`,
+          label: programa
+            ? programa.charAt(0).toUpperCase() + programa.slice(1)
+            : '',
+          children: {}, // mapa de metas
         };
       }
-  
-      // Cria o objeto da meta
-      const metaObj: any = {
-        key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}`,
-        label: nome,
-      };
-  
-      // Se houver subitems, adiciona um children
-      if (subitems && subitems.length > 0) {
-        // metaObj.permiteSubitens = true
-           
-        metaObj.children = subitems.map((subitem: any, index: number) => ({
-          key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-subitem-${index}`,
-          label: subitem.nome,
-          permiteSubitens: true
-        }));
+      const programaNode = nivelNode.children[programaKey];
+
+      // Meta (dedupe por id)
+      if (!programaNode.children[metaKey]) {
+        programaNode.children[metaKey] = {
+          key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}`,
+          label: nome,
+          // usaremos childrenMap para dedupe de subitens
+          childrenMap: {} as Record<string, any>,
+        };
       }
-  
-      // Adiciona a meta dentro do programa
-      acc[nivelKey].children[programaKey].children.push(metaObj);
-  
+      const metaNode = programaNode.children[metaKey];
+
+      // Subitens (mantém regra atual: remover os com selected == VBMAPP.um)
+      if (Array.isArray(subitems) && subitems.length) {
+        subitems
+          .filter((s: any) => s.selected != VBMAPP.um)
+          .forEach((sub: any, index: number) => {
+            const subKey = sub.id
+              ? `subitem-${sub.id}`
+              : `subitem-${index}-${sub.nome}`;
+
+            if (!metaNode.childrenMap[subKey]) {
+              metaNode.childrenMap[subKey] = {
+                key: `${nivel}-nivel-${id}-programa-${programa}-${metaKey}-${subKey}`,
+                label: sub.nome,
+                permiteSubitens: true,
+              };
+            } else {
+              // Se precisar atualizar label/props ao mesclar, faça aqui
+              metaNode.childrenMap[subKey].label = sub.nome;
+            }
+          });
+      }
+
       return acc;
     }, {});
-  
-    // Converte o objeto para array
-    return Object.values(groupedData).map((nivel: any) => ({
-      ...nivel,
-      children: Object.values(nivel.children),
-    }));
+
+    // Converte mapas -> arrays
+    return Object.values(grouped).map((nivelNode: any) => {
+      const programas = Object.values(nivelNode.children).map((prog: any) => {
+        const metas = Object.values(prog.children).map((meta: any) => {
+          const out: any = { key: meta.key, label: meta.label };
+          const children = meta.childrenMap
+            ? Object.values(meta.childrenMap)
+            : [];
+          if (children.length) {
+            out.children = children;
+            out.permiteSubitens = true;
+          }
+          return out;
+        });
+        return { ...prog, children: metas };
+      });
+      return { ...nivelNode, children: programas };
+    });
   }
-  
 
   async createOrUpdatePostage(body: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
@@ -641,7 +771,8 @@ export class ProtocoloService {
 
   groupedData(data: any) {
     return data.reduce((acc, item) => {
-      const { programa, faixaEtaria } = item;
+      const { faixaEtaria } = item;
+      const programa = item.programa.nome;
 
       // Verifica se a chave portage já existe
       if (!acc[programa]) {
@@ -666,20 +797,23 @@ export class ProtocoloService {
       select: {
         id: true,
         nome: true,
-        programa: true,
+        programa: {
+          select: {
+            nome: true,
+            id: true,
+          },
+        },
         permiteSubitens: true,
         faixaEtaria: true,
-      }
+      },
     });
 
     return this.groupedData(result);
-
-
   }
 
   agrupadoPorPrograma(atividades: any) {
     return atividades.reduce((acc, atividade) => {
-      const programaNome = atividade.programa;
+      const programaNome = atividade.programa.nome;
 
       if (!acc[programaNome]) {
         acc[programaNome] = [];
@@ -713,23 +847,18 @@ export class ProtocoloService {
 
   async vbmapCreate(dados, terapeutaId) {
     const prisma = this.prismaService.getPrismaClient();
-    
 
     try {
       for (const programa in dados.vbmapp) {
-
         for (const atividade of dados.vbmapp[programa]) {
-    
           if (atividade.selected !== undefined) {
-            let complemento = {}
+            let complemento = {};
 
             if (atividade?.subitems && atividade?.subitems?.length) {
               complemento = {
-  
-                subitems: atividade.subitems
-              }
+                subitems: atividade.subitems,
+              };
             }
-
 
             await prisma.vBMappResultado.create({
               data: {
@@ -738,10 +867,11 @@ export class ProtocoloService {
                 pacienteId: dados.pacienteId,
                 usuarioId: Number(terapeutaId),
                 estimuloDiscriminativo: atividade?.estimuloDiscriminativo,
-                estimuloReforcadorPositivo: atividade?.estimuloReforcadorPositivo,
+                estimuloReforcadorPositivo:
+                  atividade?.estimuloReforcadorPositivo,
                 procedimentoEnsinoId: atividade?.procedimentoEnsinoId,
                 resposta: atividade?.resposta,
-                ...complemento
+                ...complemento,
               },
             });
           }
@@ -826,13 +956,20 @@ export class ProtocoloService {
         id: true,
         respostaSessao: true,
 
-        estimuloDiscriminativo     : true,
-        resposta                   : true,
-        estimuloReforcadorPositivo : true,
-        procedimentoEnsinoId  : true,
-        subitems : true,
+        estimuloDiscriminativo: true,
+        resposta: true,
+        estimuloReforcadorPositivo: true,
+        procedimentoEnsinoId: true,
+        subitems: true,
 
-        vbmapp: true,
+        vbmapp: {
+          select: {
+            programa: true,
+            id: true,
+            nome: true,
+            nivel: true,
+          },
+        },
         createdAt: true,
         paciente: {
           select: {
@@ -842,9 +979,9 @@ export class ProtocoloService {
           },
         },
       },
-      where: {
-        pacienteId: filter.pacienteId,
-        ...vbmapp,
+      where: this.buildPacienteFilter(filter.pacienteId, vbmapp),
+      orderBy: {
+        createdAt: 'desc',
       },
     });
 

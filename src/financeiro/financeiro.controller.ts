@@ -12,6 +12,7 @@ export class FinanceiroController {
   async terapeuta(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.financeiroService.terapeuta(body);
+      console.log('data', data);
       responseSuccess(response, data);
     } catch (error) {
       console.log(error);

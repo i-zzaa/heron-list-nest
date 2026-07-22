@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { PermissaoProps } from './permissao.interface';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { toNumberId } from 'src/util/normalizers';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class PermissaoService {
@@ -11,7 +14,7 @@ export class PermissaoService {
   ) {}
 
   async getPermissaoUser(login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const { id, grupoPermissaoId } = await this.userService.getUser(login);
     const permissoes = await prisma.grupoPermissaoOnPermissao.findMany({
@@ -37,7 +40,7 @@ export class PermissaoService {
   }
 
   async getAll() {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.permissao.findMany({
       select: {
@@ -52,7 +55,7 @@ export class PermissaoService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.permissao.findMany({
       select: {
@@ -62,41 +65,25 @@ export class PermissaoService {
       orderBy: {
         cod: 'asc',
       },
-      where: {
-        OR: [
-          {
-            cod: {
-              contains: word,
-            },
-          },
-          {
-            descricao: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      where: buildTextSearchWhere(word, ['cod', 'descricao']),
     });
   }
 
   async create(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.permissao.create({
-      data: body,
+      data: buildCreatePayload(body, ['cod', 'descricao']),
     });
   }
 
   async update(body: PermissaoProps) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.permissao.update({
-      data: {
-        cod: body.cod,
-        descricao: body.descricao,
-      },
+      data: buildCreatePayload(body, ['cod', 'descricao']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }

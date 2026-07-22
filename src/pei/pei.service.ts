@@ -1,8 +1,35 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { METAS, PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
 import { TIPO_PROTOCOLO, TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
+import { buildPacienteFilter } from 'src/util/filters';
 import { VALOR_PORTAGE } from 'src/util/util';
+import { buildCreatePayload } from 'src/util/crud';
+
+type TreeNode = {
+  key: string | number;
+  label?: string;
+  children?: TreeNode[];
+  subitems?: TreeNode[];
+  [k: string]: any;
+};
+
+type SelectionKeys = Record<
+  string,
+  boolean | { checked?: boolean; partialChecked?: boolean }
+>;
+
+type MaintenanceObject = {
+  manual?: TreeNode[];
+  vbmapp?: TreeNode[];
+  portage?: TreeNode[];
+};
+
+type SelectedMaintenanceByCategory = {
+  manual?: SelectionKeys;
+  vbmapp?: SelectionKeys;
+  portage?: SelectionKeys;
+};
 
 @Injectable()
 export class PeiService {
@@ -11,14 +38,28 @@ export class PeiService {
   async create(body: any, terapeutaId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
-    await prisma.pei.create({
-      data: {
-        ...body,
-        // metas: JSON.stringify(body.metas),
-        metas: body.metas,
-        terapeutaId: Number(terapeutaId),
-      },
-    });
+    try {
+      await prisma.pei.create({
+        data: buildCreatePayload(
+          {
+            ...body,
+            terapeutaId: Number(terapeutaId),
+          },
+          [
+            'estimuloDiscriminativo',
+            'estimuloReforcadorPositivo',
+            'pacienteId',
+            'procedimentoEnsinoId',
+            'programaId',
+            'resposta',
+            'metas',
+            'terapeutaId',
+          ],
+        ),
+      });
+    } catch (error) {
+      throw new HttpException(error, HttpStatus.NOT_FOUND);
+    }
   }
 
   async delete(programaId: number) {
@@ -34,47 +75,47 @@ export class PeiService {
   async filtro({ paciente, protocoloId, notSelected = [] }: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    switch (protocoloId.id) {
-      case TIPO_PROTOCOLO_ID.pei :
-        const resultPei =  await prisma.pei.findMany({
-          select: {
-            id: true,
-            estimuloDiscriminativo: true,
-            estimuloReforcadorPositivo: true,
-            procedimentoEnsinoId: true,
-            metas: true,
-            programa: {
-              select: {
-                nome: true,
-                id: true,
+    const protocoloIdCurrent =
+      typeof protocoloId == 'object' ? protocoloId.id : protocoloId;
+
+    switch (protocoloIdCurrent) {
+      case TIPO_PROTOCOLO_ID.pei:
+        try {
+          const resultPei = await prisma.pei.findMany({
+            select: {
+              id: true,
+              estimuloDiscriminativo: true,
+              estimuloReforcadorPositivo: true,
+              procedimentoEnsinoId: true,
+              metas: true,
+              programa: {
+                select: {
+                  nome: true,
+                  id: true,
+                },
+              },
+              resposta: true,
+              paciente: {
+                select: {
+                  nome: true,
+                  id: true,
+                },
               },
             },
-            resposta: true,
-            terapeuta: true,
-            paciente: {
-              select: {
-                nome: true,
-                id: true,
-              },
-            },
-          },
-          where: {
-            pacienteId: Number(paciente.id),
-          },
-        });
+            where: buildPacienteFilter(paciente.id),
+          });
 
-        resultPei.map((item: any) => {
-          // item.metas = JSON.parse(item.metas);
-          // item.metas = item.metas;
-          item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
-            (pe: any) => pe.id === item.procedimentoEnsinoId,
-          )[0];
-        });
-    
-        return resultPei;
-        
-      case TIPO_PROTOCOLO_ID.portage :
+          resultPei.map((item: any) => {
+            item.procedimentoEnsino = PROCEDIMENTO_ENSINO.filter(
+              (pe: any) => pe.id === item.procedimentoEnsinoId,
+            )[0];
+          });
 
+          return resultPei;
+        } catch (error) {
+          console.log(error);
+        }
+      case TIPO_PROTOCOLO_ID.portage:
         const resultPortage = await prisma.portage.findFirst({
           select: {
             id: true,
@@ -86,9 +127,7 @@ export class PeiService {
               },
             },
           },
-          where: {
-            pacienteId:  Number(paciente.id),
-          },
+          where: buildPacienteFilter(paciente.id),
           orderBy: {
             id: 'desc',
           },
@@ -107,22 +146,25 @@ export class PeiService {
         portage.portage = oneResult.respostaPortage;
 
         const filter = this.filterDataBySelected(portage.portage, notSelected);
-        const convertToTreeStructure = this.formatJsonPortageTelaPEI(filter, paciente)
+        const convertToTreeStructure = await this.formatJsonPortageTelaPEI(
+          filter,
+          paciente,
+        );
 
-        return convertToTreeStructure
-    
+        return convertToTreeStructure;
+
       default:
         const result = await prisma.vBMappResultado.findMany({
           select: {
             id: true,
             respostaSessao: true,
-    
-            estimuloDiscriminativo     : true,
-            resposta                   : true,
-            estimuloReforcadorPositivo : true,
-            procedimentoEnsinoId  : true,
-            subitems : true,
-    
+
+            estimuloDiscriminativo: true,
+            resposta: true,
+            estimuloReforcadorPositivo: true,
+            procedimentoEnsinoId: true,
+            subitems: true,
+
             vbmapp: true,
             createdAt: true,
             paciente: {
@@ -133,112 +175,130 @@ export class PeiService {
               },
             },
           },
-          where: {
-            pacienteId: paciente.id,
-          },
+          where: buildPacienteFilter(paciente.id, {
+            respostaSessao: {
+              notIn: notSelected,
+            },
+          }),
         });
 
-        const transformDataFilterVBMapp = this.transformDataFilterVBMapp(result)
-        const vbmPEI = this.transformJsonVBPPEI(transformDataFilterVBMapp)
-      
-        return vbmPEI
+        const transformDataFilterVBMapp =
+          this.transformDataFilterVBMapp(result);
+        const vbmPEI = await this.transformJsonVBPPEI(
+          transformDataFilterVBMapp,
+        );
+
+        return vbmPEI;
     }
   }
 
-  transformJsonVBPPEI(inputJson: any): any {
+  async transformJsonVBPPEI(inputJson: any) {
     const transformedArray = [];
+    const prisma = this.prismaService.getPrismaClient();
 
     for (const programaNome in inputJson) {
-      if (inputJson.hasOwnProperty(programaNome)) {
-        const metasArray = inputJson[programaNome];
+      const metasArray = inputJson[programaNome];
 
-        metasArray.forEach(meta => {
-          const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter((item: any) => item.id === meta.procedimentoEnsinoId)
-          const transformedObject = {
-            ...meta,
-            id: meta.programaId, // Usando o programaId como ID
-            permiteSubitens: meta.permiteSubitens,
+      const metaPreenchida = metasArray.find(
+        (m: any) =>
+          m.estimuloDiscriminativo ||
+          m.resposta ||
+          m.estimuloReforcadorPositivo,
+      );
 
-            metas: metasArray.map(m => ({
-              id: m.id,
-              name: "meta",
-              type: "input-add",
-              value: m.nome,
-              labelFor: "meta",
-              subitems: m.subitems && m.subitems.length > 0 ? 
-                m.subitems.map(subitem => ({
+      const metaReferencial = metaPreenchida || metasArray[0];
+
+      const {
+        estimuloDiscriminativo,
+        resposta,
+        estimuloReforcadorPositivo,
+        procedimentoEnsinoId,
+      } = metaReferencial;
+      const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(
+        (item: any) => item.id === procedimentoEnsinoId,
+      );
+
+      const transformedObject = {
+        ...metaReferencial,
+        permiteSubitens: metaReferencial?.permiteSubitens,
+        metas: metasArray.map((m: any) => ({
+          id: m.id,
+          name: 'meta',
+          type: 'input-add',
+          value: m.nome,
+          labelFor: 'meta',
+          subitems:
+            m.subitems && m.subitems.length > 0
+              ? m.subitems.map((subitem: any) => ({
                   id: subitem.id,
-                  name: "item",
-                  type: "input-add",
+                  name: 'item',
+                  type: 'input-add',
                   value: subitem.nome,
-                  labelFor: "item",
+                  labelFor: 'item',
                   buttonAdd: true,
-                  customCol: "col-span-5 sm:col-span-5",
-                  labelText: "Item"
-                })) : null,
-              buttonAdd: true,
-              customCol: "col-span-5 sm:col-span-5",
-              labelText: "Meta"
-            })),
-            programa: {
-              id: meta.programaId,
-              nome: programaNome
-            },
-            procedimentoEnsino          };
+                  customCol: 'col-span-5 sm:col-span-5',
+                  labelText: 'Item',
+                }))
+              : null,
+          buttonAdd: true,
+          customCol: 'col-span-5 sm:col-span-5',
+          labelText: 'Meta',
+        })),
+        programa: {
+          id: metaReferencial.programaId,
+          nome: programaNome,
+        },
+        estimuloDiscriminativo,
+        resposta,
+        estimuloReforcadorPositivo,
+        procedimentoEnsino,
+      };
 
-          transformedArray.push(transformedObject);
-        });
-      }
+      transformedArray.push(transformedObject);
     }
 
     return transformedArray;
   }
 
-
   transformDataFilterVBMapp(data: any[]) {
-    const result = {};
+    const result: any = {};
 
     data.forEach((item) => {
-      
-      const { estimuloDiscriminativo,
+      const {
+        estimuloDiscriminativo,
         respostaSessao,
-        resposta              ,
+        resposta,
         estimuloReforcadorPositivo,
         procedimentoEnsinoId,
-        subitems, } = item;
+        subitems,
+      } = item;
 
-        const { programa, id, nome, nivel } = item.vbmapp;
-
+      const { programa, id, nome, nivel } = item.vbmapp;
 
       const selected = respostaSessao;
 
-      // Inicializa a categoria do programa se ainda não existe
       if (!result[programa]) {
         result[programa] = [];
       }
 
-      // Verifica se o item já existe para evitar duplicatas
       const existingItem = result[programa].find((i) => i.id === id);
 
       if (existingItem) {
-        // Se já existe e `selected` ainda não foi definido, adiciona
         if (!existingItem.selected) {
           existingItem.selected = selected;
         }
       } else {
-        // Adiciona o item ao programa correspondente com ou sem `selected`
         result[programa].push({
           id,
           nome,
           nivel,
           programa,
           estimuloDiscriminativo,
-          resposta              ,
+          resposta,
           estimuloReforcadorPositivo,
           procedimentoEnsinoId,
           respostaSessao,
           subitems,
-
           ...(selected && { selected }),
         });
       }
@@ -247,129 +307,150 @@ export class PeiService {
     return result;
   }
 
-
   async formatJsonPortageTelaPEI(dados: any, paciente: any) {
-    const transformedArray = [];
+    const transformedArray: any[] = [];
     const prisma = this.prismaService.getPrismaClient();
-  
 
     for (const programaNome in dados) {
-      const [programa] =  await prisma.programa.findMany({
+      const [programa] = await prisma.programa.findMany({
         select: {
           id: true,
           nome: true,
         },
         where: {
-          nome: programaNome
-        }
+          nome: programaNome,
+        },
       });
 
-      const programaList = {
+      const programaList: any = {
         id: 29,
         permiteSubitens: true,
         procedimentoEnsinoId: 2,
-        estimuloDiscriminativo: "wrtttew",
-        estimuloReforcadorPositivo: "ttewt",
-        resposta: "Sentar e começar a brincar ",
+        estimuloDiscriminativo: '',
+        estimuloReforcadorPositivo: '',
+        resposta: '',
         metas: [],
         programa,
-        procedimentoEnsino: {}
-      }
+        procedimentoEnsino: {},
+      };
       const faixaEtariaObj = dados[programaNome];
 
       for (const faixaEtaria in faixaEtariaObj) {
         if (faixaEtariaObj.hasOwnProperty(faixaEtaria)) {
           const metas = faixaEtariaObj[faixaEtaria];
+          metas.forEach(async (meta) => {
+            if (meta.procedimentoEnsinoId) {
+              const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(
+                (item) => item.id === meta.procedimentoEnsinoId,
+              );
+              meta.procedimentoEnsino = procedimentoEnsino;
+            }
 
-          metas.forEach(async(meta) => {
-            const [procedimentoEnsino] = PROCEDIMENTO_ENSINO.filter(item => item.id === meta.procedimentoEnsinoId)
-
-            programaList.estimuloDiscriminativo = meta.estimuloDiscriminativo
-            programaList.procedimentoEnsinoId = meta.procedimentoEnsinoId
-            programaList.estimuloReforcadorPositivo = meta.estimuloReforcadorPositivo
-            programaList.resposta = meta.resposta
-            programaList.procedimentoEnsino = procedimentoEnsino || null
-            programaList.metas.push(
-              {
-                id: meta.id,
-                name: "meta",
-                type: "input-add",
-                value: meta.nome,
-                labelFor: "meta",
-                subitems: meta?.subitems ? meta.subitems.map(subitem => ({
-                  id: subitem.id,
-                  name: "item",
-                  type: "input-add",
-                  value: subitem.nome,
-                  labelFor: "item",
-                  buttonAdd: true,
-                  customCol: "col-span-5 sm:col-span-5",
-                  labelText: "Item"
-                })) : null,
-                buttonAdd: true,
-                customCol: "col-span-5 sm:col-span-5",
-                labelText: "Meta"
-              }
-            )
+            programaList.metas.push({
+              ...meta,
+              id: meta.id,
+              name: 'meta',
+              type: 'input-add',
+              value: meta.nome,
+              labelFor: 'meta',
+              subitems: meta?.subitems
+                ? meta.subitems.map((subitem) => ({
+                    id: subitem.id,
+                    name: 'item',
+                    type: 'input-add',
+                    value: subitem.nome,
+                    labelFor: 'item',
+                    buttonAdd: true,
+                    customCol: 'col-span-5 sm:col-span-5',
+                    labelText: 'Item',
+                  }))
+                : null,
+              buttonAdd: true,
+              customCol: 'col-span-5 sm:col-span-5',
+              labelText: 'Meta',
+            });
           });
         }
       }
 
-      transformedArray.push(programaList)
+      transformedArray.push(programaList);
     }
 
     return transformedArray;
   }
 
-    filterDataBySelected(data: any, notSelected: string[]) {
-      const result = {};
-  
-      // Percorre cada portage (ex: "Cognição", "Socialização")
-      for (const portage in data) {
-        const faixasEtarias = data[portage];
-        const filteredFaixasEtarias = {};
+  filterDataBySelected(data: any, notSelected: string[]) {
+    const result: any = {};
 
-        // Percorre cada faixa etária dentro do portage
-        for (const faixaEtaria in faixasEtarias) {
-          const atividades = faixasEtarias[faixaEtaria];
-  
-          // Filtra as atividades removendo aquelas que têm selected === "1"
-          let filteredAtividades = []
-          if (notSelected.length) {
-            filteredAtividades = atividades.filter(
-              (activity) => activity.hasOwnProperty('selected') && notSelected.includes(activity.selected) ,
-            );
-          }else {
-            filteredAtividades = atividades.filter(
-              (activity) => activity.hasOwnProperty('selected'),
-            );
-          }
+    for (const portage in data) {
+      const faixasEtarias = data[portage];
+      const filteredFaixasEtarias: any = {};
 
-          // Adiciona a faixa etária ao resultado se ainda tiver atividades válidas
-          if (filteredAtividades.length > 0) {
-            filteredFaixasEtarias[faixaEtaria] = filteredAtividades;
-          }
+      for (const faixaEtaria in faixasEtarias) {
+        const atividades = faixasEtarias[faixaEtaria];
+
+        let filteredAtividades: any[] = [];
+        if (notSelected.length) {
+          filteredAtividades = atividades
+            .map((activity: any) => {
+              const cloned = { ...activity };
+
+              if (Array.isArray(cloned.subitems)) {
+                cloned.subitems = cloned.subitems.filter(
+                  (sub: any) =>
+                    sub.hasOwnProperty('selected') &&
+                    !notSelected.includes(sub.selected),
+                );
+              }
+
+              return cloned;
+            })
+            .filter(
+              (activity: any) =>
+                activity.hasOwnProperty('selected') &&
+                !notSelected.includes(activity.selected),
+            );
+        } else {
+          filteredAtividades = atividades.filter((activity: any) =>
+            activity.hasOwnProperty('selected'),
+          );
         }
-  
-        // Adiciona o portage ao resultado se ainda tiver faixas etárias válidas
-        if (Object.keys(filteredFaixasEtarias).length > 0) {
-          result[portage] = filteredFaixasEtarias;
+
+        if (filteredAtividades.length > 0) {
+          filteredFaixasEtarias[faixaEtaria] = filteredAtividades;
         }
       }
-  
-      return result;
+
+      if (Object.keys(filteredFaixasEtarias).length > 0) {
+        result[portage] = filteredFaixasEtarias;
+      }
     }
 
-  async update({ data }: any) {
+    return result;
+  }
+
+  async update(body: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    // const payload = { ...data, metas: JSON.stringify(data.metas) };
-    const payload = { ...data, metas: data.metas };
-
     return await prisma.pei.update({
-      data: payload,
+      data: buildCreatePayload(
+        {
+          ...body,
+          id: body.id,
+        },
+        [
+          'estimuloDiscriminativo',
+          'estimuloReforcadorPositivo',
+          'pacienteId',
+          'procedimentoEnsinoId',
+          'programaId',
+          'resposta',
+          'metas',
+          'id',
+        ],
+      ),
       where: {
-        id: data.id,
+        id: body.id,
       },
     });
   }
@@ -389,6 +470,7 @@ export class PeiService {
         selectedPortageKeys: true,
 
         vbmapp: true,
+        selectedVbMappKeys: true,
       },
       where: {
         calendarioId,
@@ -406,8 +488,16 @@ export class PeiService {
         atividades: data.atividades,
         selectedKeys: data.selectedKeys,
 
-        maintenance: data.maintenance || [],
+        // Agora maintenance padrão é OBJETO
+        maintenance: data.maintenance || {},
         selectedMaintenanceKeys: data.selectedMaintenanceKeys || {},
+
+        selectedPortageKeys: data.selectedPortageKeys || {},
+        portage: data.portage || [],
+
+        selectedVbMappKeys: data.selectedVbMappKeys || {},
+        vbmapp: data.vbmapp || [],
+
         peisIds: JSON.stringify(data.peisIds),
       },
     });
@@ -420,16 +510,29 @@ export class PeiService {
       where: { calendarioId: data.calendario },
     });
 
+    if (!atividade) {
+      delete data.id;
+      return this.createAtividadeSessao(data, terapeutaId);
+    }
+
     return await prisma.atividadeSessao.update({
       data: {
         ...data,
         terapeutaId,
         atividades: data.atividades,
         selectedKeys: data.selectedKeys,
-        maintenance: data.maintenance,
-        selectedPortageKeys: data.selectedPortageKeys,
-        portage: data.portage,
-        selectedMaintenanceKeys: data.selectedMaintenanceKeys,
+
+        // OBJETO de manutenção e suas seleções por categoria
+        maintenance: data.maintenance || {},
+        selectedMaintenanceKeys: data.selectedMaintenanceKeys || {},
+
+        // Portage / VB-Mapp e seleções
+        selectedPortageKeys: data.selectedPortageKeys || {},
+        portage: data.portage || [],
+
+        selectedVbMappKeys: data.selectedVbMappKeys || {},
+        vbmapp: data.vbmapp || [],
+
         peisIds: JSON.stringify(data.peisIds),
       },
       where: {
@@ -438,80 +541,95 @@ export class PeiService {
     });
   }
 
-  // getAllKeys(arr: any) {
-  //   let current: string[] = [];
+  // ----------------- Helpers de filtragem -----------------
 
-  //   console.log(arr);
+  /** Normaliza maintenance para objeto com arrays */
+  private normalizeMaintenanceObject(raw: any): MaintenanceObject {
+    const safeArray = (v: any) => (Array.isArray(v) ? v : []);
+    if (!raw || typeof raw !== 'object')
+      return { manual: [], vbmapp: [], portage: [] };
+    return {
+      manual: safeArray(raw.manual),
+      vbmapp: safeArray(raw.vbmapp),
+      portage: safeArray(raw.portage),
+    };
+  }
 
-  //   arr.forEach((item: any) => {
-  //     current.push(item.key); // Pega a chave do item atual
+  /** Aplica filterTree por categoria e retorna maintenance como OBJETO filtrado */
+  private filterMaintenanceObject(
+    maint: MaintenanceObject,
+    keysByCat: SelectedMaintenanceByCategory,
+  ): MaintenanceObject {
+    const manualSel = keysByCat?.manual || {};
+    const vbmappSel = keysByCat?.vbmapp || {};
+    const portageSel = keysByCat?.portage || {};
 
-  //     // Se o item tiver children, faz a recursão
-  //     if (item.children) {
-  //       current = current.concat(this.getAllKeys(item.children));
-  //     }
-  //   });
+    return {
+      manual: this.filterTree(maint.manual || [], manualSel),
+      vbmapp: this.filterTree(maint.vbmapp || [], vbmappSel),
+      portage: this.filterTree(maint.portage || [], portageSel),
+    };
+  }
 
-  //   return current;
-  // }
+  /** Checa se a key está selecionada (suporta true OU {checked:true}) */
+  private isChecked(keys: SelectionKeys | any, key: string | number): boolean {
+    const k = String(key);
+    return keys?.[k] === true || keys?.[k]?.checked === true;
+  }
 
-  filterTree(data: any, keys: any) {
-    let allKeysMaintenance = Object.keys(keys);
+  /**
+   * Filtra uma ÁRVORE (ARRAY de nós) mantendo:
+   * - as folhas cujas keys estão em "keys" (checked)
+   * - e os ancestrais necessários para manter a hierarquia
+   */
+  filterTree(data: TreeNode[] = [], keys: SelectionKeys = {}): TreeNode[] {
+    return (data || [])
+      .map((item: TreeNode) => {
+        const hasChildren =
+          Array.isArray(item.children) && item.children.length > 0;
 
-    return data
-      .map((item: any) => {
-        if (item.children) {
-          const filteredChildren = this.filterTree(item.children, keys);
+        if (hasChildren) {
+          const filteredChildren = this.filterTree(item.children!, keys);
           if (filteredChildren.length > 0) {
             return { ...item, children: filteredChildren };
           }
         }
-        // Verifica se o item é a última camada e está em selectedMaintenanceKeys
-        if (allKeysMaintenance.includes(item.key)) {
-          return item;
+
+        if (this.isChecked(keys, item.key)) {
+          // folha selecionada
+          return { ...item, children: [] };
         }
         return null;
       })
-      .filter((item: any) => item !== null);
+      .filter((item: any): item is TreeNode => item !== null);
   }
 
-  filterSelectedItemsTree(data: any, keys: any) {
-    return data
-    .map((item: any) => {
-      let filteredChildren: any[] = [];
+  /**
+   * Mantém nós (e sua hierarquia) cujas keys foram selecionadas
+   * para árvores como Portage / VB-Mapp.
+   */
+  filterSelectedItemsTree(
+    data: TreeNode[] = [],
+    keys: SelectionKeys = {},
+  ): TreeNode[] {
+    const walk = (nodes: TreeNode[]): TreeNode[] =>
+      (nodes || [])
+        .map((n) => {
+          const kids = Array.isArray(n.children) ? walk(n.children) : [];
 
-      // Verifica e filtra a propriedade `children` (caso exista)
-      if (item.children) {
-        filteredChildren = this.filterSelectedItemsTree(item.children, keys);
-      }
-  
-      // Verifica e filtra a propriedade `subitems` (caso exista)
-      // if (item.subitems) {
+          if (kids.length > 0 || this.isChecked(keys, n.key)) {
+            return { ...n, children: kids, subitems: n?.subitems };
+          }
+          return null;
+        })
+        .filter((x): x is any => x !== null);
 
-      //   const filteredSubitems = this.filterSelectedItemsTree(item.subitems, keys);
-      //   // Se já houver children, podemos mesclar ou, se preferir, manter separado,
-      //   // conforme o seu modelo. Aqui mesclamos ambos:
-      //   filteredChildren = [...filteredChildren, ...filteredSubitems];
-      // }
-  
-      // Se houver filhos filtrados, monta o nó com os filhos (mantendo o conceito de árvore)
-      if (filteredChildren.length > 0) {
-        return { ...item, children: filteredChildren , subitems: item?.subitems};
-      }
-  
-      // Caso não haja filhos (nem children nem subitems), verifica se o nó está marcado
-      if (keys[item.key]?.checked) {
-        return item;
-      }
-  
-      return null;
-    })
-    .filter((item: any) => item !== null); // Remove nós nulos
+    return walk(data);
   }
 
   async activitySession(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
-    const result: any = await prisma.atividadeSessao.findMany({
+    const result: any[] = await prisma.atividadeSessao.findMany({
       select: {
         atividades: true,
         maintenance: true,
@@ -522,53 +640,48 @@ export class PeiService {
         vbmapp: true,
       },
       where: {
-        // calendarioId: calendarioId,
         pacienteId: pacienteId,
       },
     });
 
     result.map((item) => {
-      // let maintenanceParse = JSON.parse(item.maintenance);
-      let maintenanceParse = item.maintenance;
-      let maintenance = [];
-      // const selectedMaintenanceKeys = JSON.parse(item.selectedMaintenanceKeys);
-      const selectedMaintenanceKeys = item.selectedMaintenanceKeys;
+      // ---------- Maintenance como OBJETO ----------
+      const maintenanceParse: MaintenanceObject =
+        this.normalizeMaintenanceObject(item.maintenance);
+      const selectedMaintenanceKeys: SelectedMaintenanceByCategory =
+        item.selectedMaintenanceKeys || {};
 
-      if (maintenanceParse.length > 0) {
-        maintenance = this.filterTree(
-          maintenanceParse,
-          selectedMaintenanceKeys,
+      const maintenance = this.filterMaintenanceObject(
+        maintenanceParse,
+        selectedMaintenanceKeys,
+      );
+
+      // ---------- Portage ----------
+      const portageParse: TreeNode[] = Array.isArray(item.portage)
+        ? item.portage
+        : [];
+      let portage: TreeNode[] = [];
+      if (portageParse.length && item?.selectedPortageKeys) {
+        portage = this.filterSelectedItemsTree(
+          portageParse,
+          item.selectedPortageKeys,
         );
       }
 
-      let portageParse = item.portage;
-      let portage = [];
-
-      if (portageParse.length && item?.selectedPortageKeys) {
-      const selectedPortageKeys = item.selectedPortageKeys;
-        portage = this.filterSelectedItemsTree(
-          portageParse,
-          selectedPortageKeys,
-        );    
-        
-        console.log(portage[0].children);
-        
+      // ---------- VB-Mapp ----------
+      const vbMappParse: TreeNode[] = Array.isArray(item?.vbmapp)
+        ? item.vbmapp
+        : [];
+      let vbMapp: TreeNode[] = [];
+      if (vbMappParse.length && item?.selectedVbMappKeys) {
+        vbMapp = this.filterSelectedItemsTree(
+          vbMappParse,
+          item.selectedVbMappKeys,
+        );
       }
 
-      let vbMappParse = item?.vbmapp;
-      let vbMapp = [];
-
-      if (vbMappParse.length && item?.selectedVbMappKeys) {
-
-        const selectedVbMappKeys = item?.selectedVbMappKeys;
-
-        vbMapp = this.filterSelectedItemsTree(vbMappParse, selectedVbMappKeys);
-      }      
-
-
-
       item.atividades = item.atividades;
-      item.maintenance = maintenance;
+      item.maintenance = maintenance; // objeto filtrado
       item.portage = portage;
       item.vbmapp = vbMapp;
       item.selectedMaintenanceKeys = selectedMaintenanceKeys;

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -31,9 +32,14 @@ import { SessaoModule } from './sessao/sessao.module';
 import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
 import { PeiModule } from './pei/pei.module';
 import { ProtocoloeModule } from './protocolo/protocolo.module';
+import { GuiaAmilModule } from './guia-amil/guia-amil.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '.env.local'],
+    }),
     AuthModule,
     UserModule,
     TerapeutaModule,
@@ -60,6 +66,7 @@ import { ProtocoloeModule } from './protocolo/protocolo.module';
     GrupoPermissaoModule,
     PeiModule,
     ProtocoloeModule,
+    GuiaAmilModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],

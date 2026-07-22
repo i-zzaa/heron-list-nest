@@ -6,6 +6,8 @@ import {
   dateFormatDDMMYYYY,
   dateFormatDDMMYYYYHHMM,
 } from 'src/util/format-date';
+import { buildPagination } from 'src/util/pagination';
+import { buildQueryFilter } from 'src/util/filters';
 
 @Injectable()
 export class BaixaService {
@@ -16,27 +18,9 @@ export class BaixaService {
 
     const skip = (page - 1) * pageSize;
 
-    const filter: any = {};
-    Object.keys(query).map((key: string) => {
-      switch (key) {
-        case 'baixa':
-          filter[key] = query[key];
-          break;
-        case 'convenioId':
-          filter.paciente = {
-            convenio: {
-              id: query.convenioId,
-            },
-          };
-
-          delete query.convenioId;
-          break;
-
-        default:
-          filter[key] = Number(query[key]);
-          break;
-      }
-    });
+    const filter = buildQueryFilter(
+      !query || typeof query !== 'object' ? ({} as any) : query,
+    );
 
     const [result, totalItems] = await Promise.all([
       prisma.baixa.findMany({
@@ -81,37 +65,50 @@ export class BaixaService {
         skip,
         take: pageSize,
       }),
-      prisma.baixa.count(),
+      prisma.baixa.count({ where: filter }),
     ]);
     const totalPages = Math.ceil(totalItems / pageSize);
 
     const data = await Promise.all(
       result.map((item: any) => {
         const updatedAt = Boolean(item.updatedAt) ? item.updatedAt : '-';
+        const paciente = item.paciente || {};
+        const terapeuta = item.terapeuta?.usuario || {};
+        const localidade = item.localidade || {};
+        const evento = item.evento || {};
+        const status = item.status || {};
+        const convenio = paciente.convenio || {};
+
+        const dataEvento = item.dataEvento
+          ? dateFormatDDMMYYYY(item.dataEvento)
+          : '-';
+        const cargaHoraria =
+          evento.start && evento.end
+            ? calcHoursHHMM(evento.start, evento.end)
+            : '-';
 
         return {
           id: item.id,
-          paciente: item.paciente.nome,
-          carteirinha: item.paciente.carteirinha,
-          terapeuta: item.terapeuta.usuario.nome,
-          localidade: item.localidade.casa,
-          convenio: item.paciente.convenio.nome,
-          status: item.status.nome,
-          usuario: item.baixa ? item.usuario?.nome : '-',
+          paciente: paciente.nome || '-',
+          carteirinha: paciente.carteirinha || '-',
+          terapeuta: terapeuta.nome || '-',
+          localidade: localidade.casa || '-',
+          convenio: convenio.nome || '-',
+          status: status.nome || '-',
+          usuario: item.baixa ? item.usuario?.nome || '-' : '-',
           baixa: item.baixa,
-          dataBaixa: item.baixa ? dateFormatDDMMYYYYHHMM(updatedAt) : '-',
-          dataEvento: dateFormatDDMMYYYY(item.dataEvento),
-          cargaHoraria: calcHoursHHMM(item.evento.start, item.evento.end),
-          especialidade: item.evento.especialidade?.nome || '-',
+          dataBaixa:
+            item.baixa && updatedAt !== '-'
+              ? dateFormatDDMMYYYYHHMM(updatedAt)
+              : '-',
+          dataEvento,
+          cargaHoraria,
+          especialidade: evento.especialidade?.nome || '-',
         };
       }),
     );
 
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }

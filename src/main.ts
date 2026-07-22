@@ -1,25 +1,54 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import * as cron from 'node-cron';
-import { WhatsappService } from 'src/whatsApp/whatsApp.service';
-
 import * as session from 'express-session';
 import * as passport from 'passport';
+
+export function setupRuntimeCompat() {
+  if (typeof File === 'undefined') {
+    (global as any).File = class File {};
+  }
+}
+
+export function setupShutdownHooks(app: any) {
+  const shutdown = async (signal: string) => {
+    console.log(`Received ${signal}, shutting down gracefully`);
+
+    try {
+      if (typeof app?.close === 'function') {
+        await app.close();
+      }
+    } finally {
+      process.exit(0);
+    }
+  };
+
+  process.once('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+  process.once('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
+}
+
+setupRuntimeCompat();
+
+const { AppModule } = require('./app.module');
+// const { WhatsappService } = require('src/whatsApp/whatsApp.service');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
 
-  const whatsappService = app.get(WhatsappService);
-  process.env.NODE_ENV === 'production' && (await whatsappService.start());
-
-  // Configuração da tarefa agendada para executar todos os dias às 12h
-  cron.schedule('0 12 * * *', () => {
-    whatsappService.executeAlert();
-  });
-
   app.enableCors();
+
+  app.use(
+    session({
+      secret: process.env.JWT_PRIVATE_KEY || 'dev-secret-key',
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: false },
+    }),
+  );
 
   app.use(passport.initialize());
   app.use(passport.session());
@@ -32,6 +61,33 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(3000);
+  const requestedPort = Number(process.env.PORT || 3000);
+  const port = await getAvailablePort(requestedPort);
+  await app.listen(port);
+  setupShutdownHooks(app);
+  console.log(`Application listening on port ${port}`);
 }
-bootstrap();
+
+export async function getAvailablePort(port: number): Promise<number> {
+  const net = require('node:net');
+  return await new Promise((resolve, reject) => {
+    const server = net.createServer();
+
+    server.once('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        reject(new Error(`Port ${port} is already in use`));
+        return;
+      }
+      reject(error);
+    });
+
+    server.once('listening', () => {
+      server.close(() => resolve(port));
+    });
+
+    server.listen(port);
+  });
+}
+if (require.main === module) {
+  bootstrap();
+}

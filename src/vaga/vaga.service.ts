@@ -7,6 +7,7 @@ import {
 import { calculaData, formatadataPadraoBD } from 'src/util/format-date';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 import { PacienteService } from 'src/paciente/paciente.service';
+import { getPrismaClient } from 'src/util/crud';
 
 @Injectable()
 export class VagaService {
@@ -17,7 +18,7 @@ export class VagaService {
 
   async update(body: VagaEspecialidadeProps) {
     const dataAgendado = formatadataPadraoBD(new Date());
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     if (body.agendar.length) {
       switch (body.statusPacienteCod) {
@@ -292,7 +293,7 @@ export class VagaService {
   }
 
   async verifyInFila(vagaId: number, dataAgendado: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     let naFila = false;
 
@@ -362,7 +363,7 @@ export class VagaService {
   }
 
   async updateReturn({ id, devolutiva }: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const dataDevolutiva = formatadataPadraoBD(new Date());
     await prisma.vaga.update({
@@ -396,7 +397,7 @@ export class VagaService {
     pacienteId,
     especialidades,
   }: AgendarEspecialidadeProps) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const dataAgendado = formatadataPadraoBD(new Date());
 
@@ -507,7 +508,7 @@ export class VagaService {
     especialidadeIds: number[],
   ) {
     let modalidade = '';
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:

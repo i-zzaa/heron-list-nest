@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { buildPagination } from 'src/util/pagination';
+import { toNumberId } from 'src/util/normalizers';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class FuncaoService {
@@ -32,15 +36,9 @@ export class FuncaoService {
         skip,
         take: pageSize,
       }),
-      prisma.statusEventos.count(),
+      prisma.funcao.count(),
     ]);
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -108,7 +106,7 @@ export class FuncaoService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.funcao.findMany({
       select: {
@@ -120,23 +118,9 @@ export class FuncaoService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
+      where: buildTextSearchWhere(word, ['nome', 'especialidade.nome'], {
         ativo: true,
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-          {
-            especialidade: {
-              nome: {
-                contains: word,
-              },
-            },
-          },
-        ],
-      },
+      }),
     });
   }
 
@@ -144,7 +128,7 @@ export class FuncaoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.funcao.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome', 'especialidadeId', 'ativo']),
     });
   }
 
@@ -152,12 +136,9 @@ export class FuncaoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.funcao.update({
-      data: {
-        nome: body.nome,
-        especialidadeId: body.especialidadeId,
-      },
+      data: buildCreatePayload(body, ['nome', 'especialidadeId', 'ativo']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }
@@ -167,7 +148,7 @@ export class FuncaoService {
 
     return await prisma.funcao.delete({
       where: {
-        id: Number(id),
+        id: toNumberId(id),
       },
     });
   }

@@ -1,6 +1,6 @@
 {
   "name": "biridin-api",
-  "version": "0.8.1",
+  "version": "0.11.0-beta.2",
   "description": "",
   "author": "",
   "private": true,
@@ -8,6 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "dev": "npm run start:dev",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -36,6 +37,7 @@
     "class-validator": "^0.14.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
+    "express-session": "1.17.3",
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.0",
     "moment": "^2.29.4",
@@ -89,6 +91,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
