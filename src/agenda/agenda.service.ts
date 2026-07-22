@@ -674,6 +674,23 @@ export class AgendaService {
   ) {
     const prisma = getPrismaClient(this.prismaService);
 
+    const eventId = Number(body?.id);
+    if (!Number.isNaN(eventId)) {
+      body.id = eventId;
+    }
+
+    const hasGroupId = typeof body?.groupId === 'string' && body.groupId.trim();
+    if (!hasGroupId && body?.id) {
+      const eventoBase = await prisma.calendario.findFirst({
+        select: { groupId: true },
+        where: { id: body.id },
+      });
+
+      if (eventoBase?.groupId) {
+        body.groupId = eventoBase.groupId;
+      }
+    }
+
     const eventoSalvo: any[] = await prisma.calendario.findMany({
       where: { groupId: body.groupId },
     });

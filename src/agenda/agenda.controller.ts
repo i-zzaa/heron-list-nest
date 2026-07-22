@@ -131,7 +131,7 @@ export class AgendaController {
     }
   }
 
-  @Put()
+  @Put('atestado')
   async atestado(@Request() req: any, @Response() response: any) {
     try {
       await this.agendaService.updateCalendarioAtestado(
