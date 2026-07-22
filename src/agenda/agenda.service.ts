@@ -7,7 +7,6 @@ import {
   dateFormatYYYYMMDD,
   dateSubtractDay,
   formatDateTime,
-  formatadataPadraoBD,
   getDatesWhiteEvents,
   getPrimeiroDoMes,
   transformStringInDate,
@@ -20,7 +19,7 @@ import { VagaService } from 'src/vaga/vaga.service';
 import { BaixaService } from 'src/baixa/baixa.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 import { getPrismaClient } from 'src/util/crud';
-import { buildDateRangeWhere } from 'src/util/filters';
+import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
 
 @Injectable()
 export class AgendaService {
@@ -32,6 +31,148 @@ export class AgendaService {
     private readonly vagaService: VagaService,
     private readonly baixaService: BaixaService,
   ) {}
+
+  private buildQueryFilter(query: Record<string, any> = {}) {
+    return buildQueryFilter(query);
+  }
+
+  private getCalendarioSelect(
+    options: {
+      includeCobrar?: boolean;
+      includeUsuarioId?: boolean;
+      includeIsChildren?: boolean;
+    } = {},
+  ) {
+    const {
+      includeCobrar = false,
+      includeUsuarioId = true,
+      includeIsChildren = true,
+    } = options;
+
+    const statusEventosSelect = {
+      select: {
+        nome: true,
+        id: true,
+        ...(includeCobrar ? { cobrar: true } : {}),
+      },
+    };
+
+    return {
+      id: true,
+      groupId: true,
+      dataInicio: true,
+      dataFim: true,
+      start: true,
+      end: true,
+      diasFrequencia: true,
+      exdate: true,
+      isExterno: true,
+      ...(includeIsChildren ? { isChildren: true } : {}),
+      ...(includeUsuarioId ? { usuarioId: true } : {}),
+      km: true,
+      ciclo: true,
+      observacao: true,
+      paciente: {
+        select: {
+          nome: true,
+          id: true,
+        },
+      },
+      modalidade: {
+        select: {
+          nome: true,
+          id: true,
+        },
+      },
+      especialidade: true,
+      terapeuta: {
+        select: {
+          usuario: {
+            select: {
+              nome: true,
+              id: true,
+            },
+          },
+        },
+      },
+      funcao: {
+        select: {
+          nome: true,
+          id: true,
+        },
+      },
+      localidade: true,
+      statusEventos: statusEventosSelect,
+      frequencia: {
+        select: {
+          nome: true,
+          id: true,
+        },
+      },
+      intervalo: {
+        select: {
+          nome: true,
+          id: true,
+        },
+      },
+    };
+  }
+
+  private buildCalendarioPayload({
+    body,
+    userId,
+    frequencia,
+    diasFrequencia,
+    groupId,
+    pacienteId,
+    modalidadeId,
+    especialidadeId,
+    terapeutaId,
+    funcaoId,
+    localidadeId,
+    statusEventosId,
+    intervaloId,
+    extraData = {},
+  }: {
+    body: any;
+    userId: number;
+    frequencia: any;
+    diasFrequencia: string;
+    groupId: string;
+    pacienteId: number;
+    modalidadeId: number;
+    especialidadeId: number;
+    terapeutaId: number;
+    funcaoId: number;
+    localidadeId: number;
+    statusEventosId: number;
+    intervaloId: number;
+    extraData?: Record<string, any>;
+  }) {
+    return {
+      groupId,
+      dataInicio: body.dataInicio,
+      km: body?.km,
+      dataFim: body.dataFim || '',
+      start: body.start,
+      end: body.end,
+      diasFrequencia,
+      ciclo: 'ativo',
+      observacao: body.observacao || '',
+      pacienteId,
+      modalidadeId,
+      especialidadeId,
+      terapeutaId,
+      funcaoId,
+      localidadeId,
+      statusEventosId,
+      frequenciaId: frequencia.id,
+      intervaloId,
+      isExterno: !!body.isExterno,
+      usuarioId: userId,
+      ...extraData,
+    };
+  }
 
   formatEvent(event: any) {
     let diasFrequencia = event.diasFrequencia;
@@ -67,52 +208,88 @@ export class AgendaService {
 
     const eventosFormat = await Promise.all(
       eventos.map((evento: any) => {
+        if (!evento) {
+          return {};
+        }
+
         let formated: any = {};
 
-        const statusEventos = evento.statusEventos.nome.toLowerCase();
+        const statusEventos =
+          evento?.statusEventos?.nome?.toLowerCase?.() || 'sem status';
+
+        const especialidadeNome =
+          evento?.especialidade?.nome || 'Sem especialidade';
+        const especialidadeCor = evento?.especialidade?.cor || '#94a3b8';
+        const startValue = evento?.start || '00:00';
+        const frequenciaId = Number(evento?.frequencia?.id ?? 1);
+        const intervaloId = Number(evento?.intervalo?.id ?? 1);
+        const diasFrequenciaList = Array.isArray(evento?.diasFrequencia)
+          ? evento.diasFrequencia
+          : typeof evento?.diasFrequencia === 'string'
+          ? evento.diasFrequencia.split(',')
+          : [];
+        const exdateList = Array.isArray(evento?.exdate)
+          ? evento.exdate
+          : typeof evento?.exdate === 'string'
+          ? evento.exdate.split(',')
+          : [];
 
         const cor = statusEventos.includes('cancelado')
           ? '#f87171'
-          : evento.especialidade.cor;
-        delete evento.especialidade.cor;
+          : especialidadeCor;
+        if (evento?.especialidade) {
+          delete evento.especialidade.cor;
+        }
 
         evento.borderColor = statusEventos.includes('cancelado')
           ? 'cancelado'
-          : `border-${evento.especialidade.nome.toLowerCase()}`;
+          : `border-${especialidadeNome.toLowerCase()}`;
 
         evento.localidade = {
-          nome: this.localidadadeService.formatLocalidade(evento.localidade),
-          id: evento.localidade.id,
+          nome: evento?.localidade
+            ? this.localidadadeService.formatLocalidade(evento.localidade)
+            : '-',
+          id: evento?.localidade?.id || null,
         };
 
         evento.terapeuta = {
-          nome: evento.terapeuta.usuario.nome,
-          id: evento.terapeuta.usuario.id,
+          nome: evento?.terapeuta?.usuario?.nome || '-',
+          id: evento?.terapeuta?.usuario?.id || null,
         };
 
-        evento.diasFrequencia =
-          evento.diasFrequencia && evento.diasFrequencia.split(',');
+        const safeStatusEventos = evento?.statusEventos || {};
+        const safeModalidade = evento?.modalidade || {};
+        const safePaciente = evento?.paciente || {};
+        const safeEspecialidade = evento?.especialidade || {};
+        const safeFrequencia = evento?.frequencia || {};
+        const safeIntervalo = evento?.intervalo || {};
 
-        evento.exdate = evento.exdate ? evento.exdate.split(',') : [];
-        evento.exdate = evento.exdate.map(
-          (ex: string) => `${ex} ${evento.start}`,
-        );
+        evento.statusEventos = safeStatusEventos;
+        evento.modalidade = safeModalidade;
+        evento.paciente = safePaciente;
+        evento.especialidade = safeEspecialidade;
+        evento.frequencia = safeFrequencia;
+        evento.intervalo = safeIntervalo;
+
+        evento.diasFrequencia = diasFrequenciaList;
+
+        evento.exdate = exdateList.map((ex: string) => `${ex} ${startValue}`);
 
         evento.canDelete = evento.usuarioId === usuario.id;
 
-        const diasFrequencia: number[] =
-          evento.diasFrequencia &&
-          evento.diasFrequencia.map((dia: string) => Number(dia) - 1);
+        const diasFrequencia: number[] = diasFrequenciaList.map(
+          (dia: string) => Number(dia) - 1,
+        );
 
         switch (true) {
-          case evento.frequencia.id !== 1 && evento.intervalo.id === 1: // com dias selecionados e todas semanas
+          case frequenciaId !== 1 && intervaloId === 1: // com dias selecionados e todas semanas
             formated = {
               ...evento,
               data: {
                 start: evento.start,
                 end: evento.end,
               },
-              title: evento.paciente.nome,
+              title: evento?.paciente?.nome || 'Sem paciente',
               groupId: evento.groupId,
               daysOfWeek: diasFrequencia,
               isChildren: evento.isChildren,
@@ -123,40 +300,39 @@ export class AgendaService {
               rrule: {
                 freq: 'weekly',
                 // byweekday: diasFrequencia,
-                dtstart: formatDateTime(evento.start, evento.dataInicio),
+                dtstart: formatDateTime(startValue, evento.dataInicio),
               },
             };
 
             if (evento.dataFim) {
-              formated.rrule.until = formatDateTime(
-                evento.start,
-                evento.dataFim,
-              );
+              formated.rrule.until = formatDateTime(startValue, evento.dataFim);
             }
 
             break;
-          case evento.frequencia.id !== 1 && evento.intervalo.id !== 1: // com dias selecionados e intervalos
+          case frequenciaId !== 1 && intervaloId !== 1: // com dias selecionados e intervalos
             formated = {
               ...evento,
               data: {
                 start: evento.start,
                 end: evento.end,
               },
-              title: evento.paciente.nome,
+              title: evento?.paciente?.nome || 'Sem paciente',
               groupId: evento.groupId,
               // borderColor: cor,
               backgroundColor: cor,
               isChildren: evento.isChildren,
               rrule: {
                 freq: 'weekly',
-                interval: evento.intervalo.id,
+                interval: intervaloId || 1,
                 byweekday: diasFrequencia,
-                dtstart: `${evento.dataInicio}T${evento.start}:00Z`,
+                dtstart: `${evento.dataInicio}T${startValue}:00Z`,
               },
             };
 
             if (evento.dataFim) {
-              formated.rrule.until = `${evento.dataFim}T${evento.end}:00Z`; //formatDateTime(evento.end, evento.dataFim);
+              formated.rrule.until = `${evento.dataFim}T${
+                evento.end || startValue
+              }:00Z`;
             }
 
             break;
@@ -169,10 +345,10 @@ export class AgendaService {
                 start: evento.start,
                 end: evento.end,
               },
-              title: evento.paciente.nome,
+              title: evento?.paciente?.nome || 'Sem paciente',
               date: evento.dataInicio,
-              start: formatDateTime(evento.start, evento.dataInicio),
-              end: formatDateTime(evento.end, evento.dataInicio),
+              start: formatDateTime(startValue, evento.dataInicio),
+              end: formatDateTime(evento.end || startValue, evento.dataInicio),
               // borderColor: cor,
               backgroundColor: cor,
               allDay: false,
@@ -196,76 +372,10 @@ export class AgendaService {
     const inicioDoMes = params.start;
     const ultimoDiaDoMes = params.end;
 
-    const filter: any = {};
-    Object.keys(query).map((key: string) => (filter[key] = Number(query[key])));
+    const filter = this.buildQueryFilter(query);
 
     const eventos: any = await prisma.calendario.findMany({
-      select: {
-        id: true,
-        groupId: true,
-        dataInicio: true,
-        dataFim: true,
-        start: true,
-        end: true,
-        diasFrequencia: true,
-        exdate: true,
-        isExterno: true,
-        isChildren: true,
-        usuarioId: true,
-        km: true,
-
-        ciclo: true,
-        observacao: true,
-        paciente: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        modalidade: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        especialidade: true,
-        terapeuta: {
-          select: {
-            usuario: {
-              select: {
-                nome: true,
-                id: true,
-              },
-            },
-          },
-        },
-        funcao: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        localidade: true,
-        statusEventos: {
-          select: {
-            nome: true,
-            id: true,
-            cobrar: true,
-          },
-        },
-        frequencia: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        intervalo: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-      },
+      select: this.getCalendarioSelect({ includeCobrar: true }),
       where: {
         ...filter,
         ...buildDateRangeWhere(inicioDoMes, ultimoDiaDoMes),
@@ -292,70 +402,7 @@ export class AgendaService {
     }
 
     const eventos = await prisma.calendario.findMany({
-      select: {
-        id: true,
-        groupId: true,
-        dataInicio: true,
-        dataFim: true,
-        start: true,
-        end: true,
-        diasFrequencia: true,
-        ciclo: true,
-        observacao: true,
-        isChildren: true,
-        usuarioId: true,
-        isExterno: true,
-        km: true,
-        exdate: true,
-        paciente: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        modalidade: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        especialidade: true,
-        terapeuta: {
-          select: {
-            usuario: {
-              select: {
-                nome: true,
-                id: true,
-              },
-            },
-          },
-        },
-        funcao: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        localidade: true,
-        statusEventos: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        frequencia: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        intervalo: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-      },
+      select: this.getCalendarioSelect({ includeUsuarioId: true }),
       where: buildDateRangeWhere(inicioDoMes, ultimoDiaDoMes),
     });
 
@@ -379,7 +426,7 @@ export class AgendaService {
       };
     }
 
-    const diasFrequencia = body.diasFrequencia.join(',');
+    const diasFrequencia = (body?.diasFrequencia || []).join(',');
 
     if (body.modalidade.nome === 'Devolutiva') {
       return this.createEventoDevolutiva(
@@ -431,16 +478,12 @@ export class AgendaService {
           funcao: { id: body[`funcao${index}`].id },
         });
 
-        return {
+        return this.buildCalendarioPayload({
+          body: data,
+          userId: user.id,
+          frequencia,
+          diasFrequencia,
           groupId: hash,
-          km: data?.km,
-          dataInicio: data.dataInicio,
-          dataFim: data.dataFim,
-          start: data.start,
-          end: data.end,
-          diasFrequencia: diasFrequencia,
-          ciclo: 'ativo',
-          observacao: data.observacao || '',
           pacienteId: data.paciente.id,
           modalidadeId: data.modalidade.id,
           especialidadeId: data.especialidade.id,
@@ -448,12 +491,8 @@ export class AgendaService {
           funcaoId: data.funcao.id,
           localidadeId: data.localidade.id,
           statusEventosId: data.statusEventos.id,
-          frequenciaId: frequencia.id,
           intervaloId: data.intervalo.id,
-          isExterno: !!data.isExterno,
-
-          usuarioId: user.id,
-        };
+        });
       }),
     );
 
@@ -478,16 +517,12 @@ export class AgendaService {
       body.funcao.id,
     );
 
-    const eventData = {
+    const eventData = this.buildCalendarioPayload({
+      body,
+      userId: user.id,
+      frequencia,
+      diasFrequencia,
       groupId: hash,
-      dataInicio: body.dataInicio,
-      km: body?.km,
-      dataFim: body.dataFim || '',
-      start: body.start,
-      end: body.end,
-      diasFrequencia: diasFrequencia,
-      ciclo: 'ativo',
-      observacao: body.observacao || '',
       pacienteId: body.paciente.id,
       modalidadeId: body.modalidade.id,
       especialidadeId: body.especialidade.id,
@@ -495,11 +530,8 @@ export class AgendaService {
       funcaoId: body.funcao.id,
       localidadeId: body.localidade.id,
       statusEventosId: body.statusEventos.id,
-      frequenciaId: frequencia.id,
       intervaloId: body.intervalo.id,
-      isExterno: !!body.isExterno,
-      usuarioId: user.id,
-    };
+    });
 
     const evento = await prisma.$transaction([
       prisma.calendario.create({
@@ -525,7 +557,7 @@ export class AgendaService {
   async updateCalendario_(body: any, login: string) {
     const prisma = getPrismaClient(this.prismaService);
 
-    let dataFim = dateSubtractDay(body.dataAtual, 2);
+    const dataFim = dateSubtractDay(body.dataAtual, 2);
     const isCanceled = body.statusEventos.nome.includes('permanente');
     if (isCanceled && !body?.dataFim) {
       body.dataFim = dataFim;
@@ -646,73 +678,55 @@ export class AgendaService {
       where: { groupId: body.groupId },
     });
 
-    switch (true) {
-      case eventoSalvo.length === 0:
-        throw new Error('Não existe evento desse groupo!');
-      case eventoSalvo.length === 1:
-        return await this.updateEventoUnicoGrupo(body, login, hasDataFim);
-      case eventoSalvo.length >= 2:
-        const data = this.formatEvent(body);
-
-        if (body.changeAll) {
-          delete data.dataFim;
-
-          return await prisma.calendario.updateMany({
-            data: {
-              ...data,
-            },
-            where: {
-              groupId: data.groupId,
-            },
-          });
-
-          // if (body.statusEventos.cobrar) {
-          //   this.baixaService.create({
-          //     pacienteId: body.paciente.id,
-          //     terapeutaId: body.terapeuta.id,
-          //     localidadeId: body.localidade.id,
-          //     statusEventosId: body.statusEventos.id,
-          //     eventoId: body.id,
-          // usuarioLogin: login
-
-          //   });
-          // }
-        } else {
-          if (body.isChildren) {
-            try {
-              const eventos = prisma.calendario.update({
-                data,
-                where: {
-                  id: body.id,
-                },
-              });
-
-              if (body.statusEventos.cobrar) {
-                this.baixaService.create({
-                  pacienteId: body.paciente.id,
-                  terapeutaId: body.terapeuta.id,
-                  localidadeId: body.localidade.id,
-                  statusEventosId: body.statusEventos.id,
-                  eventoId: body.id,
-                  dataEvento: body.dataInicio,
-                });
-              }
-
-              return eventos;
-            } catch (error) {
-              console.log(error);
-            }
-          } else {
-            const evento = eventoSalvo.filter(
-              (event: any) => event.id === body.id,
-            )[0];
-            body.exdate = evento.exdate;
-            return this.updateEventoRecorrentes(body, login, hasDataFim);
-          }
-        }
-      default:
-        break;
+    if (eventoSalvo.length === 0) {
+      throw new Error('Não existe evento desse groupo!');
     }
+
+    if (eventoSalvo.length === 1) {
+      return this.updateEventoUnicoGrupo(body, login, hasDataFim);
+    }
+
+    const data = this.formatEvent(body);
+
+    if (body.changeAll) {
+      delete data.dataFim;
+      return prisma.calendario.updateMany({
+        data,
+        where: {
+          groupId: data.groupId,
+        },
+      });
+    }
+
+    if (body.isChildren) {
+      try {
+        const eventos = prisma.calendario.update({
+          data,
+          where: {
+            id: body.id,
+          },
+        });
+
+        if (body.statusEventos.cobrar) {
+          this.baixaService.create({
+            pacienteId: body.paciente.id,
+            terapeutaId: body.terapeuta.id,
+            localidadeId: body.localidade.id,
+            statusEventosId: body.statusEventos.id,
+            eventoId: body.id,
+            dataEvento: body.dataInicio,
+          });
+        }
+
+        return eventos;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    const evento = eventoSalvo.find((event: any) => event.id === body.id);
+    body.exdate = evento?.exdate;
+    return this.updateEventoRecorrentes(body, login, hasDataFim);
   }
 
   async updateEventoUnicoGrupo(
@@ -722,36 +736,30 @@ export class AgendaService {
   ) {
     const prisma = getPrismaClient(this.prismaService);
 
-    let evento;
-    switch (event.frequencia.id) {
-      case 1: //se o evento for único
-        const data = this.formatEvent(event);
-        evento = await prisma.calendario.update({
-          data,
-          where: {
-            id: event.id,
-          },
+    if (event?.frequencia?.id === 1) {
+      const data = this.formatEvent(event);
+      const eventoAtualizado = await prisma.calendario.update({
+        data,
+        where: {
+          id: event.id,
+        },
+      });
+
+      if (event.statusEventos.cobrar) {
+        this.baixaService.create({
+          pacienteId: event.paciente.id,
+          terapeutaId: event.terapeuta.id,
+          localidadeId: event.localidade.id,
+          statusEventosId: event.statusEventos.id,
+          eventoId: event.id,
+          dataEvento: event.dateAtual,
         });
+      }
 
-        if (event.statusEventos.cobrar) {
-          this.baixaService.create({
-            pacienteId: event.paciente.id,
-            terapeutaId: event.terapeuta.id,
-            localidadeId: event.localidade.id,
-            statusEventosId: event.statusEventos.id,
-            eventoId: event.id,
-            dataEvento: event.dateAtual,
-          });
-        }
-        break;
-      case 2: // se o evento for recorrente
-        evento = await this.updateEventoRecorrentes(event, login, hasDataFim);
-
-      default:
-        break;
+      return eventoAtualizado;
     }
 
-    return evento;
+    return this.updateEventoRecorrentes(event, login, hasDataFim);
   }
 
   async updateCalendarioMobile(
@@ -844,11 +852,17 @@ export class AgendaService {
     this.updateCalendario(body, login);
   }
 
-  getExDate(event: any) {
-    let _exdate =
-      typeof event?.exdate === 'string' ? event?.exdate.split() : event?.exdate;
-    const exdate: string[] = _exdate || [];
-    exdate.push(event.dataAtual);
+  private getExDate(event: any) {
+    const existingExdate =
+      typeof event?.exdate === 'string'
+        ? event.exdate.split(',')
+        : event?.exdate;
+    const exdate: string[] = Array.isArray(existingExdate)
+      ? existingExdate
+      : [];
+    if (event?.dataAtual) {
+      exdate.push(event.dataAtual);
+    }
     return exdate;
   }
 
@@ -861,7 +875,7 @@ export class AgendaService {
 
     const data = this.formatEvent(event);
 
-    let dataFim = hasDataFim ? event.dataFim : event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
+    const dataFim = hasDataFim ? event.dataFim : event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
 
     const statusEventos = event.statusEventos.nome.toLowerCase();
     const isCanceled =
@@ -956,7 +970,7 @@ export class AgendaService {
 
     if (dataInicio.isBefore(dataAtual)) {
       const usuario = await this.userService.getUser(login);
-      let dataFim = dateAddtDay(event.dataAtual, 1);
+      const dataFim = dateAddtDay(event.dataAtual, 1);
 
       // se data de inicio já passou, for recorrente e mudar todos
       const [, eventos] = await Promise.all([
@@ -1063,17 +1077,10 @@ export class AgendaService {
     }
   }
 
-  async getFilterFinancialPaciente({
-    dataInicio,
-    dataFim,
-    datatFim,
-    pacienteId,
-    statusEventosId,
-  }: any) {
-    const filtroDataFim = dataFim || datatFim;
+  private async getFinancialEvents(filter: Record<string, any>, orderBy: any) {
     const prisma = getPrismaClient(this.prismaService);
 
-    const eventos = await prisma.calendario.findMany({
+    return prisma.calendario.findMany({
       select: {
         id: true,
         groupId: true,
@@ -1084,7 +1091,6 @@ export class AgendaService {
         diasFrequencia: true,
         exdate: true,
         km: true,
-
         ciclo: true,
         observacao: true,
         paciente: {
@@ -1149,23 +1155,34 @@ export class AgendaService {
           },
         },
       },
-      where: {
+      where: filter,
+      orderBy,
+    });
+  }
+
+  async getFilterFinancialPaciente({
+    dataInicio,
+    dataFim,
+    datatFim,
+    pacienteId,
+    statusEventosId,
+  }: any) {
+    const filtroDataFim = dataFim || datatFim;
+
+    return this.getFinancialEvents(
+      {
         ...buildDateRangeWhere(dataInicio, filtroDataFim),
-        pacienteId: pacienteId,
-        statusEventosId: statusEventosId,
+        pacienteId,
+        statusEventosId,
       },
-      orderBy: {
+      {
         terapeuta: {
           usuario: {
             nome: 'asc',
           },
         },
       },
-    });
-
-    console.log(eventos);
-
-    return eventos;
+    );
   }
 
   getFilterFinancialTerapeuta = async ({
@@ -1175,96 +1192,18 @@ export class AgendaService {
     terapeutaId,
   }: any) => {
     const filtroDataFim = dataFim || datatFim;
-    const prisma = getPrismaClient(this.prismaService);
 
-    const eventos = await prisma.calendario.findMany({
-      select: {
-        id: true,
-        groupId: true,
-        dataInicio: true,
-        dataFim: true,
-        start: true,
-        end: true,
-        diasFrequencia: true,
-        exdate: true,
-        km: true,
-
-        ciclo: true,
-        observacao: true,
-        paciente: {
-          select: {
-            nome: true,
-            id: true,
-            vaga: {
-              select: {
-                especialidades: true,
-              },
-            },
-          },
-        },
-        modalidade: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        especialidade: true,
-        terapeuta: {
-          select: {
-            usuario: {
-              select: {
-                nome: true,
-                id: true,
-              },
-            },
-            funcoes: {
-              select: {
-                comissao: true,
-                tipo: true,
-                funcaoId: true,
-              },
-            },
-          },
-        },
-        funcao: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        localidade: true,
-        statusEventos: {
-          select: {
-            nome: true,
-            cobrar: true,
-            id: true,
-          },
-        },
-        frequencia: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-        intervalo: {
-          select: {
-            nome: true,
-            id: true,
-          },
-        },
-      },
-      where: {
-        terapeutaId: terapeutaId,
+    return this.getFinancialEvents(
+      {
+        terapeutaId,
         ...buildDateRangeWhere(dataInicio, filtroDataFim),
       },
-      orderBy: {
+      {
         paciente: {
           nome: 'asc',
         },
       },
-    });
-
-    return eventos;
+    );
   };
 
   async getEventsMessage(dataInicio: string, datatFim: string) {
@@ -1301,12 +1240,16 @@ export class AgendaService {
     await Promise.all(
       eventosBrutos.map((event: any) => {
         const dataFimParam = event?.dataFim || datatFim;
+        const diasFrequencia = event?.diasFrequencia
+          ? event.diasFrequencia.split(',')
+          : [];
+        const intervaloId = event?.intervalo?.id || 1;
 
         const newEvents = getDatesWhiteEvents(
-          event?.diasFrequencia.split(','),
+          diasFrequencia,
           event.dataInicio,
           dataFimParam,
-          event.intervalo.id,
+          intervaloId,
           event,
         );
 

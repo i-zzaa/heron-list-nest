@@ -101,6 +101,52 @@ describe('PacienteService', () => {
     expect(findMany.mock.calls[0][0].where.id).toEqual({ in: [79] });
   });
 
+  it('should find patients with the same full name', async () => {
+    const findMany = jest
+      .fn()
+      .mockResolvedValue([{ id: 1, nome: 'Joao Silva' }]);
+    const prismaClient = {
+      paciente: {
+        findMany,
+      },
+    };
+
+    service = new PacienteService({
+      getPrismaClient: () => prismaClient,
+    } as any);
+
+    const result = await service.findByFullName('Joao Silva');
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          nome: {
+            equals: 'Joao Silva',
+          },
+        },
+      }),
+    );
+    expect(result).toEqual([{ id: 1, nome: 'Joao Silva' }]);
+  });
+
+  it('should find patients with duplicate full names', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValue([{ id: 1, nome: 'Joao Silva' }]);
+    const prismaClient = {
+      $queryRawUnsafe: queryRaw,
+    };
+
+    service = new PacienteService({
+      getPrismaClient: () => prismaClient,
+    } as any);
+
+    const result = await service.findDuplicateFullNames();
+
+    expect(queryRaw).toHaveBeenCalled();
+    expect(result).toEqual([{ id: 1, nome: 'Joao Silva' }]);
+  });
+
   it('should search patients by name, responsible or phone using the paciente model', async () => {
     const findMany = jest.fn().mockResolvedValue([{ id: 1, nome: 'Paciente' }]);
     const prismaClient = {

@@ -265,10 +265,15 @@ export function getDatesWhiteEvents(
 }
 
 export const formaTime = (duration: any) => {
-  return `${duration.hours().toString().padStart(2, '0')}:${duration
+  const safeDuration =
+    duration && typeof duration.hours === 'function'
+      ? duration
+      : moment.duration(duration || 0);
+
+  return `${safeDuration.hours().toString().padStart(2, '0')}:${safeDuration
     .minutes()
     .toString()
-    .padStart(2, '0')}:${duration.seconds().toString().padStart(2, '0')}`;
+    .padStart(2, '0')}:${safeDuration.seconds().toString().padStart(2, '0')}`;
 };
 
 export const getDateBeforeDay = (days: number) => {

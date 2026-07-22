@@ -31,27 +31,33 @@ describe('setupRuntimeCompat', () => {
     processOnSpy.mockRestore();
   });
 
-  it('should reject when the requested port is already in use', async () => {
+  it('should fall back to the next available port when the requested port is already in use', async () => {
     const net = require('node:net');
     const originalCreateServer = net.createServer;
+    let attempt = 0;
 
     net.createServer = jest.fn(() => {
       const server = {
         once: jest.fn((event: string, handler: Function) => {
-          if (event === 'error') {
+          if (event === 'error' && attempt === 0) {
+            attempt += 1;
             handler({ code: 'EADDRINUSE' });
+            return server;
           }
+
+          if (event === 'listening') {
+            handler();
+          }
+
           return server;
         }),
         listen: jest.fn(),
-        close: jest.fn(),
+        close: jest.fn((callback?: Function) => callback?.()),
       };
       return server;
     });
 
-    await expect(getAvailablePort(3000)).rejects.toThrow(
-      'Port 3000 is already in use',
-    );
+    await expect(getAvailablePort(3000)).resolves.toBe(3001);
 
     net.createServer = originalCreateServer;
   });

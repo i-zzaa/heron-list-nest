@@ -41,6 +41,16 @@ export const buildPacienteFilter = (
   };
 };
 
+const ALLOWED_QUERY_FIELDS = new Set([
+  'baixa',
+  'convenioId',
+  'pacienteId',
+  'terapeutaId',
+  'localidadeId',
+  'statusEventosId',
+  'usuarioId',
+]);
+
 export const buildQueryFilter = (
   query: Record<string, any> = {},
   extraWhere: Record<string, any> = {},
@@ -49,6 +59,14 @@ export const buildQueryFilter = (
 
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    if (key === '_' || key.startsWith('_')) {
+      return;
+    }
+
+    if (!ALLOWED_QUERY_FIELDS.has(key)) {
       return;
     }
 

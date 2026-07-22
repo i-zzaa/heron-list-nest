@@ -70,23 +70,41 @@ async function bootstrap() {
 
 export async function getAvailablePort(port: number): Promise<number> {
   const net = require('node:net');
-  return await new Promise((resolve, reject) => {
-    const server = net.createServer();
+  const maxAttempts = 10;
 
-    server.once('error', (error: any) => {
-      if (error.code === 'EADDRINUSE') {
-        reject(new Error(`Port ${port} is already in use`));
-        return;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidatePort = port + attempt;
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const server = net.createServer();
+
+        server.once('error', (error: any) => {
+          if (error.code === 'EADDRINUSE') {
+            reject(error);
+            return;
+          }
+          reject(error);
+        });
+
+        server.once('listening', () => {
+          server.close(() => resolve());
+        });
+
+        server.listen(candidatePort);
+      });
+
+      return candidatePort;
+    } catch (error: any) {
+      if (error?.code !== 'EADDRINUSE') {
+        throw error;
       }
-      reject(error);
-    });
+    }
+  }
 
-    server.once('listening', () => {
-      server.close(() => resolve(port));
-    });
-
-    server.listen(port);
-  });
+  throw new Error(
+    `Unable to find a free port after ${maxAttempts} attempts starting from ${port}`,
+  );
 }
 if (require.main === module) {
   bootstrap();

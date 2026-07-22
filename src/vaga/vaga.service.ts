@@ -7,7 +7,7 @@ import {
 import { calculaData, formatadataPadraoBD } from 'src/util/format-date';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 import { PacienteService } from 'src/paciente/paciente.service';
-import { getPrismaClient } from 'src/util/crud';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 
 @Injectable()
 export class VagaService {
@@ -140,10 +140,13 @@ export class VagaService {
             ),
 
             await prisma.vaga.update({
-              data: {
-                dataRetorno: dataAgendado,
-                naFila: true,
-              },
+              data: buildCreatePayload(
+                {
+                  dataRetorno: dataAgendado,
+                  naFila: true,
+                },
+                ['dataRetorno', 'naFila'],
+              ),
               where: {
                 id: body.vagaId,
               },
@@ -172,10 +175,13 @@ export class VagaService {
           return isQueueAvaliation;
         case STATUS_PACIENT_COD.queue_devolutiva:
           await prisma.vaga.update({
-            data: {
-              dataRetorno: dataAgendado,
-              naFila: true,
-            },
+            data: buildCreatePayload(
+              {
+                dataRetorno: dataAgendado,
+                naFila: true,
+              },
+              ['dataRetorno', 'naFila'],
+            ),
             where: {
               id: body.vagaId,
             },
@@ -216,10 +222,13 @@ export class VagaService {
               body.desagendar,
             ),
             prisma.vaga.update({
-              data: {
-                dataRetorno: dataAgendado,
-                naFila: true,
-              },
+              data: buildCreatePayload(
+                {
+                  dataRetorno: dataAgendado,
+                  naFila: true,
+                },
+                ['dataRetorno', 'naFila'],
+              ),
               where: {
                 id: body.vagaId,
               },
@@ -250,10 +259,12 @@ export class VagaService {
         case STATUS_PACIENT_COD.therapy:
           const [, , now] = await Promise.all([
             prisma.vaga.update({
-              data: {
-                // dataVoltouAba: dataAgendado,
-                naFila: true,
-              },
+              data: buildCreatePayload(
+                {
+                  naFila: true,
+                },
+                ['naFila'],
+              ),
               where: {
                 id: body.vagaId,
               },
@@ -323,11 +334,13 @@ export class VagaService {
 
       const diff = calculaData(dataAgendado, dataContato);
       await prisma.vaga.update({
-        data: {
-          // naFila: naFila,
-          dataSaiuFila: dataAgendado,
-          diff: diff.toString(),
-        },
+        data: buildCreatePayload(
+          {
+            dataSaiuFila: dataAgendado,
+            diff: diff.toString(),
+          },
+          ['dataSaiuFila', 'diff'],
+        ),
         where: {
           id: vagaId,
         },
@@ -367,10 +380,13 @@ export class VagaService {
 
     const dataDevolutiva = formatadataPadraoBD(new Date());
     await prisma.vaga.update({
-      data: {
-        devolutiva: devolutiva,
-        dataDevolutiva,
-      },
+      data: buildCreatePayload(
+        {
+          devolutiva: devolutiva,
+          dataDevolutiva,
+        },
+        ['devolutiva', 'dataDevolutiva'],
+      ),
       where: {
         id: id,
       },

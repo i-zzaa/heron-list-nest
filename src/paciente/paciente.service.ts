@@ -262,6 +262,48 @@ export class PacienteService {
     }
   }
 
+  async findByFullName(nome: string) {
+    const prisma = getPrismaClient(this.prismaService);
+
+    return await prisma.paciente.findMany({
+      select: {
+        id: true,
+        nome: true,
+      },
+      where: {
+        nome: {
+          equals: nome.trim(),
+        },
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
+  }
+
+  async findDuplicateFullNames() {
+    const prisma = getPrismaClient(this.prismaService);
+
+    const duplicates = await (prisma.$queryRawUnsafe as any)(`
+      SELECT id, nome
+      FROM Paciente
+      WHERE LOWER(TRIM(nome)) IN (
+        SELECT LOWER(TRIM(nome))
+        FROM Paciente
+        GROUP BY LOWER(TRIM(nome))
+        HAVING COUNT(*) > 1
+      )
+      ORDER BY LOWER(TRIM(nome)), id
+    `);
+
+    console.log(
+      '[Pacientes com nome duplicado]',
+      JSON.stringify(duplicates, null, 2),
+    );
+
+    return duplicates;
+  }
+
   async dropdown(statusPacienteCod: string) {
     const prisma = getPrismaClient(this.prismaService);
 
@@ -665,7 +707,8 @@ export class PacienteService {
       return this.filterPatients(page, pageSize, [], body);
     }
 
-    const statusPacienteCodes = this.setFilterstatusPacienteCod(statusPacienteCod);
+    const statusPacienteCodes =
+      this.setFilterstatusPacienteCod(statusPacienteCod);
 
     return this.filterPatients(page, pageSize, statusPacienteCodes, body);
   }

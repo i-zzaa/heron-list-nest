@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { getPrismaClient } from 'src/util/crud';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { dateAddtDay, dateFormatDDMMYYYY } from 'src/util/format-date';
 import { TYPE_DTT, calcAcertos } from 'src/util/util';
 
@@ -126,7 +126,19 @@ export class SessaoService {
     delete body.date;
 
     await prisma.sessao.create({
-      data: { ...body, sessao: body.sessao || [], calendarioId: evento.id },
+      data: buildCreatePayload(
+        { ...body, sessao: body.sessao || [], calendarioId: evento.id },
+        [
+          'resumo',
+          'sessao',
+          'calendarioId',
+          'pacienteId',
+          'maintenance',
+          'portage',
+          'vbmapp',
+          'selectedMaintenanceKeys',
+        ],
+      ),
     });
 
     await this.updateMaintenance(body.pacienteId, calendarioIdPai!.id);
@@ -808,7 +820,19 @@ export class SessaoService {
   // ===================== OUTRAS AÇÕES =====================
   async updateSumary(body: any) {
     const prisma = this.prismaService.getPrismaClient();
-    return await prisma.sessao.update({ data: body, where: { id: body.id } });
+    return await prisma.sessao.update({
+      data: buildCreatePayload(body, [
+        'resumo',
+        'sessao',
+        'pacienteId',
+        'calendarioId',
+        'maintenance',
+        'portage',
+        'vbmapp',
+        'selectedMaintenanceKeys',
+      ]),
+      where: { id: body.id },
+    });
   }
 
   async createProtocolo(body: any) {
@@ -824,7 +848,12 @@ export class SessaoService {
   async updateAtividadeSessao(body: any) {
     const prisma = this.prismaService.getPrismaClient();
     return await prisma.atividadeSessao.update({
-      data: { ...body },
+      data: buildCreatePayload(body, [
+        'calendarioId',
+        'atividade',
+        'resposta',
+        'observacao',
+      ]),
       where: { calendarioId: body.calendarioId },
     });
   }
