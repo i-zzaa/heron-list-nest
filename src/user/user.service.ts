@@ -5,6 +5,9 @@ import { UserProps } from './user.interface';
 import * as bcrypt from 'bcryptjs';
 import { ID_PERFIL_TERAPEUTA } from 'src/terapeuta/terapeuta.interface';
 import { messageError } from 'src/util/message.response';
+import { getPrismaClient } from 'src/util/crud';
+import { buildPagination } from 'src/util/pagination';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class UserService {
@@ -103,15 +106,9 @@ export class UserService {
       prisma.usuario.count(),
     ]);
 
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
     const data = await this.formatUsers(usuarios);
 
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -169,7 +166,7 @@ export class UserService {
   }
 
   async getUser(login: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const user: any = await prisma.usuario.findUniqueOrThrow({
       select: {
@@ -202,7 +199,7 @@ export class UserService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const usuarios: any = await prisma.usuario.findMany({
       select: {
@@ -236,17 +233,7 @@ export class UserService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-          {
-            login: { contains: word },
-          },
-        ],
+      where: buildTextSearchWhere(word, ['nome', 'login'], {
         NOT: {
           perfil: {
             nome: {
@@ -254,7 +241,7 @@ export class UserService {
             },
           },
         },
-      },
+      }),
     });
 
     const data = await this.formatUsers(usuarios);

@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
+import { buildPagination } from 'src/util/pagination';
+import { toNumberId } from 'src/util/normalizers';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class TipoSessaoService {
@@ -25,13 +29,7 @@ export class TipoSessaoService {
       }),
       prisma.tipoSessao.count(),
     ]);
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -66,15 +64,7 @@ export class TipoSessaoService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      where: buildTextSearchWhere(word, ['nome']),
     });
   }
 
@@ -82,7 +72,7 @@ export class TipoSessaoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.tipoSessao.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome']),
     });
   }
 
@@ -90,11 +80,9 @@ export class TipoSessaoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.tipoSessao.update({
-      data: {
-        nome: body.casa,
-      },
+      data: buildCreatePayload(body, ['nome']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }

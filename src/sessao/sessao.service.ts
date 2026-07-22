@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { getPrismaClient } from 'src/util/crud';
 import { dateAddtDay, dateFormatDDMMYYYY } from 'src/util/format-date';
 import { TYPE_DTT, calcAcertos } from 'src/util/util';
 

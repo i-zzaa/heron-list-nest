@@ -9,6 +9,9 @@ import {
 import { moneyFormat } from 'src/util/util';
 import { PatientCreate, PatientProps } from './paciente.interface';
 import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
+import { getPrismaClient } from 'src/util/crud';
+import { buildPagination } from 'src/util/pagination';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class PacienteService {
@@ -52,7 +55,7 @@ export class PacienteService {
   }
 
   async getConvenio(pacienteId: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.paciente.findUniqueOrThrow({
       select: {
@@ -68,7 +71,7 @@ export class PacienteService {
     statusPacienteCod: string,
     pacienteId: number,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const paciente = await prisma.paciente.findUniqueOrThrow({
       select: {
@@ -110,7 +113,7 @@ export class PacienteService {
     statusPacienteCod: string[],
     naFila?: boolean,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const skip = (page - 1) * pageSize;
 
@@ -169,20 +172,13 @@ export class PacienteService {
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
 
-    const totalPages =
-      totalItems.length < 10 ? 1 : Math.ceil(totalItems.length / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems.length);
 
     return { data: pacientes || [], pagination };
   }
 
   async getPatientId(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.paciente.findFirstOrThrow({
       select: {
@@ -203,7 +199,7 @@ export class PacienteService {
   }
 
   async setTipoSessaoTerapia(pacienteId: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const paciente: any = await prisma.paciente.update({
       data: {
@@ -218,7 +214,7 @@ export class PacienteService {
   }
 
   async setStatusPaciente(statusPacienteCod: string, pacienteId: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const paciente: any = await prisma.paciente.update({
       data: {
@@ -267,7 +263,7 @@ export class PacienteService {
   }
 
   async dropdown(statusPacienteCod: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const statusPacienteCods =
       this.setFilterstatusPacienteCod(statusPacienteCod);
@@ -289,38 +285,24 @@ export class PacienteService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
-    return await prisma.localidade.findMany({
+    return await prisma.paciente.findMany({
       select: {
         id: true,
-        casa: true,
-        sala: true,
-        ativo: true,
+        nome: true,
+        telefone: true,
+        responsavel: true,
       },
       orderBy: {
-        casa: 'asc',
+        nome: 'asc',
       },
-      where: {
-        ativo: true,
-        OR: [
-          {
-            casa: {
-              contains: word,
-            },
-          },
-          {
-            sala: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      where: buildTextSearchWhere(word, ['nome', 'responsavel', 'telefone']),
     });
   }
 
   async create(body: PatientCreate) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const dataContato =
       body?.dataContato ||
@@ -391,7 +373,7 @@ export class PacienteService {
   }
 
   async updatePatient(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     try {
       const pacienteId = body.id;
@@ -511,7 +493,7 @@ export class PacienteService {
   }
 
   async delete(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.localidade.delete({
       where: {
@@ -521,7 +503,7 @@ export class PacienteService {
   }
 
   async getPatientsActived() {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.paciente.findMany({
       select: {
@@ -544,7 +526,7 @@ export class PacienteService {
   }
 
   async getTerapeutaByEspecialidade() {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const user = await prisma.terapeuta.findMany({
       select: {
@@ -571,7 +553,7 @@ export class PacienteService {
     statusPacienteCod: string,
     pacienteId: number,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const vagas: any = await prisma.paciente.findUnique({
       select: {
@@ -624,7 +606,7 @@ export class PacienteService {
   }
 
   async updateDisabled({ id, disabled }: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     await prisma.paciente.update({
       data: {
@@ -683,33 +665,9 @@ export class PacienteService {
       return this.filterPatients(page, pageSize, [], body);
     }
 
-    switch (statusPacienteCod) {
-      case STATUS_PACIENT_COD.queue_avaliation:
-        return this.filterPatients(
-          page,
-          pageSize,
-          [STATUS_PACIENT_COD.queue_avaliation, STATUS_PACIENT_COD.avaliation],
-          body,
-        );
-      case STATUS_PACIENT_COD.queue_devolutiva:
-      case STATUS_PACIENT_COD.devolutiva:
-        if (body?.isDevolutiva) {
-          return this.filterPatients(
-            page,
-            pageSize,
-            [STATUS_PACIENT_COD.devolutiva],
-            body,
-          );
-        }
-        return this.filterPatients(
-          page,
-          pageSize,
-          [STATUS_PACIENT_COD.queue_devolutiva],
-          body,
-        );
-      default:
-        return this.filterPatients(page, pageSize, [statusPacienteCod], body);
-    }
+    const statusPacienteCodes = this.setFilterstatusPacienteCod(statusPacienteCod);
+
+    return this.filterPatients(page, pageSize, statusPacienteCodes, body);
   }
 
   async filterPatients(
@@ -718,7 +676,7 @@ export class PacienteService {
     statusPacienteCod: string[],
     body: any,
   ) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const skip = (page - 1) * pageSize;
 
@@ -737,8 +695,14 @@ export class PacienteService {
 
     const vagaFilter: any = {};
 
-    if (body?.pacientes) {
-      vagaFilter.pacienteId = body.pacientes;
+    if (body?.pacientes !== undefined && body?.pacientes !== null) {
+      const pacientes = Array.isArray(body.pacientes)
+        ? body.pacientes
+        : [body.pacientes];
+
+      whereClause.id = {
+        in: pacientes.map((paciente: any) => Number(paciente)).filter(Boolean),
+      };
     }
 
     if (body?.periodos) {
@@ -799,14 +763,7 @@ export class PacienteService {
     ]);
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
-    const totalPages =
-      totalItems.length < 10 ? 1 : Math.ceil(totalItems.length / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems.length);
 
     return { data: pacientes || [], pagination };
   }

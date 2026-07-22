@@ -7,6 +7,8 @@ import {
 } from './guia-amil.interface';
 import { AmilClientService } from './amil-client.service';
 import { guiaAmilMockResponse } from './guia-amil.mock';
+import { buildPagination } from 'src/util/pagination';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class GuiaAmilService {
@@ -110,6 +112,28 @@ export class GuiaAmilService {
     });
   }
 
+  private buildListWhere(query: GuiaAmilListQuery) {
+    const where: any = {};
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.numeroGuia || query.paciente) {
+      const textSearchWhere = buildTextSearchWhere(
+        query.numeroGuia || query.paciente || '',
+        ['numeroGuia', 'paciente.nome'],
+      );
+
+      return {
+        ...where,
+        ...textSearchWhere,
+      };
+    }
+
+    return where;
+  }
+
   async list(query: GuiaAmilListQuery) {
     if (process.env.AMIL_MOCK_MODE === 'true') {
       return guiaAmilMockResponse.list;
@@ -119,12 +143,7 @@ export class GuiaAmilService {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;
-
-    const where: any = {};
-
-    if (query.status) where.status = query.status;
-    if (query.numeroGuia) where.numeroGuia = { contains: query.numeroGuia };
-    if (query.paciente) where.paciente = { nome: { contains: query.paciente } };
+    const where = this.buildListWhere(query);
 
     const [data, totalItems] = await Promise.all([
       prisma.guiaAmil.findMany({
@@ -142,11 +161,7 @@ export class GuiaAmilService {
 
     return {
       data,
-      pagination: {
-        currentPage: page,
-        pageSize: limit,
-        totalPages: Math.ceil(totalItems / limit) || 1,
-      },
+      pagination: buildPagination(page, limit, totalItems),
     };
   }
 

@@ -2,7 +2,9 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { METAS, PROCEDIMENTO_ENSINO } from './procedimentoEnsino';
 import { TIPO_PROTOCOLO, TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
+import { buildPacienteFilter } from 'src/util/filters';
 import { VALOR_PORTAGE } from 'src/util/util';
+import { buildCreatePayload } from 'src/util/crud';
 
 type TreeNode = {
   key: string | number;
@@ -38,16 +40,22 @@ export class PeiService {
 
     try {
       await prisma.pei.create({
-        data: {
-          estimuloDiscriminativo: body.estimuloDiscriminativo,
-          estimuloReforcadorPositivo: body.estimuloReforcadorPositivo,
-          pacienteId: body.pacienteId,
-          procedimentoEnsinoId: body.procedimentoEnsinoId,
-          programaId: body.programaId,
-          resposta: body.resposta,
-          metas: body.metas,
-          terapeutaId: Number(terapeutaId),
-        },
+        data: buildCreatePayload(
+          {
+            ...body,
+            terapeutaId: Number(terapeutaId),
+          },
+          [
+            'estimuloDiscriminativo',
+            'estimuloReforcadorPositivo',
+            'pacienteId',
+            'procedimentoEnsinoId',
+            'programaId',
+            'resposta',
+            'metas',
+            'terapeutaId',
+          ],
+        ),
       });
     } catch (error) {
       throw new HttpException(error, HttpStatus.NOT_FOUND);
@@ -94,9 +102,7 @@ export class PeiService {
                 },
               },
             },
-            where: {
-              pacienteId: Number(paciente.id),
-            },
+            where: buildPacienteFilter(paciente.id),
           });
 
           resultPei.map((item: any) => {
@@ -121,9 +127,7 @@ export class PeiService {
               },
             },
           },
-          where: {
-            pacienteId: Number(paciente.id),
-          },
+          where: buildPacienteFilter(paciente.id),
           orderBy: {
             id: 'desc',
           },
@@ -171,12 +175,11 @@ export class PeiService {
               },
             },
           },
-          where: {
-            pacienteId: paciente.id,
+          where: buildPacienteFilter(paciente.id, {
             respostaSessao: {
               notIn: notSelected,
             },
-          },
+          }),
         });
 
         const transformDataFilterVBMapp =
@@ -430,16 +433,22 @@ export class PeiService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.pei.update({
-      data: {
-        estimuloDiscriminativo: body.estimuloDiscriminativo,
-        estimuloReforcadorPositivo: body.estimuloReforcadorPositivo,
-        pacienteId: body.pacienteId,
-        procedimentoEnsinoId: body.procedimentoEnsinoId,
-        programaId: body.programaId,
-        resposta: body.resposta,
-        metas: body.metas,
-        id: body.id,
-      },
+      data: buildCreatePayload(
+        {
+          ...body,
+          id: body.id,
+        },
+        [
+          'estimuloDiscriminativo',
+          'estimuloReforcadorPositivo',
+          'pacienteId',
+          'procedimentoEnsinoId',
+          'programaId',
+          'resposta',
+          'metas',
+          'id',
+        ],
+      ),
       where: {
         id: body.id,
       },

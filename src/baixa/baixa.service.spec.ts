@@ -1,11 +1,30 @@
 import { BaixaService } from './baixa.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildQueryFilter } from 'src/util/filters';
 
 describe('BaixaService', () => {
   let service: BaixaService;
 
   beforeEach(() => {
     service = new BaixaService({} as PrismaService);
+  });
+
+  it('should normalize boolean and nested query filters', () => {
+    const filter = buildQueryFilter({
+      baixa: 'false',
+      convenioId: '2',
+      pacienteId: '10',
+    });
+
+    expect(filter).toEqual({
+      baixa: false,
+      pacienteId: 10,
+      paciente: {
+        convenio: {
+          id: 2,
+        },
+      },
+    });
   });
 
   it('should not crash when evento is null', async () => {

@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ModalidadeProps } from './modalidade.interface';
-import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
+import { buildPagination } from 'src/util/pagination';
+import { getModalidadeIdsByStatusPaciente } from 'src/util/filters';
+import { toNumberId } from 'src/util/normalizers';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class ModalidadeService {
@@ -30,13 +34,7 @@ export class ModalidadeService {
       }),
       prisma.modalidade.count(),
     ]);
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -44,22 +42,7 @@ export class ModalidadeService {
   async dropdown(statusPacienteCod: string) {
     const prisma = this.prismaService.getPrismaClient();
 
-    let ids = [];
-    switch (statusPacienteCod) {
-      case STATUS_PACIENT_COD.queue_avaliation:
-        ids = [1];
-        break;
-      case STATUS_PACIENT_COD.queue_devolutiva:
-        ids = [2];
-        break;
-      case STATUS_PACIENT_COD.queue_therapy:
-      case STATUS_PACIENT_COD.devolutiva:
-        ids = [3];
-        break;
-      default:
-        ids = [1, 2, 3];
-        break;
-    }
+    const ids = getModalidadeIdsByStatusPaciente(statusPacienteCod);
 
     return await prisma.modalidade.findMany({
       select: {
@@ -78,7 +61,7 @@ export class ModalidadeService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.modalidade.findMany({
       select: {
@@ -89,16 +72,9 @@ export class ModalidadeService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
+      where: buildTextSearchWhere(word, ['nome'], {
         ativo: true,
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      }),
     });
   }
 
@@ -106,7 +82,7 @@ export class ModalidadeService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.modalidade.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome', 'ativo']),
     });
   }
 
@@ -114,12 +90,9 @@ export class ModalidadeService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.modalidade.update({
-      data: {
-        nome: body.nome,
-        ativo: body.ativo,
-      },
+      data: buildCreatePayload(body, ['nome', 'ativo']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }
@@ -129,7 +102,7 @@ export class ModalidadeService {
 
     return await prisma.modalidade.delete({
       where: {
-        id: Number(id),
+        id: toNumberId(id),
       },
     });
   }

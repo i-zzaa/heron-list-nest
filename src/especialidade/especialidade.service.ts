@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { toNumberId } from 'src/util/normalizers';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class EspecialidadeService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return prisma.especialidade.findMany({
       select: {
@@ -21,7 +24,7 @@ export class EspecialidadeService {
   }
 
   async getespecialidadeName(nome: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.findFirstOrThrow({
       select: {
@@ -35,7 +38,7 @@ export class EspecialidadeService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.findMany({
       select: {
@@ -45,45 +48,35 @@ export class EspecialidadeService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      where: buildTextSearchWhere(word, ['nome']),
     });
   }
 
   async create(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome']),
     });
   }
 
   async update(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.update({
-      data: {
-        nome: body.nome,
-      },
+      data: buildCreatePayload(body, ['nome']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }
 
   async delete(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.delete({
       where: {
-        id: Number(id),
+        id: toNumberId(id),
       },
     });
   }
