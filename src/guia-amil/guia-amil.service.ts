@@ -2,6 +2,7 @@ import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GuiaAmilCreateDto, GuiaAmilListQuery, GuiaAmilUpdateDto } from './guia-amil.interface';
 import { AmilClientService } from './amil-client.service';
+import { guiaAmilMockResponse } from './guia-amil.mock';
 
 @Injectable()
 export class GuiaAmilService {
@@ -11,6 +12,13 @@ export class GuiaAmilService {
   ) {}
 
   async create(body: GuiaAmilCreateDto) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return {
+        ...guiaAmilMockResponse.create,
+        ...body,
+      };
+    }
+
     const prisma = this.prismaService.getPrismaClient();
 
     return prisma.guiaAmil.create({
@@ -28,6 +36,16 @@ export class GuiaAmilService {
   }
 
   async update(id: number, body: GuiaAmilUpdateDto) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return {
+        id,
+        numeroGuia: body.numeroGuia || 'GUIA-MOCK-UPDATED',
+        tipoGuia: body.tipoGuia || 'CONSULTA',
+        status: body.status || 'RASCUNHO',
+        valorTotal: body.valorTotal || 0,
+      };
+    }
+
     const prisma = this.prismaService.getPrismaClient();
 
     return prisma.guiaAmil.update({
@@ -46,6 +64,25 @@ export class GuiaAmilService {
   }
 
   async dropdown() {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return [
+        {
+          id: 1,
+          numeroGuia: 'GUIA-MOCK-001',
+          tipoGuia: 'CONSULTA',
+          status: 'RASCUNHO',
+          paciente: { id: 1, nome: 'Paciente Mock' },
+        },
+        {
+          id: 2,
+          numeroGuia: 'GUIA-MOCK-002',
+          tipoGuia: 'CONSULTA',
+          status: 'PRONTA_PARA_ENVIO',
+          paciente: { id: 2, nome: 'Paciente Mock 2' },
+        },
+      ];
+    }
+
     const prisma = this.prismaService.getPrismaClient();
 
     return prisma.guiaAmil.findMany({
@@ -68,6 +105,10 @@ export class GuiaAmilService {
   }
 
   async list(query: GuiaAmilListQuery) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return guiaAmilMockResponse.list;
+    }
+
     const prisma = this.prismaService.getPrismaClient();
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
@@ -104,6 +145,20 @@ export class GuiaAmilService {
   }
 
   async findOne(id: number) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return {
+        id,
+        numeroGuia: 'GUIA-MOCK-001',
+        tipoGuia: 'CONSULTA',
+        status: 'RASCUNHO',
+        valorTotal: 150,
+        paciente: { id: 1, nome: 'Paciente Mock' },
+        sessao: { id: 10 },
+        loteGuiaItems: [],
+        historico: guiaAmilMockResponse.historico,
+      };
+    }
+
     const prisma = this.prismaService.getPrismaClient();
     return prisma.guiaAmil.findUnique({
       where: { id },
@@ -117,6 +172,14 @@ export class GuiaAmilService {
   }
 
   async prepararEnvio(id: number, usuario: any) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return {
+        id,
+        status: 'PRONTA_PARA_ENVIO',
+        prontoParaEnvioEm: new Date().toISOString(),
+      };
+    }
+
     const prisma = this.prismaService.getPrismaClient();
     return prisma.guiaAmil.update({
       where: { id },
@@ -142,6 +205,15 @@ export class GuiaAmilService {
   }
 
   async enviarGuia(id: number, usuario: any) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return {
+        guiaId: id,
+        loteId: guiaAmilMockResponse.lote.id,
+        sucesso: true,
+        mensagem: 'Mock de envio realizado com sucesso',
+      };
+    }
+
     const prisma = this.prismaService.getPrismaClient();
     const guia = await prisma.guiaAmil.findUnique({ where: { id } });
 
@@ -223,6 +295,10 @@ export class GuiaAmilService {
   }
 
   async historico(id: number) {
+    if (process.env.AMIL_MOCK_MODE === 'true') {
+      return guiaAmilMockResponse.historico;
+    }
+
     const prisma = this.prismaService.getPrismaClient();
     return prisma.guiaAmilHistorico.findMany({
       where: { guiaId: id },
