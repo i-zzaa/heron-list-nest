@@ -42,4 +42,17 @@ describe('TerapeutaService', () => {
 
     expect(isOccupied).toBe(false);
   });
+
+  it('should build free slot using the slot hour in nested data', () => {
+    const slot = (service as any).buildFreeSlot('2026-07-27', '15:00', {
+      usuario: { nome: 'Teste', id: 38 },
+    });
+
+    expect(slot.start).toBe('15:00');
+    expect(slot.end).toBe('16:00');
+    expect(slot.data).toEqual({
+      start: '15:00',
+      end: '16:00',
+    });
+  });
 });
