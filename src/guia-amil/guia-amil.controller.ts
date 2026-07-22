@@ -29,6 +29,16 @@ export class GuiaAmilController {
     }
   }
 
+  @Get('teste-conexao')
+  async testeConexao(@Response() res: any) {
+    try {
+      const data = await this.service.testarConexao();
+      responseSuccess(res, data);
+    } catch (error) {
+      responseError(res);
+    }
+  }
+
   @Get()
   async list(@Request() req: any, @Response() res: any) {
     try {
