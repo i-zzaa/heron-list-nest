@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import * as moment from 'moment';
 import { LocalidadeService } from 'src/localidade/localidade.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserService } from 'src/user/user.service';
 import {
+  HOURS,
   dateAddtDay,
   dateFormatYYYYMMDD,
   dateSubtractDay,
   formatDateTime,
+  getDates,
   getDatesWhiteEvents,
   getPrimeiroDoMes,
   transformStringInDate,
+  weekDay,
 } from 'src/util/format-date';
 import { CalendarioCreateParam, ObjProps } from './agenda.interface';
 import { FrequenciaService } from 'src/frequencia/frequencia.service';
@@ -20,6 +24,22 @@ import { BaixaService } from 'src/baixa/baixa.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 import { getPrismaClient } from 'src/util/crud';
 import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
+
+// Antecedência mínima, em horas, para um cancelamento não ser cobrado.
+// Definido com o negócio: 48 horas corridas antes do horário de início do evento.
+const ANTECEDENCIA_CANCELAMENTO_HORAS = 48;
+
+// Teto de geração de ocorrências para série recorrente sem dataFim definida
+// (paciente ainda em atendimento). Usado só para checagem de conflito/
+// disponibilidade — nunca para materializar/retornar a série inteira.
+const HORIZONTE_RECORRENCIA_SEM_FIM_DIAS = 365;
+
+// Tolerância, em horas, após o horário final do evento durante a qual ele
+// ainda NÃO é considerado "passado" — permite, por exemplo, o check-in
+// mobile (marcar Atendido) logo depois do fim da sessão. Definido com o
+// negócio: 2 horas. Depois desse prazo, só é possível alterar o status para
+// Atestado (ver assertStatusPermitidoParaEventoPassado).
+const TOLERANCIA_EVENTO_PASSADO_HORAS = 2;
 
 @Injectable()
 export class AgendaService {
@@ -174,13 +194,24 @@ export class AgendaService {
     };
   }
 
-  formatEvent(event: any) {
+  /**
+   * Monta o payload de gravação de um evento a partir do body recebido.
+   *
+   * Quando `original` (o registro atualmente salvo no banco) é informado,
+   * os campos que a regra de negócio bloqueia para edição — modalidade,
+   * data, horário inicial/final, frequência, intervalo e dias da semana —
+   * são sempre mantidos com o valor do banco, ignorando silenciosamente
+   * qualquer valor diferente enviado pelo cliente. Os demais campos
+   * (paciente, especialidade, terapeuta, função, local, status,
+   * observação, atendimento externo/km) continuam vindo do `event`/body.
+   */
+  formatEvent(event: any, original?: any) {
     let diasFrequencia = event.diasFrequencia;
     if (event?.diasFrequencia && typeof event?.diasFrequencia === 'object') {
       diasFrequencia = event?.diasFrequencia?.join();
     }
 
-    return {
+    const data: any = {
       groupId: event?.groupId,
       km: event?.km,
       dataInicio: event?.dataInicio,
@@ -201,6 +232,531 @@ export class AgendaService {
       frequenciaId: event?.frequencia?.id,
       intervaloId: event?.intervalo?.id,
     };
+
+    if (original) {
+      data.dataInicio = original.dataInicio;
+      data.start = original.start;
+      data.end = original.end;
+      data.modalidadeId = original.modalidadeId;
+      data.frequenciaId = original.frequenciaId;
+      data.intervaloId = original.intervaloId;
+      data.diasFrequencia = original.diasFrequencia;
+    }
+
+    return data;
+  }
+
+  /**
+   * Cancelamento com/sem antecedência não é uma escolha do cliente: o
+   * backend decide sozinho com base em quanto falta para o horário de
+   * início do evento (regra combinada com o negócio: 48 horas corridas).
+   *
+   * Se o status enviado for "Cancelado com Antecedência" ou "Cancelado sem
+   * Antecedência", ele é silenciosamente substituído pelo status correto
+   * calculado aqui. Qualquer outro status (Atendido, Falta, Cancelado pela
+   * Clínica, Atestado etc.) passa direto, sem alteração — só esses dois são
+   * mutuamente calculados a partir do prazo.
+   */
+  /**
+   * Um evento é "passado" quando já se passaram mais de
+   * TOLERANCIA_EVENTO_PASSADO_HORAS (2h) desde o horário final (data + end).
+   * A tolerância existe para não travar o check-in mobile (marcar Atendido),
+   * que normalmente acontece durante ou logo depois da sessão. Usa o
+   * horário local do servidor, como o resto do código (moment sem timezone
+   * explícito).
+   */
+  private isEventoPassado(dataOcorrencia: string, horaFim: string): boolean {
+    if (!dataOcorrencia || !horaFim) {
+      return false;
+    }
+
+    const fimEvento = moment(`${dataOcorrencia} ${horaFim}`, 'YYYY-MM-DD HH:mm');
+
+    if (!fimEvento.isValid()) {
+      return false;
+    }
+
+    const limiteEdicao = fimEvento
+      .clone()
+      .add(TOLERANCIA_EVENTO_PASSADO_HORAS, 'hours');
+
+    return limiteEdicao.isBefore(moment());
+  }
+
+  /**
+   * Para evento passado, a regra só permite alterar o status (e a baixa
+   * decorrente dele) — nenhum outro campo pode mudar, nem os que a edição
+   * normal libera (paciente, especialidade, terapeuta, função, local,
+   * observação). Lança erro se algo além do status foi alterado.
+   */
+  private assertSomenteStatusAlterado(data: any, original: any) {
+    if (!original) {
+      return;
+    }
+
+    const camposQueNaoPodemMudar: Array<[string, string]> = [
+      ['pacienteId', 'paciente'],
+      ['especialidadeId', 'especialidade'],
+      ['terapeutaId', 'terapeuta'],
+      ['funcaoId', 'função'],
+      ['localidadeId', 'localidade'],
+      ['observacao', 'observação'],
+    ];
+
+    const campoAlterado = camposQueNaoPodemMudar.find(
+      ([campo]) => data[campo] !== original[campo],
+    );
+
+    if (campoAlterado) {
+      throw new Error(
+        `Evento já ocorreu: não é possível alterar ${campoAlterado[1]}, apenas o status.`,
+      );
+    }
+  }
+
+  /**
+   * Em evento passado, o único status para o qual a edição pode resultar é
+   * "Atestado" — definição fechada com o negócio. Qualquer outro valor
+   * (Atendido, Falta, Cancelado com/sem Antecedência etc.) é rejeitado,
+   * mesmo que `assertSomenteStatusAlterado` já tenha aceitado que só o
+   * status mudou.
+   */
+  private async assertStatusPermitidoParaEventoPassado(
+    statusEventosId: number,
+  ) {
+    const prisma = getPrismaClient(this.prismaService);
+
+    const status = await prisma.statusEventos.findUnique({
+      select: { nome: true },
+      where: { id: Number(statusEventosId) },
+    });
+
+    const nome = (status?.nome || '').toLowerCase();
+
+    if (nome !== 'atestado') {
+      throw new Error(
+        'Evento já ocorreu: o único status permitido para alteração é "Atestado".',
+      );
+    }
+  }
+
+  private async resolveStatusCancelamento(
+    statusEventosId: number,
+    dataOcorrencia: string,
+    horaInicio: string,
+  ): Promise<{ id: number; cobrar: boolean; nome: string }> {
+    const prisma = getPrismaClient(this.prismaService);
+
+    const statusAtual = await prisma.statusEventos.findUnique({
+      select: { id: true, nome: true, cobrar: true },
+      where: { id: Number(statusEventosId) },
+    });
+
+    const nomeAtual = (statusAtual?.nome || '').toLowerCase();
+    const ehStatusDeAntecedencia =
+      nomeAtual.includes('cancelado com antecedência') ||
+      nomeAtual.includes('cancelado sem antecedência');
+
+    if (!ehStatusDeAntecedencia || !dataOcorrencia || !horaInicio) {
+      return statusAtual as any;
+    }
+
+    const inicioEvento = moment(
+      `${dataOcorrencia} ${horaInicio}`,
+      'YYYY-MM-DD HH:mm',
+    );
+
+    if (!inicioEvento.isValid()) {
+      return statusAtual as any;
+    }
+
+    const horasParaEvento = inicioEvento.diff(moment(), 'hours', true);
+    const comAntecedencia = horasParaEvento >= ANTECEDENCIA_CANCELAMENTO_HORAS;
+
+    const statusCorreto = await prisma.statusEventos.findFirst({
+      select: { id: true, cobrar: true, nome: true },
+      where: {
+        nome: comAntecedencia
+          ? 'Cancelado com Antecedência'
+          : 'Cancelado sem Antecedência',
+      },
+    });
+
+    return (statusCorreto as any) ?? statusAtual;
+  }
+
+  /**
+   * Valida se paciente, terapeuta, função, status e localidade existem,
+   * estão ativos e são compatíveis entre si:
+   *  - a terapeuta possui a especialidade do evento (terapeuta só tem 1);
+   *  - a função pertence a essa especialidade;
+   *  - a terapeuta possui essa função cadastrada;
+   *  - o paciente possui essa especialidade vinculada (fila/atendimento).
+   * Lança erro descritivo e não cria/atualiza nada quando algo não bate,
+   * mesmo que os IDs tenham sido enviados manualmente (fora do que o
+   * frontend normalmente oferece nos dropdowns).
+   */
+  private async validateAgendamentoVinculos({
+    pacienteId,
+    terapeutaId,
+    especialidadeId,
+    funcaoId,
+    statusEventosId,
+    localidadeId,
+  }: {
+    pacienteId: number;
+    terapeutaId: number;
+    especialidadeId: number;
+    funcaoId: number;
+    statusEventosId: number;
+    localidadeId: number;
+  }) {
+    const prisma = getPrismaClient(this.prismaService);
+
+    const [paciente, terapeuta, funcao, statusEventos, localidade] =
+      await Promise.all([
+        prisma.paciente.findUnique({
+          select: {
+            id: true,
+            disabled: true,
+            vaga: {
+              select: {
+                especialidades: { select: { especialidadeId: true } },
+              },
+            },
+          },
+          where: { id: Number(pacienteId) },
+        }),
+        prisma.terapeuta.findUnique({
+          select: {
+            especialidadeId: true,
+            usuario: { select: { ativo: true } },
+            funcoes: { select: { funcaoId: true } },
+          },
+          where: { usuarioId: Number(terapeutaId) },
+        }),
+        prisma.funcao.findUnique({
+          select: { especialidadeId: true, ativo: true },
+          where: { id: Number(funcaoId) },
+        }),
+        prisma.statusEventos.findUnique({
+          select: { ativo: true },
+          where: { id: Number(statusEventosId) },
+        }),
+        prisma.localidade.findUnique({
+          select: { ativo: true },
+          where: { id: Number(localidadeId) },
+        }),
+      ]);
+
+    if (!paciente || paciente.disabled) {
+      throw new Error('Paciente não encontrado ou inativo.');
+    }
+
+    if (!terapeuta || !terapeuta.usuario?.ativo) {
+      throw new Error('Terapeuta não encontrada ou inativa.');
+    }
+
+    if (!funcao || !funcao.ativo) {
+      throw new Error('Função não encontrada ou inativa.');
+    }
+
+    if (!statusEventos || !statusEventos.ativo) {
+      throw new Error('Status do evento não encontrado ou inativo.');
+    }
+
+    if (!localidade || !localidade.ativo) {
+      throw new Error('Localidade não encontrada ou inativa.');
+    }
+
+    if (terapeuta.especialidadeId !== Number(especialidadeId)) {
+      throw new Error('A terapeuta selecionada não possui essa especialidade.');
+    }
+
+    if (funcao.especialidadeId !== Number(especialidadeId)) {
+      throw new Error('A função selecionada não pertence a essa especialidade.');
+    }
+
+    const terapeutaTemFuncao = terapeuta.funcoes.some(
+      (f: any) => f.funcaoId === Number(funcaoId),
+    );
+    if (!terapeutaTemFuncao) {
+      throw new Error('A terapeuta selecionada não possui essa função.');
+    }
+
+    const especialidadesPaciente = (
+      paciente.vaga?.especialidades || []
+    ).map((e: any) => e.especialidadeId);
+    if (!especialidadesPaciente.includes(Number(especialidadeId))) {
+      throw new Error('O paciente não possui essa especialidade vinculada.');
+    }
+  }
+
+  /**
+   * Valida horário inicial < final, faixa 8h–20h e se os dias do evento
+   * (o único dia, se for evento único; ou os dias da semana, se recorrente)
+   * estão dentro da jornada cadastrada da terapeuta (Terapeuta.cargaHoraria).
+   */
+  private async validateJornada({
+    terapeutaId,
+    dataInicio,
+    start,
+    end,
+    diasFrequencia,
+    frequenciaId,
+  }: {
+    terapeutaId: number;
+    dataInicio: string;
+    start: string;
+    end: string;
+    diasFrequencia: string[] | string;
+    frequenciaId: number;
+  }) {
+    if (!start || !end || start >= end) {
+      throw new Error('O horário inicial deve ser menor que o horário final.');
+    }
+
+    if (start < '08:00' || end > '20:00') {
+      throw new Error('O evento deve estar entre 08:00 e 20:00.');
+    }
+
+    const prisma = getPrismaClient(this.prismaService);
+    const terapeuta = await prisma.terapeuta.findUnique({
+      select: { cargaHoraria: true },
+      where: { usuarioId: Number(terapeutaId) },
+    });
+
+    const cargaHoraria =
+      terapeuta?.cargaHoraria && typeof terapeuta.cargaHoraria === 'string'
+        ? JSON.parse(terapeuta.cargaHoraria)
+        : {};
+
+    const dias = (
+      Number(frequenciaId) === 1
+        ? [moment(dataInicio, 'YYYY-MM-DD').isoWeekday()]
+        : (Array.isArray(diasFrequencia)
+            ? diasFrequencia
+            : (diasFrequencia || '').split(',').filter(Boolean)
+          ).map(Number)
+    ).filter((dia) => !Number.isNaN(dia) && dia >= 1 && dia <= 7);
+
+    for (const isoDia of dias) {
+      const nomeDia = weekDay[isoDia - 1];
+      const horariosDia = nomeDia ? cargaHoraria[nomeDia] : undefined;
+
+      if (!horariosDia) {
+        throw new Error(
+          `A terapeuta não tem jornada cadastrada para ${nomeDia || 'domingo'}.`,
+        );
+      }
+
+      const slotsDoEvento = HOURS.filter(
+        (hora) => hora >= start && hora < end,
+      );
+      const foraDaJornada = slotsDoEvento.some((hora) => !horariosDia[hora]);
+
+      if (foraDaJornada) {
+        throw new Error(
+          `Horário fora da jornada cadastrada da terapeuta em ${nomeDia}.`,
+        );
+      }
+    }
+  }
+
+  private resolveHorizonteRecorrencia(dataInicio: string, dataFim?: string) {
+    return dataFim || dateAddtDay(dataInicio, HORIZONTE_RECORRENCIA_SEM_FIM_DIAS);
+  }
+
+  /**
+   * Verifica se já existe outro evento (ativo, não cancelado) da mesma
+   * terapeuta cuja data e horário se sobrepõem ao evento sendo criado/
+   * editado — considerando ocorrências de séries recorrentes de ambos os
+   * lados. Retorna o evento conflitante (para mensagem de erro) ou null.
+   */
+  private async hasScheduleConflict({
+    terapeutaId,
+    dataInicio,
+    dataFim,
+    start,
+    end,
+    diasFrequencia,
+    frequenciaId,
+    intervaloId,
+    excludeGroupId,
+  }: {
+    terapeutaId: number;
+    dataInicio: string;
+    dataFim?: string;
+    start: string;
+    end: string;
+    diasFrequencia: string[] | string;
+    frequenciaId: number;
+    intervaloId: number;
+    excludeGroupId?: string;
+  }) {
+    const prisma = getPrismaClient(this.prismaService);
+
+    const novoFim = this.resolveHorizonteRecorrencia(dataInicio, dataFim);
+
+    const existentes: any[] = await prisma.calendario.findMany({
+      select: {
+        groupId: true,
+        dataInicio: true,
+        dataFim: true,
+        start: true,
+        end: true,
+        diasFrequencia: true,
+        frequenciaId: true,
+        intervaloId: true,
+        exdate: true,
+        statusEventos: { select: { nome: true } },
+      },
+      where: {
+        terapeutaId: Number(terapeutaId),
+        ...(excludeGroupId ? { groupId: { not: excludeGroupId } } : {}),
+        dataInicio: { lte: novoFim },
+        OR: [{ dataFim: '' }, { dataFim: { gte: dataInicio } }],
+      },
+    });
+
+    if (!existentes.length) {
+      return null;
+    }
+
+    const diasNovos = Array.isArray(diasFrequencia)
+      ? diasFrequencia
+      : (diasFrequencia || '').split(',').filter(Boolean);
+
+    const datasNovas =
+      Number(frequenciaId) === 1
+        ? [dataInicio]
+        : getDates(diasNovos, dataInicio, novoFim, Number(intervaloId) || 1, []);
+
+    for (const existente of existentes) {
+      const statusNome = existente.statusEventos?.nome?.toLowerCase?.() || '';
+      if (statusNome.includes('cancelado')) {
+        continue;
+      }
+
+      const existenteFim = this.resolveHorizonteRecorrencia(
+        existente.dataInicio,
+        existente.dataFim || undefined,
+      );
+      const existenteDias = existente.diasFrequencia
+        ? existente.diasFrequencia.split(',').filter(Boolean)
+        : [];
+      const existenteExdate = existente.exdate
+        ? existente.exdate.split(',')
+        : [];
+
+      const datasExistentes =
+        existente.frequenciaId === 1
+          ? [existente.dataInicio]
+          : getDates(
+              existenteDias,
+              existente.dataInicio,
+              existenteFim,
+              existente.intervaloId || 1,
+              existenteExdate,
+            );
+
+      const datasExistentesSet = new Set(datasExistentes);
+      const temDataEmComum = datasNovas.some((data) =>
+        datasExistentesSet.has(data),
+      );
+
+      if (!temDataEmComum) {
+        continue;
+      }
+
+      const horarioSobrepoe =
+        start < (existente.end || existente.start) && end > existente.start;
+
+      if (horarioSobrepoe) {
+        return existente;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Ponto único de validação de um evento antes de gravar: vínculos
+   * (paciente/terapeuta/função/especialidade), jornada da terapeuta e
+   * conflito de horário.
+   *
+   * Na criação (sem `original`), tudo é sempre validado. Na edição,
+   * como data/horário/frequência/intervalo/dias já são travados por
+   * `formatEvent`, só faz sentido revalidar jornada/conflito quando a
+   * terapeuta realmente mudou — do contrário estaríamos revalidando o
+   * mesmo horário contra a jornada atual a cada edição trivial (ex.: só
+   * mudar a observação), o que poderia quebrar uma edição legítima caso a
+   * jornada da terapeuta tenha sido alterada depois da criação do evento.
+   * Vínculos (paciente/especialidade/terapeuta/função/local/status) são
+   * revalidados sempre que qualquer um deles muda.
+   */
+  private async validateEvento(
+    data: any,
+    options: { excludeGroupId?: string; original?: any } = {},
+  ) {
+    const { excludeGroupId, original } = options;
+
+    if (data.isExterno && Number(data.km) < 0) {
+      throw new Error('Quilometragem não pode ser negativa.');
+    }
+
+    const vinculosMudaram =
+      !original ||
+      original.pacienteId !== data.pacienteId ||
+      original.especialidadeId !== data.especialidadeId ||
+      original.terapeutaId !== data.terapeutaId ||
+      original.funcaoId !== data.funcaoId ||
+      original.localidadeId !== data.localidadeId ||
+      original.statusEventosId !== data.statusEventosId;
+
+    if (vinculosMudaram) {
+      await this.validateAgendamentoVinculos({
+        pacienteId: data.pacienteId,
+        terapeutaId: data.terapeutaId,
+        especialidadeId: data.especialidadeId,
+        funcaoId: data.funcaoId,
+        statusEventosId: data.statusEventosId,
+        localidadeId: data.localidadeId,
+      });
+    }
+
+    const terapeutaMudou = !original || original.terapeutaId !== data.terapeutaId;
+
+    if (!terapeutaMudou) {
+      return;
+    }
+
+    await this.validateJornada({
+      terapeutaId: data.terapeutaId,
+      dataInicio: data.dataInicio,
+      start: data.start,
+      end: data.end,
+      diasFrequencia: data.diasFrequencia,
+      frequenciaId: data.frequenciaId,
+    });
+
+    const conflito = await this.hasScheduleConflict({
+      terapeutaId: data.terapeutaId,
+      dataInicio: data.dataInicio,
+      dataFim: data.dataFim,
+      start: data.start,
+      end: data.end,
+      diasFrequencia: data.diasFrequencia,
+      frequenciaId: data.frequenciaId,
+      intervaloId: data.intervaloId,
+      excludeGroupId,
+    });
+
+    if (conflito) {
+      throw new Error(
+        `Conflito de horário: a terapeuta já tem evento de ${conflito.start} às ${conflito.end} nesse período (groupId ${conflito.groupId}).`,
+      );
+    }
   }
 
   async formatEvents(eventos: any, login: string) {
@@ -486,7 +1042,7 @@ export class AgendaService {
           funcao: { id: body[`funcao${index}`].id },
         });
 
-        return this.buildCalendarioPayload({
+        const eventData = this.buildCalendarioPayload({
           body: data,
           userId: user.id,
           frequencia,
@@ -501,6 +1057,10 @@ export class AgendaService {
           statusEventosId: data.statusEventos.id,
           intervaloId: data.intervalo.id,
         });
+
+        await this.validateEvento(eventData);
+
+        return eventData;
       }),
     );
 
@@ -540,6 +1100,8 @@ export class AgendaService {
       statusEventosId: body.statusEventos.id,
       intervaloId: body.intervalo.id,
     });
+
+    await this.validateEvento(eventData);
 
     const evento = await prisma.$transaction([
       prisma.calendario.create({
@@ -711,33 +1273,50 @@ export class AgendaService {
       return this.updateEventoUnicoGrupo(body, login, hasDataFim);
     }
 
-    const data = this.formatEvent(body);
-
-    if (body.changeAll) {
-      delete data.dataFim;
-      return prisma.calendario.updateMany({
-        data,
-        where: {
-          groupId: data.groupId,
-        },
+    // "Editar esta e as próximas" (changeAll) sempre passa por
+    // updateEventoRecorrentes -> updateEventoRecorrentesAllChange, que faz o
+    // split correto (série antiga ganha dataFim de corte, série nova nasce a
+    // partir da data atual). Nunca fazemos updateMany direto por groupId aqui:
+    // isso já sobrescreveu ocorrências passadas e outras exceções já
+    // materializadas (isChildren) que compartilham o mesmo groupId.
+    if (!body.changeAll && body.isChildren) {
+      const original = await prisma.calendario.findFirst({
+        where: { id: body.id },
       });
-    }
+      const data = this.formatEvent(body, original);
+      const statusResolvido = await this.resolveStatusCancelamento(
+        data.statusEventosId,
+        data.dataInicio,
+        data.start,
+      );
+      data.statusEventosId = statusResolvido.id;
 
-    if (body.isChildren) {
+      if (this.isEventoPassado(data.dataInicio, original?.end)) {
+        this.assertSomenteStatusAlterado(data, original);
+        await this.assertStatusPermitidoParaEventoPassado(data.statusEventosId);
+      }
+
+      // Fora do try/catch de baixo propositalmente: se a validação falhar,
+      // o erro precisa subir para o controller, não ser engolido pelo log.
+      await this.validateEvento(data, {
+        original,
+        excludeGroupId: original?.groupId,
+      });
+
       try {
-        const eventos = prisma.calendario.update({
+        const eventos = await prisma.calendario.update({
           data,
           where: {
             id: body.id,
           },
         });
 
-        if (body.statusEventos.cobrar) {
+        if (statusResolvido.cobrar) {
           await this.baixaService.create({
             pacienteId: body.paciente.id,
             terapeutaId: body.terapeuta.id,
             localidadeId: body.localidade.id,
-            statusEventosId: body.statusEventos.id,
+            statusEventosId: statusResolvido.id,
             eventoId: body.id,
             dataEvento: body.dataInicio,
           });
@@ -762,7 +1341,27 @@ export class AgendaService {
     const prisma = getPrismaClient(this.prismaService);
 
     if (event?.frequencia?.id === 1) {
-      const data = this.formatEvent(event);
+      const original = await prisma.calendario.findFirst({
+        where: { id: event.id },
+      });
+      const data = this.formatEvent(event, original);
+      const statusResolvido = await this.resolveStatusCancelamento(
+        data.statusEventosId,
+        data.dataInicio,
+        data.start,
+      );
+      data.statusEventosId = statusResolvido.id;
+
+      if (this.isEventoPassado(data.dataInicio, original?.end)) {
+        this.assertSomenteStatusAlterado(data, original);
+        await this.assertStatusPermitidoParaEventoPassado(data.statusEventosId);
+      }
+
+      await this.validateEvento(data, {
+        original,
+        excludeGroupId: original?.groupId,
+      });
+
       const eventoAtualizado = await prisma.calendario.update({
         data,
         where: {
@@ -770,12 +1369,12 @@ export class AgendaService {
         },
       });
 
-      if (event.statusEventos.cobrar) {
+      if (statusResolvido.cobrar) {
         await this.baixaService.create({
           pacienteId: event.paciente.id,
           terapeutaId: event.terapeuta.id,
           localidadeId: event.localidade.id,
-          statusEventosId: event.statusEventos.id,
+          statusEventosId: statusResolvido.id,
           eventoId: event.id,
           dataEvento: event.dateAtual,
         });
@@ -898,7 +1497,10 @@ export class AgendaService {
   ) {
     const prisma = getPrismaClient(this.prismaService);
 
-    const data = this.formatEvent(event);
+    const original = await prisma.calendario.findFirst({
+      where: { id: event.id },
+    });
+    const data = this.formatEvent(event, original);
 
     const dataFim = hasDataFim ? event.dataFim : event.dataAtual; //dateSubtractDay(event.dataAtual, 1);
 
@@ -923,6 +1525,29 @@ export class AgendaService {
 
         return eventosAll;
       case !event.changeAll: // se nao for mudar todos
+        // A ocorrência sendo alterada é a de event.dataAtual (não a data de
+        // início da série, que fica travada/original) — é contra ela que a
+        // antecedência de cancelamento precisa ser calculada. A baixa desse
+        // ramo é criada a partir do "eventos" retornado pelo próprio
+        // create/select abaixo, que já reflete o statusEventosId corrigido.
+        data.statusEventosId = (
+          await this.resolveStatusCancelamento(
+            data.statusEventosId,
+            event.dataAtual,
+            data.start,
+          )
+        ).id;
+
+        if (this.isEventoPassado(event.dataAtual, data.end)) {
+          this.assertSomenteStatusAlterado(data, original);
+          await this.assertStatusPermitidoParaEventoPassado(data.statusEventosId);
+        }
+
+        await this.validateEvento(data, {
+          original,
+          excludeGroupId: original?.groupId,
+        });
+
         const usuario = await this.userService.getUser(login);
 
         try {
@@ -987,7 +1612,23 @@ export class AgendaService {
     const dataInicio = transformStringInDate(evento.dataInicio);
     const dataAtual = transformStringInDate(event.dataAtual);
 
-    const data = this.formatEvent(event);
+    const data = this.formatEvent(event, evento);
+    const statusResolvido = await this.resolveStatusCancelamento(
+      data.statusEventosId,
+      event.dataAtual,
+      data.start,
+    );
+    data.statusEventosId = statusResolvido.id;
+
+    if (this.isEventoPassado(event.dataAtual, data.end)) {
+      this.assertSomenteStatusAlterado(data, evento);
+      await this.assertStatusPermitidoParaEventoPassado(data.statusEventosId);
+    }
+
+    await this.validateEvento(data, {
+      original: evento,
+      excludeGroupId: evento.groupId,
+    });
 
     if (exdate !== '') {
       event.exdate = exdate;
@@ -1024,12 +1665,12 @@ export class AgendaService {
     } else {
       console.log(data);
 
-      if (event.statusEventos.cobrar) {
+      if (statusResolvido.cobrar) {
         await this.baixaService.create({
           pacienteId: event.paciente.id,
           terapeutaId: event.terapeuta.id,
           localidadeId: event.localidade.id,
-          statusEventosId: event.statusEventos.id,
+          statusEventosId: statusResolvido.id,
           eventoId: event.id,
           dataEvento: event.dataAtual,
         });
@@ -1070,9 +1711,15 @@ export class AgendaService {
           },
           especialidadeId: true,
           groupId: true,
+          dataInicio: true,
+          end: true,
         },
         where: { id: Number(eventId) },
       });
+
+      if (this.isEventoPassado(evento.dataInicio, evento.end)) {
+        throw new Error('Não é possível excluir um evento que já ocorreu.');
+      }
 
       await this.vagaService.update({
         desagendar: [evento.especialidadeId],
@@ -1099,6 +1746,10 @@ export class AgendaService {
       });
     } catch (error) {
       console.log(error);
+      // Antes o erro morria aqui e o controller respondia sucesso mesmo
+      // quando nada foi excluído (ex.: evento passado, evento inexistente).
+      // Propaga para o controller tratar como falha.
+      throw error;
     }
   }
 

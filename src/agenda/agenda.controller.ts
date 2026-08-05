@@ -33,7 +33,7 @@ export class AgendaController {
     @Response() response: any,
   ) {
     try {
-      if (!req.headers.login) {
+      if (!req.user?.username) {
         return messageError();
       }
       if (Boolean(req.query.terapeutaId)) {
@@ -45,7 +45,7 @@ export class AgendaController {
           ultimoDiaDoMes,
           req.query,
           req.headers.device,
-          req.headers.login,
+          req.user?.username,
         );
 
         responseSuccess(response, data);
@@ -53,7 +53,7 @@ export class AgendaController {
         const data = await this.agendaService.getFilter(
           req.params,
           req.query,
-          req.headers?.login,
+          req.user?.username,
         );
 
         responseSuccess(response, data);
@@ -71,7 +71,7 @@ export class AgendaController {
       const data = await this.agendaService.getRange(
         req.params,
         req.headers?.device,
-        req.headers?.login,
+        req.user?.username,
       );
 
       responseSuccess(response, data);
@@ -85,7 +85,7 @@ export class AgendaController {
     try {
       const data = await this.agendaService.createCalendario(
         req.body,
-        req.headers.login,
+        req.user?.username,
       );
 
       responseSuccess(response, data);
@@ -102,12 +102,12 @@ export class AgendaController {
 
         await this.agendaService.updateCalendarioMobile(
           req.body,
-          req.headers.login,
+          req.user?.username,
           req.body.date,
           dataFim,
         );
       } else {
-        await this.agendaService.updateCalendario(req.body, req.headers.login);
+        await this.agendaService.updateCalendario(req.body, req.user?.username);
       }
 
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
@@ -123,7 +123,7 @@ export class AgendaController {
     try {
       await this.agendaService.updateCalendarioMobile(
         req.body.id,
-        req.headers.login,
+        req.user?.username,
       );
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
     } catch (error) {
@@ -136,7 +136,7 @@ export class AgendaController {
     try {
       await this.agendaService.updateCalendarioAtestado(
         req.query.id,
-        req.headers.login,
+        req.user?.username,
       );
 
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
@@ -148,7 +148,7 @@ export class AgendaController {
   @Delete()
   async delete(@Request() req: any, @Response() response: any) {
     try {
-      await this.agendaService.delete(req.query.id, req.headers.login);
+      await this.agendaService.delete(req.query.id, req.user?.username);
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
     } catch (error) {
       responseError(response);

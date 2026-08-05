@@ -8,10 +8,14 @@ import {
 } from 'src/util/format-date';
 import { buildPagination } from 'src/util/pagination';
 import { buildQueryFilter } from 'src/util/filters';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class BaixaService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly userService: UserService,
+  ) {}
 
   async getAll(page: number, pageSize: number, query?: any) {
     const prisma = this.prismaService.getPrismaClient();
@@ -113,13 +117,18 @@ export class BaixaService {
     return { data, pagination };
   }
 
-  async update({ id, usuarioId }: BaixaFilterProps) {
+  async update({ id }: BaixaFilterProps, login?: string) {
     const prisma = this.prismaService.getPrismaClient();
+
+    // usuarioId nunca vem do corpo da requisição: é sempre resolvido a
+    // partir do usuário autenticado (JWT), para que o registro de quem deu
+    // baixa não possa ser forjado pelo cliente.
+    const usuario = login ? await this.userService.getUser(login) : null;
 
     return await prisma.baixa.update({
       data: {
         baixa: true,
-        usuarioId: usuarioId,
+        usuarioId: usuario?.id,
       },
       where: {
         id: Number(id),

@@ -1,6 +1,6 @@
 # Auditoria do Backend — Regras de Negócio MultiAlcance
 
-**Repositório:** `heron-list-nest` (branch `featureGuiaAmil`) · **Escopo:** diagnóstico completo + primeira leva de correções de baixo risco (ver §9).
+**Repositório:** `heron-list-nest` (branch `featureGuiaAmil`) · **Escopo:** diagnóstico completo + duas rodadas de correções (ver §9: rodada 1 = bugs mecânicos de baixo risco; rodada 2 = identidade, conflito de agenda/jornada/vínculos, campos bloqueados, recorrência, antecedência de cancelamento e proteção de evento passado).
 **Data:** 2026-08-04
 
 ---
@@ -29,29 +29,34 @@
 
 | Módulo | Situação |
 |---|---|
-| Autenticação/Autorização | ⚠️ **Crítico** — sem guard de permissão por tag; `VagaController` estava **sem nenhum guard de autenticação** (corrigido nesta sessão) |
-| Cadastro de terapeuta (jornada, comissão, especialidade/funções) | ⚠️ Parcial — 1 especialidade + N funções está correto; falta validar jornada (8h–20h, sem sobreposição) |
-| Paciente | ⚠️ Parcial — sem dedupe de carteirinha, sem snapshot financeiro; `delete()` **apagava a entidade errada** (corrigido nesta sessão) |
-| Filas (avaliação/devolutiva/terapia) | ⚠️ Parcial — máquina de estados via `Vaga`, mas transições não são transacionais; `switch` com fallthrough (corrigido nesta sessão) |
-| Agenda/Recorrência | ⚠️ Parcial — CRUD e RRULE existem; **não há checagem de conflito de horário em nenhum ponto** |
-| Edição "esta e as próximas" | ❌ Incorreto — `changeAll` atualiza a série inteira (inclusive ocorrências passadas), sem trava de campos |
-| Baixa | ⚠️ Parcial — evita baixa duplicada, mas exclusão é física (sem motivo/auditoria) |
-| Financeiro | ⚠️ Parcial — cálculo funcional, mas **sem snapshot** (retroativo), valores em `String`/`parseFloat`, km e devolutiva hardcoded |
-| CRUD de cadastros (13 controllers) | ❌ **Todos os endpoints `DELETE /:id` estavam quebrados** por bug de binding do NestJS (corrigido nesta sessão) |
+| Autenticação/Autorização | ⚠️ Parcial — identidade agora vem do JWT verificado, não de header (corrigido); `VagaController` estava sem guard nenhum (corrigido). **Autorização por tag continua não implementada** — decisão consciente, ver §9 rodada 2 e §11 |
+| Cadastro de terapeuta (jornada, comissão, especialidade/funções) | ⚠️ Parcial — 1 especialidade + N funções está correto; jornada 8h–20h/sem sobreposição agora é validada no agendamento (corrigido) |
+| Paciente | ⚠️ Parcial — sem dedupe de carteirinha, sem snapshot financeiro; `delete()` apagava a entidade errada (corrigido) |
+| Filas (avaliação/devolutiva/terapia) | ⚠️ Parcial — máquina de estados via `Vaga`; `switch` com fallthrough corrigido; **transação real (`$transaction`) entre vaga↔paciente ainda não implementada** |
+| Agenda | ✅ Conflito de horário, jornada e vínculo especialidade/terapeuta/função agora validados na criação e edição; evento passado agora bloqueia edição de campos (só status) e exclusão |
+| Edição "esta e as próximas" | ✅ Corrigido — `changeAll` agora sempre passa pelo split correto (série antiga trunca, série nova nasce da data atual); campos travados (modalidade/data/horário/frequência/intervalo/dias) são sempre mantidos do original |
+| Cancelamento com/sem antecedência | ✅ Corrigido — backend decide sozinho (48h corridas até o início do evento), ignorando o status enviado pelo cliente quando for um dos dois de cancelamento |
+| Baixa | ⚠️ Parcial — evita baixa duplicada, `usuarioId` agora vem do JWT (corrigido); exclusão continua física, sem motivo/auditoria |
+| Financeiro | ⚠️ Parcial — cálculo funcional, mas **sem snapshot** (retroativo), valores em `String`/`parseFloat`, km e devolutiva hardcoded — **não alterado nesta rodada** (precisa de migration, ver §11) |
+| CRUD de cadastros (13 controllers) | ✅ Corrigido — endpoints `DELETE /:id` estavam todos quebrados por bug de binding do NestJS |
 | Testes | ❌ Insuficiente — 31 testes, todos de formatação/filtro; nenhum cobre regra de negócio, concorrência ou permissão |
 | Migrations/Seeds | ❌ Ausentes — `prisma db push` sem histórico, sem seed versionado |
 | Multiclínica | ❌ Não existe (não há `Clinica`/tenant em nenhuma entidade) |
 
 ### Riscos críticos (bloqueadores de produção)
 
-1. **Escalada de privilégio total**: qualquer usuário autenticado pode criar/editar usuários, grupos de permissão e **resetar a senha de qualquer conta** (inclusive administrador) para uma senha padrão fixa e conhecida.
-2. **Identidade de negócio via header HTTP livre** (`req.headers.login`) em todos os fluxos de agenda/baixa/financeiro — falsificável em qualquer cliente HTTP.
-3. ~~**`VagaController` sem autenticação nenhuma**~~ — **corrigido nesta sessão** (guard reativado). Antes da correção, qualquer pessoa na internet, sem token, conseguia mover pacientes entre filas.
-4. **Nenhuma verificação de conflito de horário** ao criar/editar eventos — dupla marcação é totalmente possível.
-5. ~~**Bug de exclusão cruzada**: `PacienteService.delete()` deletava um registro de `Localidade`, não o paciente~~ — **corrigido nesta sessão**.
-6. ~~**Todos os 13 endpoints `DELETE /:id` de cadastro (paciente, especialidade, função, localidade, status-evento, modalidade, período, perfil, status, tipo-sessão, convênio, frequência, sessão) estavam inoperantes**~~ — **corrigido nesta sessão**.
-7. **Ausência sistemática de transações reais** nos fluxos de fila, agenda e financeiro (uso de `Promise.all` em vez de `prisma.$transaction`).
-8. **Financeiro recalculado a partir dos cadastros atuais** (sem snapshot) — qualquer alteração de valor/comissão reescreve relatórios de períodos fechados.
+1. **Escalada de privilégio**: qualquer usuário autenticado ainda pode criar/editar usuários, grupos de permissão e **resetar a senha de qualquer conta** (inclusive administrador) para uma senha padrão fixa. **Não corrigido nesta rodada** — decisão consciente (autorização por tag foi adiada, ver §11); a única mitigação já feita é que a *identidade* de quem faz a chamada agora é a verificada pelo JWT, não mais um header livre.
+2. ~~**Identidade de negócio via header HTTP livre** (`req.headers.login`)~~ — **corrigido**: `agenda`, `usuarios`, `sessao` e `baixa` agora usam `req.user.username`, populado pelo payload assinado do JWT (`AuthGuard('jwt')`), não mais um header que o cliente controla.
+3. ~~**`VagaController` sem autenticação nenhuma**~~ — **corrigido** (guard reativado). Antes da correção, qualquer pessoa na internet, sem token, conseguia mover pacientes entre filas.
+4. ~~**Nenhuma verificação de conflito de horário** ao criar/editar eventos~~ — **corrigido**: dupla marcação, sobreposição parcial e evento fora da jornada (8h–20h ou fora do dia cadastrado) agora são rejeitados na criação e em toda edição que troca a terapeuta.
+5. ~~**Bug de exclusão cruzada**: `PacienteService.delete()` deletava um registro de `Localidade`, não o paciente~~ — **corrigido**.
+6. ~~**Todos os 13 endpoints `DELETE /:id` de cadastro**~~ — **corrigido**.
+7. **Ausência de transação real (`prisma.$transaction`) nos fluxos de fila** (`VagaService.update`) — **não corrigido nesta rodada**: o `switch` sem `break` foi corrigido, mas as chamadas continuam em `Promise.all` (concorrência, não atomicidade). Fica para uma rodada dedicada por exigir threading do client de transação por várias camadas de service (Vaga → Paciente).
+8. **Financeiro recalculado a partir dos cadastros atuais** (sem snapshot) — qualquer alteração de valor/comissão reescreve relatórios de períodos fechados. **Não corrigido nesta rodada**: exige migration de schema (novos campos em `Calendario`/`Baixa` + migração de `String` para `Decimal`), que não deve ser aplicada ao banco sem sua confirmação explícita.
+9. ~~**"Esta e as próximas" reescrevia ocorrências passadas**~~ — **corrigido**: `changeAll` agora sempre passa pela lógica de split (trunca a série antiga, cria a nova a partir da data atual) em vez de um `updateMany` cru por `groupId`.
+10. ~~**Campos bloqueados (modalidade/data/horário/frequência/intervalo/dias) eram graváveis via update**~~ — **corrigido**: sempre mantidos do registro original, ignorados silenciosamente se vierem diferentes no payload.
+11. ~~**Cliente escolhia livremente entre "Cancelado com Antecedência" e "Cancelado sem Antecedência"**~~ — **corrigido**: backend recalcula com base em 48h corridas até o início do evento.
+12. ~~**Evento passado podia ser editado/excluído livremente**~~ — **corrigido**: exclusão de evento já ocorrido é bloqueada; edição só aceita mudança de status (a baixa decorrente segue o status corrigido).
 
 ---
 
@@ -198,7 +203,9 @@
 
 ## 8. Testes
 
-31 testes unitários (formatação/filtro), 8 suites, todos passam. Nenhum teste cobre: permissões, conflito de horário, transição de fila, cancelamento com/sem antecedência, baixa duplicada, financeiro com snapshot, concorrência, isolamento entre clínicas. Nenhum teste e2e.
+Estado original: 31 testes unitários (formatação/filtro), 8 suites. Nenhum cobria: permissões, conflito de horário, transição de fila, cancelamento com/sem antecedência, baixa duplicada, financeiro com snapshot, concorrência, isolamento entre clínicas. Nenhum teste e2e.
+
+**Após as duas rodadas de correção: 46 testes, mesmas 8 suites.** Os 15 novos, em [agenda.service.spec.ts](src/agenda/agenda.service.spec.ts), cobrem especificamente a lógica adicionada: `hasScheduleConflict` (sobreposição parcial, horário idêntico, encostado sem sobrepor, evento cancelado ignorado), `validateJornada` (fora de 8h–20h, início ≥ fim, dia sem jornada cadastrada, dentro da jornada), `isEventoPassado`/`assertSomenteStatusAlterado` (passado vs. futuro, campo bloqueado rejeitado, só status permitido) e `resolveStatusCancelamento` (status não-cancelamento intocado, <48h → sem antecedência, ≥48h → com antecedência). Ainda faltam: testes de `createCalendario`/`updateCalendario` ponta a ponta (com Prisma mockado ou banco de teste), transição de fila, baixa duplicada, financeiro, concorrência e e2e — não cobertos nesta rodada.
 
 ---
 
@@ -215,7 +222,33 @@ Escopo desta primeira leva: **apenas correções mecânicas e não-ambíguas**, 
 | 5 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) | `this.baixaService.create(...)` era chamado **sem `await`** em 4 pontos (`updateCalendario`, `updateEventoUnicoGrupo`, `updateEventoRecorrentes`, `updateEventoRecorrentesAllChange`) — erro viraria unhandled rejection e a resposta ao cliente não esperava a baixa ser gravada | Adicionado `await` em todas as chamadas |
 | 6 | [src/util/pagination.ts](src/util/pagination.ts) + pontos de uso | `pageSize` vindo do cliente sem teto — permitia dump de tabela inteira | Adicionado teto máximo de página (defensivo, não quebra contrato existente) |
 
-**Fora do escopo desta leva (requer decisão de negócio ou é mudança de maior risco/impacto em produção — ver §10 e §11):** guard de permissão por tag, extração de identidade a partir do JWT em vez do header `login`, bloqueio de reset de senha sem permissão, whitelist de `grupoPermissaoId`/`perfilId`, checagem de conflito de horário/jornada, trava de campos da agenda, snapshot financeiro, divisão de série recorrente, soft delete de baixa/cadastros em uso, migrations/seeds.
+### Rodada 2 — identidade, agenda (conflito/jornada/vínculos), recorrência, cancelamento e evento passado
+
+Antes de começar, 4 decisões de negócio que estavam pendentes (§11 da v1) foram fechadas com você:
+
+* **Autorização por tag**: adiada. Sem catálogo de permissões existente, implementar guard de tag agora arriscava travar acesso de usuários legítimos. Nesta rodada só a **identidade** (quem está fazendo a chamada) foi corrigida — a checagem "essa pessoa pode fazer isso" continua pendente para quando o catálogo de tags for definido.
+* **Antecedência de cancelamento**: 48 horas corridas até o início do evento (não 24h, não D-1).
+* **Recorrência sem `dataFim`**: é o comportamento esperado (paciente ainda em atendimento, sem previsão de alta) — não é um bug. Nenhuma trava foi adicionada aqui; a arquitetura já existente (1 linha por série + `groupId` + `exdate` + `isChildren` para exceções) foi mantida e um bug real dentro dela foi corrigido (ver item 8 abaixo).
+* **Campos bloqueados enviados diferentes do salvo**: ignorados silenciosamente (mantém o valor original), sem rejeitar a requisição inteira.
+
+Todos os itens abaixo foram validados com `tsc --noEmit`, `nest build` e `npx jest` (46/46 passando, 15 testes novos cobrindo especificamente esta rodada em [agenda.service.spec.ts](src/agenda/agenda.service.spec.ts)).
+
+| # | Arquivo(s) | O que estava errado | O que foi feito |
+|---|---|---|---|
+| 7 | [src/agenda/agenda.controller.ts](src/agenda/agenda.controller.ts), [src/user/user.controller.ts](src/user/user.controller.ts), [src/sessao/sessao.controller.ts](src/sessao/sessao.controller.ts) | Identidade de quem cria/edita/exclui vinha de `req.headers.login`, um header livre que o cliente controla | Trocado por `req.user?.username`, que o Passport preenche a partir do payload **assinado** do JWT (`sub`/`username`), verificado na estratégia `jwt.strategy.ts` |
+| 8 | [src/baixa/baixa.controller.ts](src/baixa/baixa.controller.ts), [src/baixa/baixa.service.ts](src/baixa/baixa.service.ts), [src/baixa/baixa.module.ts](src/baixa/baixa.module.ts) | `usuarioId` de quem deu baixa vinha direto do corpo da requisição (`body.usuarioId`) — o cliente podia atribuir a baixa a qualquer usuário | `BaixaService.update` agora resolve o usuário a partir do login autenticado (via `UserService`, importado no módulo) |
+| 9 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `formatEvent` | `changeAll` (via `updateCalendario`) fazia `prisma.calendario.updateMany({ where: { groupId } })` quando já existiam múltiplas linhas no grupo — sobrescrevia `dataInicio`/ocorrências passadas/exceções já materializadas (`isChildren`) do mesmo grupo | Removido esse atalho; `changeAll` agora sempre passa por `updateEventoRecorrentes` → `updateEventoRecorrentesAllChange`, que faz o split correto (série antiga ganha `dataFim` de corte, série nova nasce da data atual) — o mesmo padrão que você descreveu já usar |
+| 10 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `formatEvent(event, original)` | Nenhum campo era travado após a criação do evento | `formatEvent` agora aceita o registro original e sempre mantém dele `dataInicio`, `start`, `end`, `modalidadeId`, `frequenciaId`, `intervaloId`, `diasFrequencia`, ignorando silenciosamente valor diferente enviado pelo cliente. Aplicado nos 4 pontos de update (edição de ocorrência única, "só esta", "esta e as próximas", evento único) |
+| 11 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `validateAgendamentoVinculos` | `createCalendario` não validava se a especialidade pertence ao paciente, se a terapeuta possui a especialidade/função, ou se paciente/terapeuta/função/status/local estão ativos | Novo validador chamado na criação (evento default e devolutiva) e em toda edição que muda paciente/especialidade/terapeuta/função/local/status; rejeita IDs incompatíveis mesmo enviados manualmente |
+| 12 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `validateJornada` | Jornada da terapeuta (`cargaHoraria`, 8h–20h) só era usada para montar a grade visual, nunca para validar criação/edição | Novo validador: rejeita horário fora de 08:00–20:00, `start >= end`, e qualquer dia/horário fora do `cargaHoraria` cadastrado da terapeuta. Roda na criação e sempre que a terapeuta muda numa edição |
+| 13 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `hasScheduleConflict` | Nenhuma checagem de conflito de horário em lugar nenhum — dupla marcação era sempre aceita | Novo validador: materializa as datas da série nova e de cada série existente da mesma terapeuta (respeitando frequência/intervalo/exdate, com teto de 365 dias para série sem fim) e rejeita sobreposição de horário; ignora eventos cancelados |
+| 14 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `resolveStatusCancelamento` | Cliente escolhia livremente entre "Cancelado com Antecedência" (não cobra) e "Cancelado sem Antecedência" (cobra) | Backend recalcula com base em 48h corridas até o início da ocorrência sendo alterada, sempre que o status enviado for um desses dois — silenciosamente substitui pelo correto. A criação de baixa decorrente agora usa o status corrigido, não o enviado |
+| 15 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `isEventoPassado` / `assertSomenteStatusAlterado` | Evento com horário final já passado podia ser editado (qualquer campo) ou excluído livremente | `delete()` agora rejeita evento já ocorrido; toda edição de evento passado só aceita mudança de `statusEventosId` — qualquer outro campo diferente do original (paciente/especialidade/terapeuta/função/local/observação) é rejeitado com erro |
+| 16 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `delete()` | Erros dentro de `delete()` (incluindo o novo bloqueio de evento passado) eram só logados no console; o controller respondia sucesso mesmo sem excluir nada | `catch` agora relança o erro, que chega ao controller como falha real |
+| 17 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `assertStatusPermitidoParaEventoPassado` | "Alteração de status autorizada" em evento passado não tinha lista definida | Fechado com você: **apenas Atestado**. Qualquer outro status em evento passado é rejeitado, mesmo que `assertSomenteStatusAlterado` já garanta que só o status mudou |
+| 18 | [src/agenda/agenda.service.ts](src/agenda/agenda.service.ts) — `isEventoPassado` / `TOLERANCIA_EVENTO_PASSADO_HORAS` | A regra "só Atestado" do item 17 quebraria o check-in mobile (`PUT /evento/check`, marca Atendido), que normalmente roda durante/logo após a sessão | Fechado com você: tolerância de **2 horas após o término** — dentro dessa janela o evento não é considerado "passado" (qualquer status vale); só depois das 2h a trava de "somente Atestado" passa a valer |
+
+**Fora do escopo desta rodada (decisão de negócio pendente ou exige migration de banco — ver §11):** autorização por tag, whitelist de `grupoPermissaoId`/`perfilId` (escalada de privilégio), permissão para reset de senha, snapshot financeiro (`Calendario`/`Baixa`) e migração `String`→`Decimal`, soft delete/auditoria de baixa e cadastros em uso, `prisma.$transaction` real nas transições de fila, unicidade de carteirinha/nomes, índices de banco, migrations/seeds formais. Nenhuma dessas foi tocada porque envolve mudança de schema (preciso da sua confirmação antes de rodar qualquer `prisma migrate`/`db push` contra o banco real) ou uma definição de regra que você ainda não fechou.
 
 ---
 
@@ -238,16 +271,24 @@ Numeração e prioridades mantidas do diagnóstico original (a etapa "2. Cadastr
 
 ## 11. Decisões de negócio pendentes
 
-1. Recorrência sem data final — precisa de regra de encerramento.
-2. Significado exato de "um dia de antecedência" (24h corridas vs. virada de data).
-3. Lista exata de status permitidos para evento passado.
-4. Critério exato para "avaliação concluída" (agendado vs. realizado; "~3 atendimentos" é limite rígido ou informativo?).
-5. Edição de paciente/especialidade em evento já existente — quais campos podem mudar depois de criado.
-6. Exclusão de séries recorrentes — suportar "só esta"/"esta e as próximas" além de "toda a série"?
-7. Atualização retroativa de valores/comissão — congelar snapshot (recomendado) ou permitir reprocessamento explícito.
-8. Relação entre Baixa e status "Atendido" — baixa deve existir para todo status cobrável ou só para "Atendido"?
-9. Quem pode excluir/editar evento criado por outro usuário (hoje só o criador consegue excluir).
+### Resolvidas nesta sessão
+
+1. ~~Recorrência sem data final — precisa de regra de encerramento.~~ **Resolvido**: é o comportamento esperado (paciente ainda em atendimento); não é tratado como erro, nenhuma trava foi adicionada.
+2. ~~Significado exato de "um dia de antecedência".~~ **Resolvido**: 48 horas corridas até o início do evento.
+3. ~~Edição de paciente/especialidade/terapeuta/função/local em evento já existente — quais campos podem mudar.~~ **Resolvido**: paciente, especialidade, terapeuta, função, local, status e observação podem mudar; modalidade, data, horário, frequência, intervalo e dias da semana nunca mudam (mantidos do original, silenciosamente).
+4. ~~Autorização por tag agora ou depois.~~ **Resolvido por ora**: adiada; só a identidade (JWT) foi corrigida nesta rodada.
+5. ~~Lista exata de status permitidos para evento passado.~~ **Resolvido**: apenas **Atestado**. Implementado em `assertStatusPermitidoParaEventoPassado` ([src/agenda/agenda.service.ts](src/agenda/agenda.service.ts)) — qualquer outra tentativa de mudança de status em evento já ocorrido (Atendido, Falta, Cancelado com/sem Antecedência etc.) é rejeitada.
+6. ~~Conflito dessa regra com o check-in mobile (`PUT /evento/check`, marca Atendido).~~ **Resolvido**: definida uma tolerância de **2 horas após o horário final** do evento durante a qual ele ainda não é considerado "passado" — dentro dessa janela, o evento se comporta normalmente (qualquer status, inclusive Atendido, pode ser aplicado). Só depois de 2h do término é que a trava "somente Atestado" passa a valer. Implementado em `isEventoPassado` via a constante `TOLERANCIA_EVENTO_PASSADO_HORAS`.
+
+### Ainda pendentes
+
+7. Critério exato para "avaliação concluída" (agendado vs. realizado; "~3 atendimentos" é limite rígido ou informativo?) — hoje `VagaService.verifyInFila` considera concluído quando todas as especialidades estão com `agendado=true`, não quando a sessão foi de fato realizada.
+8. Exclusão de séries recorrentes — suportar "só esta"/"esta e as próximas" além de "toda a série" (hoje `delete()` sempre remove a série inteira e passou a bloquear evento passado, mas não ganhou granularidade de escopo).
+9. Atualização retroativa de valores/comissão — congelar snapshot (recomendado) ou permitir reprocessamento explícito. Não implementado: exige migration de schema.
+10. Relação entre Baixa e status "Atendido" — baixa deve existir para todo status cobrável (comportamento atual) ou só para "Atendido"?
+11. Quem pode excluir/editar evento criado por outro usuário (hoje só o criador consegue excluir — comportamento inalterado nesta rodada).
+12. Whitelist de `grupoPermissaoId`/`perfilId` e permissão para reset de senha — depende da mesma decisão de autorização por tag do item 4.
 
 ---
 
-*Relatório gerado e atualizado por auditoria assistida. Correções da seção 9 aplicadas e verificadas (`tsc --noEmit`, `nest build`, `npx jest`) nesta mesma sessão.*
+*Relatório gerado e atualizado por auditoria assistida. Rodadas 1 e 2 da seção 9 aplicadas e verificadas (`tsc --noEmit`, `nest build`, `npx jest` — 46/46) nesta mesma sessão.*

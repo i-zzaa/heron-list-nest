@@ -47,7 +47,7 @@ export class SessaoController {
     @Request() req: any,
   ) {
     try {
-      const data = await this.sessaoService.create(body, req.headers.login);
+      const data = await this.sessaoService.create(body, req.user?.username);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

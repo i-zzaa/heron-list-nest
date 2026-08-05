@@ -42,9 +42,15 @@ export class BaixaController {
   }
 
   @Put()
-  async put(@Body() body: BaixaFilterProps, @Response() response: any) {
+  async put(
+    @Body() body: BaixaFilterProps,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.baixaService.update(body);
+      // Quem deu baixa é sempre o usuário autenticado (JWT), nunca o
+      // usuarioId que o cliente possa enviar no corpo da requisição.
+      const data = await this.baixaService.update(body, req.user?.username);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

@@ -77,7 +77,7 @@ export class UserController {
   async put(@Request() req: any, @Response() response: any) {
     try {
       const data = await this.userService.updatePasswordLogin(
-        req.headers.login,
+        req.user?.username,
         req.body,
       );
       responseSuccess(response, data);
@@ -90,7 +90,7 @@ export class UserController {
   async updatePasswordLogin(@Request() req: any, @Response() response: any) {
     try {
       const data = await this.userService.updatePasswordLogin(
-        req.headers.login,
+        req.user?.username,
         req.body,
       );
       responseSuccess(response, data);
