@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma/prisma.service';
 import { FinanceiroService } from './financeiro.service';
 import { FinanceiroController } from './financeiro.controller';
 import { PacienteService } from 'src/paciente/paciente.service';
@@ -13,7 +12,7 @@ import { BaixaModule } from 'src/baixa/baixa.module';
 import { PacienteModule } from 'src/paciente/paciente.module';
 
 @Module({
-  providers: [FinanceiroService, PrismaService, AgendaService],
+  providers: [FinanceiroService, AgendaService],
   exports: [FinanceiroService],
   controllers: [FinanceiroController],
   imports: [

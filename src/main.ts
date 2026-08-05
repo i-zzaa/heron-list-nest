@@ -86,6 +86,8 @@ async function bootstrap() {
     origin: [
       'http://127.0.0.1:5173',
       'https://fbuots.hospedagemelastica.com.br',
+      'https://agenda-multialcance.com.br',
+      'https://www.agenda-multialcance.com.br',
     ],
     credentials: true,
   });

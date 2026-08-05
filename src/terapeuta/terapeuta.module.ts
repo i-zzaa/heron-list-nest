@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma/prisma.service';
 import { TerapeutaService } from './terapeuta.service';
 import { TerapeutaController } from './terapeuta.controller';
 import { UserModule } from 'src/user/user.module';
@@ -12,7 +11,7 @@ import { BaixaModule } from 'src/baixa/baixa.module';
 import { PacienteModule } from 'src/paciente/paciente.module';
 
 @Module({
-  providers: [TerapeutaService, PrismaService, AgendaService],
+  providers: [TerapeutaService, AgendaService],
   exports: [TerapeutaService],
   controllers: [TerapeutaController],
   imports: [

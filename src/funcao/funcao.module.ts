@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma/prisma.service';
 import { FuncaoService } from './funcao.service';
 import { FuncaoController } from './funcao.controller';
 
 @Module({
-  providers: [FuncaoService, PrismaService],
+  providers: [FuncaoService],
   exports: [FuncaoService],
   controllers: [FuncaoController],
 })
