@@ -8,6 +8,7 @@ import { messageError } from 'src/util/message.response';
 import { getPrismaClient } from 'src/util/crud';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
+import { normalizeCurrencyValue, readDecimal } from 'src/util/normalizers';
 
 @Injectable()
 export class UserService {
@@ -139,12 +140,12 @@ export class UserService {
 
         if (usuario?.terapeuta?.funcoes) {
           usuario.comissao = usuario?.terapeuta?.funcoes.map((funcao: any) => {
-            const valor = parseFloat(funcao.comissao.replace(',', '.'));
+            const valor = readDecimal(funcao.comissao);
 
             const comissao =
               funcao.tipo === 'Fixo'
                 ? moneyFormat.format(valor)
-                : funcao.comissao;
+                : String(valor);
 
             return {
               funcaoId: funcao.funcaoId,
@@ -264,10 +265,7 @@ export class UserService {
     await prisma.terapeutaOnFuncao.createMany({
       data: [
         ...body.comissao.map((comissao: any) => {
-          const formatComissao =
-            typeof comissao.valor === 'string'
-              ? comissao.valor.split('R$')[1]
-              : comissao.valor.toString();
+          const formatComissao = normalizeCurrencyValue(comissao.valor);
 
           return {
             terapeutaId: id,
@@ -293,10 +291,7 @@ export class UserService {
       await prisma.terapeutaOnFuncao.createMany({
         data: [
           ...body.comissao.map((comissao: any) => {
-            const formatComissao =
-              typeof comissao.valor === 'string'
-                ? comissao.valor.split('R$')[1]
-                : comissao.valor.toString();
+            const formatComissao = normalizeCurrencyValue(comissao.valor);
 
             return {
               terapeutaId: body.id,
@@ -338,8 +333,33 @@ export class UserService {
     ]);
   }
 
+  /**
+   * `perfilId` chegava sem nenhuma validação — qualquer inteiro era aceito,
+   * mesmo que não existisse na tabela `Perfil` (FK só barra na gravação com
+   * um erro cru do Prisma). Valida explicitamente aqui para dar uma
+   * mensagem clara antes de tentar gravar.
+   */
+  private async validatePerfilId(perfilId: unknown) {
+    const prisma = this.prismaService.getPrismaClient();
+    const id = Number(perfilId);
+
+    if (!id || Number.isNaN(id)) {
+      throw new Error('Perfil é obrigatório.');
+    }
+
+    const perfil = await prisma.perfil.findUnique({ where: { id } });
+
+    if (!perfil) {
+      throw new Error('Perfil informado não existe.');
+    }
+
+    return id;
+  }
+
   async create(body: any) {
     const prisma = this.prismaService.getPrismaClient();
+
+    const perfilId = await this.validatePerfilId(body.perfilId);
 
     body.senha = bcrypt.hashSync('12345678', 8);
 
@@ -353,13 +373,13 @@ export class UserService {
       data: {
         nome: body.nome.toUpperCase(),
         login: body.login.toLowerCase(),
-        perfilId: body.perfilId,
+        perfilId,
         senha: body.senha,
         grupoPermissaoId: body.grupoPermissaoId,
       },
     });
 
-    if (body.perfilId === ID_PERFIL_TERAPEUTA.id) {
+    if (perfilId === ID_PERFIL_TERAPEUTA.id) {
       await this.createTerapeuta(body, user.id);
     }
 
@@ -382,6 +402,8 @@ export class UserService {
       });
     }
 
+    const perfilId = await this.validatePerfilId(body.perfilId);
+
     // verifica tem terapeuta criada
     const terapeuta = await prisma.terapeuta.findUnique({
       where: {
@@ -389,7 +411,7 @@ export class UserService {
       },
     });
 
-    switch (body.perfilId) {
+    switch (perfilId) {
       case ID_PERFIL_TERAPEUTA.id:
         if (!!terapeuta) {
           await this.updateTerapeuta(body);
@@ -415,7 +437,7 @@ export class UserService {
       data: {
         nome: body.nome,
         login: body.login,
-        perfilId: Number(body.perfilId),
+        perfilId,
         ativo: body.ativo,
         grupoPermissaoId: body.grupoPermissaoId,
       },

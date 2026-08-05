@@ -24,7 +24,7 @@ export class PermissaoController {
       const data = await this.permissaoService.getAll();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -34,7 +34,7 @@ export class PermissaoController {
       const data = await this.permissaoService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -44,7 +44,7 @@ export class PermissaoController {
       const data = await this.permissaoService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

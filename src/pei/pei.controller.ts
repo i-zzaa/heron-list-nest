@@ -27,7 +27,7 @@ export class PeiController {
       const data = await this.peiService.filtro(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -37,7 +37,7 @@ export class PeiController {
       const data = await this.peiService.getActivity(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -51,7 +51,7 @@ export class PeiController {
       const data = await this.peiService.create(body, req.headers.iduser);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -65,7 +65,7 @@ export class PeiController {
       const data = await this.peiService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -75,7 +75,7 @@ export class PeiController {
       const data = await this.peiService.delete(id);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -92,7 +92,7 @@ export class PeiController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -109,7 +109,7 @@ export class PeiController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -119,7 +119,7 @@ export class PeiController {
       const data = await this.peiService.activitySession(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -129,7 +129,7 @@ export class PeiController {
       const data = await this.peiService.getProcedimentoEnsino();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -139,7 +139,7 @@ export class PeiController {
       const data = await this.peiService.getMetas();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

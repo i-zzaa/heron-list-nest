@@ -24,6 +24,7 @@ import { BaixaService } from 'src/baixa/baixa.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 import { getPrismaClient } from 'src/util/crud';
 import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
+import { normalizeCurrencyValue } from 'src/util/normalizers';
 
 // Antecedência mínima, em horas, para um cancelamento não ser cobrado.
 // Definido com o negócio: 48 horas corridas antes do horário de início do evento.
@@ -172,7 +173,7 @@ export class AgendaService {
     return {
       groupId,
       dataInicio: body.dataInicio,
-      km: body?.km,
+      km: normalizeCurrencyValue(body?.km),
       dataFim: body.dataFim || '',
       start: body.start,
       end: body.end,
@@ -213,7 +214,7 @@ export class AgendaService {
 
     const data: any = {
       groupId: event?.groupId,
-      km: event?.km,
+      km: normalizeCurrencyValue(event?.km),
       dataInicio: event?.dataInicio,
       dataFim: event?.dataFim,
       start: event?.start,
@@ -270,7 +271,10 @@ export class AgendaService {
       return false;
     }
 
-    const fimEvento = moment(`${dataOcorrencia} ${horaFim}`, 'YYYY-MM-DD HH:mm');
+    const fimEvento = moment(
+      `${dataOcorrencia} ${horaFim}`,
+      'YYYY-MM-DD HH:mm',
+    );
 
     if (!fimEvento.isValid()) {
       return false;
@@ -474,7 +478,9 @@ export class AgendaService {
     }
 
     if (funcao.especialidadeId !== Number(especialidadeId)) {
-      throw new Error('A função selecionada não pertence a essa especialidade.');
+      throw new Error(
+        'A função selecionada não pertence a essa especialidade.',
+      );
     }
 
     const terapeutaTemFuncao = terapeuta.funcoes.some(
@@ -484,9 +490,9 @@ export class AgendaService {
       throw new Error('A terapeuta selecionada não possui essa função.');
     }
 
-    const especialidadesPaciente = (
-      paciente.vaga?.especialidades || []
-    ).map((e: any) => e.especialidadeId);
+    const especialidadesPaciente = (paciente.vaga?.especialidades || []).map(
+      (e: any) => e.especialidadeId,
+    );
     if (!especialidadesPaciente.includes(Number(especialidadeId))) {
       throw new Error('O paciente não possui essa especialidade vinculada.');
     }
@@ -546,13 +552,13 @@ export class AgendaService {
 
       if (!horariosDia) {
         throw new Error(
-          `A terapeuta não tem jornada cadastrada para ${nomeDia || 'domingo'}.`,
+          `A terapeuta não tem jornada cadastrada para ${
+            nomeDia || 'domingo'
+          }.`,
         );
       }
 
-      const slotsDoEvento = HOURS.filter(
-        (hora) => hora >= start && hora < end,
-      );
+      const slotsDoEvento = HOURS.filter((hora) => hora >= start && hora < end);
       const foraDaJornada = slotsDoEvento.some((hora) => !horariosDia[hora]);
 
       if (foraDaJornada) {
@@ -564,7 +570,9 @@ export class AgendaService {
   }
 
   private resolveHorizonteRecorrencia(dataInicio: string, dataFim?: string) {
-    return dataFim || dateAddtDay(dataInicio, HORIZONTE_RECORRENCIA_SEM_FIM_DIAS);
+    return (
+      dataFim || dateAddtDay(dataInicio, HORIZONTE_RECORRENCIA_SEM_FIM_DIAS)
+    );
   }
 
   /**
@@ -630,7 +638,13 @@ export class AgendaService {
     const datasNovas =
       Number(frequenciaId) === 1
         ? [dataInicio]
-        : getDates(diasNovos, dataInicio, novoFim, Number(intervaloId) || 1, []);
+        : getDates(
+            diasNovos,
+            dataInicio,
+            novoFim,
+            Number(intervaloId) || 1,
+            [],
+          );
 
     for (const existente of existentes) {
       const statusNome = existente.statusEventos?.nome?.toLowerCase?.() || '';
@@ -725,7 +739,8 @@ export class AgendaService {
       });
     }
 
-    const terapeutaMudou = !original || original.terapeutaId !== data.terapeutaId;
+    const terapeutaMudou =
+      !original || original.terapeutaId !== data.terapeutaId;
 
     if (!terapeutaMudou) {
       return;
@@ -1237,11 +1252,7 @@ export class AgendaService {
     return evento;
   }
 
-  async updateCalendario(
-    body: any,
-    login: string,
-    hasDataFim: boolean = false,
-  ) {
+  async updateCalendario(body: any, login: string, hasDataFim = false) {
     const prisma = getPrismaClient(this.prismaService);
 
     const eventId = Number(body?.id);
@@ -1333,11 +1344,7 @@ export class AgendaService {
     return this.updateEventoRecorrentes(body, login, hasDataFim);
   }
 
-  async updateEventoUnicoGrupo(
-    event: any,
-    login: string,
-    hasDataFim: boolean = false,
-  ) {
+  async updateEventoUnicoGrupo(event: any, login: string, hasDataFim = false) {
     const prisma = getPrismaClient(this.prismaService);
 
     if (event?.frequencia?.id === 1) {
@@ -1490,11 +1497,7 @@ export class AgendaService {
     return exdate;
   }
 
-  async updateEventoRecorrentes(
-    event: any,
-    login: string,
-    hasDataFim: boolean = false,
-  ) {
+  async updateEventoRecorrentes(event: any, login: string, hasDataFim = false) {
     const prisma = getPrismaClient(this.prismaService);
 
     const original = await prisma.calendario.findFirst({
@@ -1540,7 +1543,9 @@ export class AgendaService {
 
         if (this.isEventoPassado(event.dataAtual, data.end)) {
           this.assertSomenteStatusAlterado(data, original);
-          await this.assertStatusPermitidoParaEventoPassado(data.statusEventosId);
+          await this.assertStatusPermitidoParaEventoPassado(
+            data.statusEventosId,
+          );
         }
 
         await this.validateEvento(data, {

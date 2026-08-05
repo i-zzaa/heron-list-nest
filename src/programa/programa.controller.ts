@@ -29,7 +29,7 @@ export class ProgramaController {
       const data = await this.programaService.dropdown(Number(tipoProtocolo));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -42,7 +42,7 @@ export class ProgramaController {
       const data = await this.programaService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -52,7 +52,7 @@ export class ProgramaController {
       const data = await this.programaService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -62,7 +62,7 @@ export class ProgramaController {
       const data = await this.programaService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -72,7 +72,7 @@ export class ProgramaController {
       const data = await this.programaService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -84,7 +84,7 @@ export class ProgramaController {
       const data = await this.programaService.delete(id);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

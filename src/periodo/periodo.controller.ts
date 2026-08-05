@@ -27,7 +27,7 @@ export class PeriodoController {
       const data = await this.periodoService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -39,7 +39,7 @@ export class PeriodoController {
       const data = await this.periodoService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -49,7 +49,7 @@ export class PeriodoController {
       const data = await this.periodoService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -59,7 +59,7 @@ export class PeriodoController {
       const data = await this.periodoService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -69,7 +69,7 @@ export class PeriodoController {
       const data = await this.periodoService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -79,7 +79,7 @@ export class PeriodoController {
       const data = await this.periodoService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

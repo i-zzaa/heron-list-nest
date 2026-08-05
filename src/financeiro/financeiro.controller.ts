@@ -17,7 +17,7 @@ export class FinanceiroController {
     } catch (error) {
       console.log(error);
 
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -27,7 +27,7 @@ export class FinanceiroController {
       const data = await this.financeiroService.paciente(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import * as session from 'express-session';
 import * as passport from 'passport';
+import { LoggingInterceptor } from './util/logging.interceptor';
+import { AllExceptionsFilter } from './util/all-exceptions.filter';
 
 export function setupRuntimeCompat() {
   if (typeof File === 'undefined') {
@@ -39,7 +41,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
 
-  app.enableCors();
+  // Monitoramento básico via log estruturado: toda requisição (interceptor)
+  // e todo erro que escape do try/catch de um controller (filter) ficam
+  // registrados de forma consistente — ver util/logging.interceptor.ts e
+  // util/all-exceptions.filter.ts.
+  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   app.use(
     session({
@@ -53,10 +60,15 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Única configuração de CORS da aplicação (antes havia 3 conflitantes:
+  // um enableCors() aberto, este com lista restrita, e um middleware
+  // cors({origin:'*'}) global em AppModule — removido). A origem de produção
+  // tinha "/" no final, que nunca bate com o header Origin enviado pelo
+  // navegador (sem barra) — CORS estava silenciosamente quebrado para ela.
   app.enableCors({
     origin: [
       'http://127.0.0.1:5173',
-      'https://fbuots.hospedagemelastica.com.br/',
+      'https://fbuots.hospedagemelastica.com.br',
     ],
     credentials: true,
   });

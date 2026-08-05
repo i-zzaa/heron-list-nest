@@ -31,7 +31,7 @@ export class LoteGuiaController {
       );
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -41,7 +41,7 @@ export class LoteGuiaController {
       const data = await this.service.findOneLote(Number(id));
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -51,7 +51,7 @@ export class LoteGuiaController {
       const data = await this.service.consultarLote(Number(id));
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -61,7 +61,7 @@ export class LoteGuiaController {
       const data = await this.service.reprocessarLote(Number(id));
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 }

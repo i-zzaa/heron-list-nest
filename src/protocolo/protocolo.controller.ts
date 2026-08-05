@@ -30,7 +30,7 @@ export class ProtocoloController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -41,7 +41,7 @@ export class ProtocoloController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -58,7 +58,7 @@ export class ProtocoloController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -75,7 +75,7 @@ export class ProtocoloController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -89,7 +89,7 @@ export class ProtocoloController {
       const data = await this.protocoloService.update(body, req.headers.iduser);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -99,7 +99,7 @@ export class ProtocoloController {
       const data = await this.protocoloService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -109,7 +109,7 @@ export class ProtocoloController {
       const data = await this.protocoloService.vbmapDropdown(req.params.nivel);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -119,7 +119,7 @@ export class ProtocoloController {
       const data = await this.protocoloService.tipoPortagedropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -129,7 +129,7 @@ export class ProtocoloController {
       const data = await this.protocoloService.faixaEtariadropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -139,7 +139,7 @@ export class ProtocoloController {
       const data = await this.protocoloService.tipoProtocoloropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

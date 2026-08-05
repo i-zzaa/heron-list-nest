@@ -14,7 +14,7 @@ export class TerapeutaController {
       const data = await this.terapeutaService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -30,7 +30,7 @@ export class TerapeutaController {
         );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -45,7 +45,7 @@ export class TerapeutaController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

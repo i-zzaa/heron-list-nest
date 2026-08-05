@@ -72,4 +72,48 @@ describe('BaixaService', () => {
       especialidade: '-',
     });
   });
+
+  describe('create', () => {
+    it('não cria baixa duplicada e sinaliza claramente em vez de falhar em silêncio', async () => {
+      const findMany = jest.fn().mockResolvedValue([{ id: 5, eventoId: 42 }]);
+      const create = jest.fn();
+
+      (service as any).prismaService = {
+        getPrismaClient: () => ({ baixa: { findMany, create } }),
+      };
+
+      const result = await service.create({
+        pacienteId: 1,
+        terapeutaId: 1,
+        localidadeId: 1,
+        statusEventosId: 1,
+        eventoId: 42,
+        dataEvento: '2026-08-05',
+      });
+
+      expect(create).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ created: false, duplicate: true });
+    });
+
+    it('cria a baixa normalmente quando não existe uma para o evento', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      const create = jest.fn().mockResolvedValue({ id: 9, eventoId: 42 });
+
+      (service as any).prismaService = {
+        getPrismaClient: () => ({ baixa: { findMany, create } }),
+      };
+
+      const result = await service.create({
+        pacienteId: 1,
+        terapeutaId: 1,
+        localidadeId: 1,
+        statusEventosId: 1,
+        eventoId: 42,
+        dataEvento: '2026-08-05',
+      });
+
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({ created: true, duplicate: false });
+    });
+  });
 });

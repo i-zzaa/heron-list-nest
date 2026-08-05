@@ -185,7 +185,10 @@ describe('AgendaService validations', () => {
       const { service } = buildService({
         calendario: {
           findMany: jest.fn().mockResolvedValue([
-            { ...existente, statusEventos: { nome: 'Cancelado com Antecedência' } },
+            {
+              ...existente,
+              statusEventos: { nome: 'Cancelado com Antecedência' },
+            },
           ]),
         },
       });
@@ -263,7 +266,9 @@ describe('AgendaService validations', () => {
       const { service } = buildService({
         terapeuta: {
           findUnique: jest.fn().mockResolvedValue({
-            cargaHoraria: JSON.stringify({ 'Segunda-feira': { '09:00': true } }),
+            cargaHoraria: JSON.stringify({
+              'Segunda-feira': { '09:00': true },
+            }),
           }),
         },
       });
@@ -325,8 +330,22 @@ describe('AgendaService validations', () => {
 
       expect(() =>
         (service as any).assertSomenteStatusAlterado(
-          { pacienteId: 2, especialidadeId: 1, terapeutaId: 1, funcaoId: 1, localidadeId: 1, observacao: '' },
-          { pacienteId: 1, especialidadeId: 1, terapeutaId: 1, funcaoId: 1, localidadeId: 1, observacao: '' },
+          {
+            pacienteId: 2,
+            especialidadeId: 1,
+            terapeutaId: 1,
+            funcaoId: 1,
+            localidadeId: 1,
+            observacao: '',
+          },
+          {
+            pacienteId: 1,
+            especialidadeId: 1,
+            terapeutaId: 1,
+            funcaoId: 1,
+            localidadeId: 1,
+            observacao: '',
+          },
         ),
       ).toThrow('apenas o status');
     });
@@ -336,8 +355,24 @@ describe('AgendaService validations', () => {
 
       expect(() =>
         (service as any).assertSomenteStatusAlterado(
-          { pacienteId: 1, especialidadeId: 1, terapeutaId: 1, funcaoId: 1, localidadeId: 1, observacao: 'x', statusEventosId: 9 },
-          { pacienteId: 1, especialidadeId: 1, terapeutaId: 1, funcaoId: 1, localidadeId: 1, observacao: 'x', statusEventosId: 3 },
+          {
+            pacienteId: 1,
+            especialidadeId: 1,
+            terapeutaId: 1,
+            funcaoId: 1,
+            localidadeId: 1,
+            observacao: 'x',
+            statusEventosId: 9,
+          },
+          {
+            pacienteId: 1,
+            especialidadeId: 1,
+            terapeutaId: 1,
+            funcaoId: 1,
+            localidadeId: 1,
+            observacao: 'x',
+            statusEventosId: 3,
+          },
         ),
       ).not.toThrow();
     });

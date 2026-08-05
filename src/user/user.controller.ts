@@ -49,7 +49,7 @@ export class UserController {
       const data = await this.userService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -59,7 +59,7 @@ export class UserController {
       const data = await this.userService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -69,7 +69,7 @@ export class UserController {
       const data = await this.userService.updatePassword(id);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -82,7 +82,7 @@ export class UserController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -95,7 +95,7 @@ export class UserController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

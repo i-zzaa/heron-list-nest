@@ -139,23 +139,31 @@ export class BaixaService {
   async create(data: BaixaCreateProps) {
     const prisma = this.prismaService.getPrismaClient();
 
-    try {
-      const evento = await prisma.baixa.findMany({
-        where: {
-          eventoId: data.eventoId,
-        },
-      });
+    const existentes = await prisma.baixa.findMany({
+      where: {
+        eventoId: data.eventoId,
+      },
+    });
 
-      if (Boolean(evento.length)) return;
-
-      return await prisma.baixa.create({
-        data: {
-          ...data,
-        },
-      });
-    } catch (error) {
-      console.log(error);
+    if (existentes.length) {
+      // Antes retornava `undefined` sem log nenhum — quem chamasse não
+      // tinha como saber se a baixa foi criada ou se já existia. Isso é
+      // esperado ao reeditar um evento que já gerou baixa (efeito colateral
+      // idempotente), então não lança erro — mas fica visível no log e no
+      // retorno, em vez de silencioso.
+      console.warn(
+        `Baixa já existe para o evento ${data.eventoId}, criação ignorada.`,
+      );
+      return { created: false, duplicate: true, baixa: existentes[0] };
     }
+
+    const baixa = await prisma.baixa.create({
+      data: {
+        ...data,
+      },
+    });
+
+    return { created: true, duplicate: false, baixa };
   }
 
   async delete(id: number) {

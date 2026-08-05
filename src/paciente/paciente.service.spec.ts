@@ -130,11 +130,13 @@ describe('PacienteService', () => {
   });
 
   it('should find patients with duplicate full names', async () => {
-    const queryRaw = jest
-      .fn()
-      .mockResolvedValue([{ id: 1, nome: 'Joao Silva' }]);
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 2, nome: 'Joao Silva' },
+      { id: 1, nome: ' joao silva ' },
+      { id: 3, nome: 'Maria Souza' },
+    ]);
     const prismaClient = {
-      $queryRawUnsafe: queryRaw,
+      paciente: { findMany },
     };
 
     service = new PacienteService({
@@ -143,8 +145,14 @@ describe('PacienteService', () => {
 
     const result = await service.findDuplicateFullNames();
 
-    expect(queryRaw).toHaveBeenCalled();
-    expect(result).toEqual([{ id: 1, nome: 'Joao Silva' }]);
+    expect(findMany).toHaveBeenCalled();
+    // "Joao Silva" e " joao silva " são o mesmo nome (case/trim-insensitive)
+    // e devem voltar juntos, ordenados por id; "Maria Souza" é única e não
+    // deve aparecer.
+    expect(result).toEqual([
+      { id: 1, nome: ' joao silva ' },
+      { id: 2, nome: 'Joao Silva' },
+    ]);
   });
 
   it('should search patients by name, responsible or phone using the paciente model', async () => {

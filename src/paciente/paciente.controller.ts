@@ -29,7 +29,7 @@ export class PacienteController {
       const data = await this.pacienteService.create(body);
       responseSuccess(response, data, MESSAGE.cadastro_sucesso);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -39,7 +39,7 @@ export class PacienteController {
       const data = await this.pacienteService.update(body);
       responseSuccess(response, data, MESSAGE.atualizacao_sucesso);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -57,7 +57,7 @@ export class PacienteController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -70,7 +70,7 @@ export class PacienteController {
       const data = await this.pacienteService.dropdown(statusPacienteCod);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
 
     return;
@@ -92,7 +92,7 @@ export class PacienteController {
     } catch (error) {
       console.log(error);
 
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -102,7 +102,7 @@ export class PacienteController {
       const data = await this.pacienteService.getPatientsActived();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -119,7 +119,7 @@ export class PacienteController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -129,7 +129,7 @@ export class PacienteController {
       const data = await this.pacienteService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -142,7 +142,7 @@ export class PacienteController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -152,7 +152,7 @@ export class PacienteController {
       const data = await this.pacienteService.delete(Number(id));
       responseSuccess(response, data, MESSAGE.desabilitado_sucesso);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -162,7 +162,7 @@ export class PacienteController {
       const data = await this.pacienteService.updateDisabled(body);
       responseSuccess(response, data, MESSAGE.desabilitado_sucesso);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

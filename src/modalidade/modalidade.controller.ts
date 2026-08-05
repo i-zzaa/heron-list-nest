@@ -31,7 +31,7 @@ export class ModalidadeController {
       const data = await this.modalidadeService.dropdown(statusPacienteCod);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -43,7 +43,7 @@ export class ModalidadeController {
       const data = await this.modalidadeService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -53,7 +53,7 @@ export class ModalidadeController {
       const data = await this.modalidadeService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -63,7 +63,7 @@ export class ModalidadeController {
       const data = await this.modalidadeService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -73,7 +73,7 @@ export class ModalidadeController {
       const data = await this.modalidadeService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -83,7 +83,7 @@ export class ModalidadeController {
       const data = await this.modalidadeService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

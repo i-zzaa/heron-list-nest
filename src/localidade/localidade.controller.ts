@@ -27,7 +27,7 @@ export class LocalidadeController {
       const data = await this.localidadeService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -40,7 +40,7 @@ export class LocalidadeController {
       const data = await await this.localidadeService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -50,7 +50,7 @@ export class LocalidadeController {
       const data = await this.localidadeService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -60,7 +60,7 @@ export class LocalidadeController {
       const data = await this.localidadeService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -70,7 +70,7 @@ export class LocalidadeController {
       const data = await this.localidadeService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -80,7 +80,7 @@ export class LocalidadeController {
       const data = await this.localidadeService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

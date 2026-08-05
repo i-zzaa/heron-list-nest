@@ -25,7 +25,7 @@ export class FrequenciaController {
       const data = await this.FrequenciaService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -35,7 +35,7 @@ export class FrequenciaController {
       const data = await this.FrequenciaService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -45,7 +45,7 @@ export class FrequenciaController {
       const data = await this.FrequenciaService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -55,7 +55,7 @@ export class FrequenciaController {
       const data = await this.FrequenciaService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

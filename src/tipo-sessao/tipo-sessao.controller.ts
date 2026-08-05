@@ -36,7 +36,7 @@ export class TipoSessaoController {
       const data = await this.tipoSessaoService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 

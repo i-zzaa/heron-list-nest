@@ -27,7 +27,7 @@ export class StatusEventoController {
       const data = await this.statusEvento.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -40,7 +40,7 @@ export class StatusEventoController {
       const data = await this.statusEvento.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -50,7 +50,7 @@ export class StatusEventoController {
       const data = await this.statusEvento.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -60,7 +60,7 @@ export class StatusEventoController {
       const data = await this.statusEvento.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -70,7 +70,7 @@ export class StatusEventoController {
       const data = await this.statusEvento.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -80,7 +80,7 @@ export class StatusEventoController {
       const data = await this.statusEvento.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

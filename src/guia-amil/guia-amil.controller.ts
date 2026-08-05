@@ -25,7 +25,7 @@ export class GuiaAmilController {
       const data = await this.service.dropdown();
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -35,7 +35,7 @@ export class GuiaAmilController {
       const data = await this.service.testarConexao();
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -47,7 +47,7 @@ export class GuiaAmilController {
       const data = await this.service.list({ ...req.query, page, limit });
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -57,7 +57,7 @@ export class GuiaAmilController {
       const data = await this.service.findOne(Number(id));
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -67,7 +67,7 @@ export class GuiaAmilController {
       const data = await this.service.create(body);
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -81,7 +81,7 @@ export class GuiaAmilController {
       const data = await this.service.update(Number(id), body);
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -98,7 +98,7 @@ export class GuiaAmilController {
       );
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -115,7 +115,7 @@ export class GuiaAmilController {
       );
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -125,7 +125,7 @@ export class GuiaAmilController {
       const data = await this.service.historico(Number(id));
       responseSuccess(res, data);
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 }

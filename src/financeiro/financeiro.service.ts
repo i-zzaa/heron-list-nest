@@ -15,6 +15,15 @@ import {
   FinancialTerapeutaProps,
 } from './financeiro.interface';
 import * as moment from 'moment';
+import { readDecimal } from 'src/util/normalizers';
+
+// Antes hardcoded no meio do cálculo (`* 0.9` e `= 50`). Externalizado para
+// env var para não exigir deploy de código a cada reajuste de preço; os
+// defaults abaixo reproduzem exatamente o valor que já estava em produção,
+// então nada muda até alguém configurar essas variáveis explicitamente.
+const VALOR_POR_KM = Number(process.env.FINANCEIRO_VALOR_POR_KM) || 0.9;
+const VALOR_SESSAO_DEVOLUTIVA =
+  Number(process.env.FINANCEIRO_VALOR_SESSAO_DEVOLUTIVA) || 50;
 
 @Injectable()
 export class FinanceiroService {
@@ -131,7 +140,7 @@ export class FinanceiroService {
             especialidadePaciente.especialidadeId === evento.especialidade?.id,
         )[0];
 
-        const sessaoValor = sessao?.valor ? parseFloat(sessao.valor || 0) : 0;
+        const sessaoValor = sessao?.valor ? readDecimal(sessao.valor) : 0;
 
         if (!sessao && !evento.especialidade?.id) {
           return;
@@ -284,8 +293,8 @@ export class FinanceiroService {
           (funcao: any) => funcao.funcaoId === evento.funcao?.id,
         )[0];
 
-        const sessaoValor = sessao?.valor ? parseFloat(sessao.valor || 0) : 0;
-        const comissaoValor = parseFloat(comissao?.comissao || 0);
+        const sessaoValor = sessao?.valor ? readDecimal(sessao.valor) : 0;
+        const comissaoValor = readDecimal(comissao?.comissao);
 
         const isDevolutiva = evento.modalidade?.nome === 'Devolutiva';
 
@@ -314,7 +323,7 @@ export class FinanceiroService {
           terapeuta: terapeuta,
           data: moment(evento.dataInicio).format('DD/MM/YYYY'),
           sessao: sessaoValor,
-          km: Number(evento.km),
+          km: readDecimal(evento.km),
           comissao: comissaoValor,
           tipo: comissao?.tipo || 'fixo',
           status: statusNome,
@@ -333,8 +342,8 @@ export class FinanceiroService {
         }
 
         if (isDevolutiva) {
-          financeiro.valorSessao = 50;
-          financeiro.valorTotal = 50;
+          financeiro.valorSessao = VALOR_SESSAO_DEVOLUTIVA;
+          financeiro.valorTotal = VALOR_SESSAO_DEVOLUTIVA;
 
           valorTotal += financeiro.valorTotal;
           horas = horas.add(horasEvento);
@@ -344,7 +353,7 @@ export class FinanceiroService {
           return;
         }
 
-        const valorKmEvento = Number(evento.km) * 0.9;
+        const valorKmEvento = readDecimal(evento.km) * VALOR_POR_KM;
         let valorSessao = 0;
 
         switch ((comissao?.tipo || 'fixo').toLowerCase()) {

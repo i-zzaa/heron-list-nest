@@ -28,7 +28,7 @@ export class FuncaoController {
       const data = await this.funcaoService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -43,7 +43,7 @@ export class FuncaoController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
   @Get('especialidade/dropdown')
@@ -57,7 +57,7 @@ export class FuncaoController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -70,7 +70,7 @@ export class FuncaoController {
       const data = await this.funcaoService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -80,7 +80,7 @@ export class FuncaoController {
       const data = await this.funcaoService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -90,7 +90,7 @@ export class FuncaoController {
       const data = await this.funcaoService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -100,7 +100,7 @@ export class FuncaoController {
       const data = await this.funcaoService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -110,7 +110,7 @@ export class FuncaoController {
       const data = await this.funcaoService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

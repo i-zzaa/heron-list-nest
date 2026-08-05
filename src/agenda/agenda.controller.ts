@@ -37,8 +37,8 @@ export class AgendaController {
         return messageError();
       }
       if (Boolean(req.query.terapeutaId)) {
-        let inicioDoMes = start;
-        let ultimoDiaDoMes = end;
+        const inicioDoMes = start;
+        const ultimoDiaDoMes = end;
 
         const data = await this.terapeutaService.getAvailableTimes(
           inicioDoMes,
@@ -61,7 +61,7 @@ export class AgendaController {
     } catch (error) {
       console.log(error);
 
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -76,7 +76,7 @@ export class AgendaController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -90,7 +90,7 @@ export class AgendaController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -114,7 +114,7 @@ export class AgendaController {
     } catch (error) {
       console.log(error);
 
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -127,7 +127,7 @@ export class AgendaController {
       );
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -141,7 +141,7 @@ export class AgendaController {
 
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -151,7 +151,7 @@ export class AgendaController {
       await this.agendaService.delete(req.query.id, req.user?.username);
       responseSuccess(response, { message: 'Atualizado com sucesso!' });
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

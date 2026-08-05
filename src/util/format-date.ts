@@ -1,17 +1,80 @@
 import * as moment from 'moment';
 import * as momentBusinessDays from 'moment-business-days';
 
-export const FERIADOS = [
-  '01-01-2022',
-  '21-04-2022',
-  '01-05-2022',
-  '16-06-2022',
-  '07-09-2022',
-  '12-10-2022',
-  '02-11-2022',
-  '15-11-2022',
-  '25-12-2022',
-];
+/**
+ * Calcula a data da Páscoa (domingo) para um ano, pelo algoritmo de
+ * Meeus/Jones/Butcher — usado para derivar os feriados móveis (Carnaval,
+ * Sexta-feira Santa, Corpus Christi).
+ */
+function calcularPascoa(ano: number): moment.Moment {
+  const a = ano % 19;
+  const b = Math.floor(ano / 100);
+  const c = ano % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31);
+  const dia = ((h + l - 7 * m + 114) % 31) + 1;
+
+  return moment(`${ano}-${mes}-${dia}`, 'YYYY-MM-DD');
+}
+
+/**
+ * Feriados nacionais brasileiros para um ano: fixos + móveis (calculados a
+ * partir da Páscoa). Antes disso a lista era uma constante fixa que só ia
+ * até 2022 — qualquer evento/disponibilidade calculado a partir de 2023 em
+ * diante simplesmente não considerava nenhum feriado.
+ *
+ * Não cobre feriados municipais/estaduais (não há como saber a cidade da
+ * clínica a partir do código); se isso for necessário, precisa de cadastro
+ * próprio.
+ */
+export function calcularFeriadosNacionais(ano: number): string[] {
+  const pascoa = calcularPascoa(ano);
+
+  const fixos = [
+    `${ano}-01-01`, // Confraternização Universal
+    `${ano}-04-21`, // Tiradentes
+    `${ano}-05-01`, // Dia do Trabalho
+    `${ano}-09-07`, // Independência
+    `${ano}-10-12`, // Nossa Senhora Aparecida
+    `${ano}-11-02`, // Finados
+    `${ano}-11-15`, // Proclamação da República
+    `${ano}-12-25`, // Natal
+  ];
+
+  const moveis = [
+    pascoa.clone().subtract(48, 'days').format('YYYY-MM-DD'), // Carnaval (segunda)
+    pascoa.clone().subtract(47, 'days').format('YYYY-MM-DD'), // Carnaval (terça)
+    pascoa.clone().subtract(2, 'days').format('YYYY-MM-DD'), // Sexta-feira Santa
+    pascoa.clone().add(60, 'days').format('YYYY-MM-DD'), // Corpus Christi
+  ];
+
+  return [...fixos, ...moveis];
+}
+
+// Gera os feriados de uma janela de anos ao redor de hoje, em vez de uma
+// lista fixa que fica desatualizada — cobre agendamentos passados recentes
+// e recorrências futuras de longo prazo (ver HORIZONTE_RECORRENCIA_SEM_FIM_DIAS
+// em agenda.service.ts).
+const ANO_ATUAL = moment().year();
+const JANELA_ANOS_FERIADOS = 5;
+
+export const FERIADOS: string[] = [];
+for (
+  let ano = ANO_ATUAL - 1;
+  ano <= ANO_ATUAL + JANELA_ANOS_FERIADOS;
+  ano += 1
+) {
+  FERIADOS.push(...calcularFeriadosNacionais(ano));
+}
+
 momentBusinessDays.updateLocale('pt', {
   holidays: FERIADOS,
   holidayFormat: 'YYYY-MM-DD',
@@ -74,7 +137,7 @@ export function getDates(
   diasDaSemana: string[],
   startDate: string,
   endDate: string,
-  intervaloSemana: number = 1,
+  intervaloSemana = 1,
   deleteDates: string[],
 ) {
   const datas: string[] = [];
@@ -118,7 +181,11 @@ export function getDates(
       weekDays.length === 0 || weekDays.includes(dataAtual.isoWeekday());
     const dateFormatted = dataAtual.format('YYYY-MM-DD');
 
-    if (isOnIntervalWeek && isMatchingWeekday && !skipDates.has(dateFormatted)) {
+    if (
+      isOnIntervalWeek &&
+      isMatchingWeekday &&
+      !skipDates.has(dateFormatted)
+    ) {
       datas.push(dateFormatted);
     }
 
@@ -205,17 +272,11 @@ export function getDatesWhiteEvents(
   diasDaSemana: string[],
   startDate: string,
   endDate: string,
-  intervaloSemana: number = 1,
+  intervaloSemana = 1,
   events: any,
 ) {
   const arrEvents: any[] = [];
-  const datas = getDates(
-    diasDaSemana,
-    startDate,
-    endDate,
-    intervaloSemana,
-    [],
-  );
+  const datas = getDates(diasDaSemana, startDate, endDate, intervaloSemana, []);
 
   datas.forEach((dataInicio: string) => {
     arrEvents.push({

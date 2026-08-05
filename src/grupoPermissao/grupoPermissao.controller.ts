@@ -25,7 +25,7 @@ export class GrupoPermissaoController {
       const data = await this.grupoPermissaoService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -41,7 +41,7 @@ export class GrupoPermissaoController {
       );
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -51,7 +51,7 @@ export class GrupoPermissaoController {
       const data = await this.grupoPermissaoService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -61,7 +61,7 @@ export class GrupoPermissaoController {
       const data = await this.grupoPermissaoService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

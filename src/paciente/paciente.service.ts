@@ -12,6 +12,7 @@ import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { getPrismaClient } from 'src/util/crud';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
+import { normalizeCurrencyValue, readDecimal } from 'src/util/normalizers';
 
 @Injectable()
 export class PacienteService {
@@ -237,9 +238,7 @@ export class PacienteService {
 
           const sessao = await Promise.all(
             especialidades.map((especialidade: any) => {
-              const valor = parseFloat(
-                String(especialidade?.valor || '0').replace(',', '.'),
-              );
+              const valor = readDecimal(especialidade?.valor);
               return {
                 especialidade: especialidade?.especialidade?.nome || '',
                 especialidadeId: especialidade?.especialidadeId,
@@ -284,17 +283,27 @@ export class PacienteService {
   async findDuplicateFullNames() {
     const prisma = getPrismaClient(this.prismaService);
 
-    const duplicates = await (prisma.$queryRawUnsafe as any)(`
-      SELECT id, nome
-      FROM Paciente
-      WHERE LOWER(TRIM(nome)) IN (
-        SELECT LOWER(TRIM(nome))
-        FROM Paciente
-        GROUP BY LOWER(TRIM(nome))
-        HAVING COUNT(*) > 1
-      )
-      ORDER BY LOWER(TRIM(nome)), id
-    `);
+    // Antes usava $queryRawUnsafe com SQL escrito à mão — não havia input do
+    // usuário nesse SQL específico (então não era explorável hoje), mas é um
+    // padrão arriscado de se manter/copiar. Reescrito com o query builder do
+    // Prisma, sem SQL bruto.
+    const pacientes = await prisma.paciente.findMany({
+      select: { id: true, nome: true },
+    });
+
+    const grupos = new Map<string, { id: number; nome: string }[]>();
+
+    for (const paciente of pacientes) {
+      const chave = paciente.nome.trim().toLowerCase();
+      const grupo = grupos.get(chave) || [];
+      grupo.push(paciente);
+      grupos.set(chave, grupo);
+    }
+
+    const duplicates = Array.from(grupos.entries())
+      .filter(([, itens]) => itens.length > 1)
+      .sort(([chaveA], [chaveB]) => chaveA.localeCompare(chaveB))
+      .flatMap(([, itens]) => [...itens].sort((a, b) => a.id - b.id));
 
     console.log(
       '[Pacientes com nome duplicado]',
@@ -375,14 +384,10 @@ export class PacienteService {
             especialidades: {
               create: [
                 ...body.sessao.map((sessao: any) => {
-                  const valor = sessao.valor.split('R$')[1];
-
-                  // console.log(valor);
-
                   return {
                     especialidadeId: sessao.especialidadeId,
-                    valor: valor,
-                    km: sessao.km.toString(),
+                    valor: normalizeCurrencyValue(sessao.valor),
+                    km: normalizeCurrencyValue(sessao.km),
                     agendado: false, // se for 2, é para cadastrar como nao agendado
                     dataAgendado: '',
                   };
@@ -498,10 +503,7 @@ export class PacienteService {
 
       await Promise.all(
         body.sessao.map(async (especialidade: any) => {
-          const formatSessao =
-            typeof especialidade.valor === 'string'
-              ? especialidade.valor.split('R$')[1]
-              : especialidade.valor;
+          const formatSessao = normalizeCurrencyValue(especialidade.valor);
 
           if (!arrEspecialidade.includes(especialidade.especialidadeId)) {
             await prisma.vagaOnEspecialidade.create({

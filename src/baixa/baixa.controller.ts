@@ -37,7 +37,7 @@ export class BaixaController {
     } catch (error) {
       console.log(error);
 
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -53,7 +53,7 @@ export class BaixaController {
       const data = await this.baixaService.update(body, req.user?.username);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -65,7 +65,7 @@ export class BaixaController {
       const data = await this.baixaService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

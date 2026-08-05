@@ -31,7 +31,7 @@ export class StatusController {
       const data = await await this.statusService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -41,7 +41,7 @@ export class StatusController {
       const data = await this.statusService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -54,7 +54,7 @@ export class StatusController {
       const data = await this.statusService.dropdown(statusPacienteCod);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -64,7 +64,7 @@ export class StatusController {
       const data = await this.statusService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -74,7 +74,7 @@ export class StatusController {
       const data = await this.statusService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -84,7 +84,7 @@ export class StatusController {
       const data = await this.statusService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

@@ -26,7 +26,7 @@ export class SessaoController {
       const data = await this.sessaoService.updateMaintenance(58, 29);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -36,7 +36,7 @@ export class SessaoController {
       const data = await this.sessaoService.get(calendarioId);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -50,7 +50,7 @@ export class SessaoController {
       const data = await this.sessaoService.create(body, req.user?.username);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -60,7 +60,7 @@ export class SessaoController {
       const data = await this.sessaoService.updateSumary(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -73,7 +73,7 @@ export class SessaoController {
       const data = await this.sessaoService.getProtocoloByPacient(id);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -89,7 +89,7 @@ export class SessaoController {
 
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -99,7 +99,7 @@ export class SessaoController {
       const data = await this.sessaoService.createProtocolo(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -109,7 +109,7 @@ export class SessaoController {
       const data = await this.sessaoService.createAtividadeSessao(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -119,7 +119,7 @@ export class SessaoController {
   //     const data = await this.sessaoService.create(body);
   //     responseSuccess(response, data);
   //   } catch (error) {
-  //     responseError(response);
+  //     responseError(response, error);
   //   }
   // }
 
@@ -129,7 +129,7 @@ export class SessaoController {
       // const data = await this.sessaoService.update(body);
       // responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -139,7 +139,7 @@ export class SessaoController {
       const data = await this.sessaoService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }
