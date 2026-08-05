@@ -15,6 +15,8 @@ import { normalizePageSize } from 'src/util/pagination';
 import { StatusEventoService } from './status-evento.service';
 import { StatusEventosProps } from './status-evento.interface';
 import { responseError, responseSuccess } from 'src/util/response';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('status-eventos')
@@ -54,6 +56,8 @@ export class StatusEventoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_STATUS_EVENTOS_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: StatusEventosProps, @Response() response: any) {
     try {
@@ -64,6 +68,8 @@ export class StatusEventoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_STATUS_EVENTOS_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: StatusEventosProps, @Response() response: any) {
     try {
@@ -74,6 +80,8 @@ export class StatusEventoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_STATUS_EVENTOS_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: string, @Response() response: any) {
     try {

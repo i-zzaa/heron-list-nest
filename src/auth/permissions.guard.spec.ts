@@ -101,4 +101,32 @@ describe('PermissionsGuard', () => {
       false,
     );
   });
+
+  it('rejeita com 403 quando mustChangePassword está pendente, mesmo com a tag', async () => {
+    const guard = buildGuard(['CADASTRO_USUARIOS_BOTAO_CADASTRAR'], {
+      mustChangePassword: true,
+      perfil: { nome: 'Administrador' },
+      grupo: {
+        permissoes: [
+          { permissao: { cod: 'CADASTRO_USUARIOS_BOTAO_CADASTRAR' } },
+        ],
+      },
+    });
+
+    await expect(
+      guard.canActivate(buildContext('precisa.trocar')),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('rejeita mustChangePassword mesmo para perfil Developer', async () => {
+    const guard = buildGuard(['CADASTRO_USUARIOS_BOTAO_CADASTRAR'], {
+      mustChangePassword: true,
+      perfil: { nome: 'Developer' },
+      grupo: null,
+    });
+
+    await expect(
+      guard.canActivate(buildContext('dev.trocar')),
+    ).rejects.toThrow(ForbiddenException);
+  });
 });

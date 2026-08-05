@@ -16,14 +16,13 @@ import {
 } from './financeiro.interface';
 import * as moment from 'moment';
 import { readDecimal } from 'src/util/normalizers';
-
-// Antes hardcoded no meio do cálculo (`* 0.9` e `= 50`). Externalizado para
-// env var para não exigir deploy de código a cada reajuste de preço; os
-// defaults abaixo reproduzem exatamente o valor que já estava em produção,
-// então nada muda até alguém configurar essas variáveis explicitamente.
-const VALOR_POR_KM = Number(process.env.FINANCEIRO_VALOR_POR_KM) || 0.9;
-const VALOR_SESSAO_DEVOLUTIVA =
-  Number(process.env.FINANCEIRO_VALOR_SESSAO_DEVOLUTIVA) || 50;
+// Movido para um módulo à parte (src/util/financeiro-config.ts) porque
+// agenda.service.ts também precisa dessas mesmas constantes pra gravar o
+// snapshot financeiro do evento (R17) — e agenda.service.ts é importado por
+// este arquivo, então importar na direção contrária criaria um ciclo. As
+// duas constantes locais que existiam aqui (definidas do mesmo jeito) foram
+// removidas para não haver duas fontes da verdade.
+import { VALOR_POR_KM, VALOR_SESSAO_DEVOLUTIVA } from 'src/util/financeiro-config';
 
 @Injectable()
 export class FinanceiroService {
@@ -140,7 +139,17 @@ export class FinanceiroService {
             especialidadePaciente.especialidadeId === evento.especialidade?.id,
         )[0];
 
-        const sessaoValor = sessao?.valor ? readDecimal(sessao.valor) : 0;
+        // Snapshot financeiro (R17): se o evento já tem valor congelado no
+        // momento em que foi criado/editado, usa ele — só cai pro valor
+        // *atual* do cadastro (`sessao.valor`) para eventos antigos sem
+        // snapshot (não deveria acontecer depois da migration de backfill,
+        // mas fica como rede de segurança).
+        const sessaoValor =
+          evento.valorSessaoSnapshot != null
+            ? readDecimal(evento.valorSessaoSnapshot)
+            : sessao?.valor
+            ? readDecimal(sessao.valor)
+            : 0;
 
         if (!sessao && !evento.especialidade?.id) {
           return;
@@ -293,8 +302,23 @@ export class FinanceiroService {
           (funcao: any) => funcao.funcaoId === evento.funcao?.id,
         )[0];
 
-        const sessaoValor = sessao?.valor ? readDecimal(sessao.valor) : 0;
-        const comissaoValor = readDecimal(comissao?.comissao);
+        // Snapshot financeiro (R17) — mesma lógica de preferência do método
+        // `paciente()` acima, também para comissão e tipo de comissão.
+        const sessaoValor =
+          evento.valorSessaoSnapshot != null
+            ? readDecimal(evento.valorSessaoSnapshot)
+            : sessao?.valor
+            ? readDecimal(sessao.valor)
+            : 0;
+        const comissaoValor =
+          evento.comissaoSnapshot != null
+            ? readDecimal(evento.comissaoSnapshot)
+            : readDecimal(comissao?.comissao);
+        const comissaoTipo = (
+          evento.tipoComissaoSnapshot ||
+          comissao?.tipo ||
+          'fixo'
+        ).toString();
 
         const isDevolutiva = evento.modalidade?.nome === 'Devolutiva';
 
@@ -325,7 +349,7 @@ export class FinanceiroService {
           sessao: sessaoValor,
           km: readDecimal(evento.km),
           comissao: comissaoValor,
-          tipo: comissao?.tipo || 'fixo',
+          tipo: comissaoTipo,
           status: statusNome,
           devolutiva: isDevolutiva,
           horas: formaTime(horasEvento),
@@ -341,9 +365,21 @@ export class FinanceiroService {
           return;
         }
 
+        // Tarifa de devolutiva/km também respeita o snapshot, quando existe
+        // — mesmo raciocínio: o valor vigente quando o evento foi
+        // criado/editado, não o configurado hoje.
+        const valorDevolutiva =
+          evento.valorSessaoDevolutivaSnapshot != null
+            ? readDecimal(evento.valorSessaoDevolutivaSnapshot)
+            : VALOR_SESSAO_DEVOLUTIVA;
+        const taxaPorKm =
+          evento.valorPorKmSnapshot != null
+            ? readDecimal(evento.valorPorKmSnapshot)
+            : VALOR_POR_KM;
+
         if (isDevolutiva) {
-          financeiro.valorSessao = VALOR_SESSAO_DEVOLUTIVA;
-          financeiro.valorTotal = VALOR_SESSAO_DEVOLUTIVA;
+          financeiro.valorSessao = valorDevolutiva;
+          financeiro.valorTotal = valorDevolutiva;
 
           valorTotal += financeiro.valorTotal;
           horas = horas.add(horasEvento);
@@ -353,10 +389,10 @@ export class FinanceiroService {
           return;
         }
 
-        const valorKmEvento = readDecimal(evento.km) * VALOR_POR_KM;
+        const valorKmEvento = readDecimal(evento.km) * taxaPorKm;
         let valorSessao = 0;
 
-        switch ((comissao?.tipo || 'fixo').toLowerCase()) {
+        switch (comissaoTipo.toLowerCase()) {
           case 'fixo':
             valorSessao = comissaoValor;
             break;

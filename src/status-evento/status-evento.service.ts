@@ -6,6 +6,7 @@ import { buildPagination } from 'src/util/pagination';
 import { toNumberId } from 'src/util/normalizers';
 import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { buildTextSearchWhere } from 'src/util/search';
+import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
 
 @Injectable()
 export class StatusEventoService {
@@ -98,10 +99,20 @@ export class StatusEventoService {
 
   async delete(id: number) {
     const prisma = this.prismaService.getPrismaClient();
+    const statusEventosId = Number(id);
+
+    await assertEntidadeNaoEstaEmUso(
+      prisma,
+      [
+        { model: 'calendario', where: { statusEventosId } },
+        { model: 'baixa', where: { statusEventosId } },
+      ],
+      'Não é possível excluir: status de evento em uso (evento ou baixa vinculados).',
+    );
 
     return await prisma.statusEventos.delete({
       where: {
-        id: Number(id),
+        id: statusEventosId,
       },
     });
   }

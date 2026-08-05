@@ -25,6 +25,10 @@ import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 import { getPrismaClient } from 'src/util/crud';
 import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
 import { normalizeCurrencyValue } from 'src/util/normalizers';
+import {
+  VALOR_POR_KM,
+  VALOR_SESSAO_DEVOLUTIVA,
+} from 'src/util/financeiro-config';
 
 // Antecedência mínima, em horas, para um cancelamento não ser cobrado.
 // Definido com o negócio: 48 horas corridas antes do horário de início do evento.
@@ -499,6 +503,64 @@ export class AgendaService {
   }
 
   /**
+   * Snapshot financeiro (R17): calcula o valor da sessão (por especialidade
+   * do paciente), comissão da terapeuta (por função) e as tarifas de
+   * km/devolutiva vigentes *agora*, para gravar no evento. Chamado sempre
+   * que paciente/especialidade/terapeuta/função mudam (criação ou edição
+   * que troca algum desses vínculos) — nunca recalculado depois disso, para
+   * que um reajuste de valor/comissão feito no cadastro não reescreva
+   * relatórios de eventos já gravados. `FinanceiroService` passa a preferir
+   * esses campos em vez de sempre reler o cadastro atual.
+   */
+  private async computeFinanceiroSnapshot({
+    pacienteId,
+    especialidadeId,
+    terapeutaId,
+    funcaoId,
+  }: {
+    pacienteId: number;
+    especialidadeId: number;
+    terapeutaId: number;
+    funcaoId: number;
+  }) {
+    const prisma = getPrismaClient(this.prismaService);
+
+    const [vaga, comissao] = await Promise.all([
+      prisma.vaga.findUnique({
+        select: { id: true },
+        where: { pacienteId: Number(pacienteId) },
+      }),
+      prisma.terapeutaOnFuncao.findUnique({
+        where: {
+          terapeutaId_funcaoId: {
+            terapeutaId: Number(terapeutaId),
+            funcaoId: Number(funcaoId),
+          },
+        },
+      }),
+    ]);
+
+    const vagaOnEspecialidade = vaga
+      ? await prisma.vagaOnEspecialidade.findUnique({
+          where: {
+            vagaId_especialidadeId: {
+              vagaId: vaga.id,
+              especialidadeId: Number(especialidadeId),
+            },
+          },
+        })
+      : null;
+
+    return {
+      valorSessaoSnapshot: vagaOnEspecialidade?.valor ?? null,
+      comissaoSnapshot: comissao?.comissao ?? null,
+      tipoComissaoSnapshot: comissao?.tipo ?? null,
+      valorPorKmSnapshot: VALOR_POR_KM,
+      valorSessaoDevolutivaSnapshot: VALOR_SESSAO_DEVOLUTIVA,
+    };
+  }
+
+  /**
    * Valida horário inicial < final, faixa 8h–20h e se os dias do evento
    * (o único dia, se for evento único; ou os dias da semana, se recorrente)
    * estão dentro da jornada cadastrada da terapeuta (Terapeuta.cargaHoraria).
@@ -737,6 +799,29 @@ export class AgendaService {
         statusEventosId: data.statusEventosId,
         localidadeId: data.localidadeId,
       });
+    }
+
+    // Snapshot financeiro só é recalculado quando o que realmente afeta o
+    // valor muda (paciente/especialidade/terapeuta/função) — diferente de
+    // `vinculosMudaram` acima, que também dispara em mudança de
+    // status/localidade e não deveria "descongelar" o valor só por isso.
+    const camposFinanceirosMudaram =
+      !original ||
+      original.pacienteId !== data.pacienteId ||
+      original.especialidadeId !== data.especialidadeId ||
+      original.terapeutaId !== data.terapeutaId ||
+      original.funcaoId !== data.funcaoId;
+
+    if (camposFinanceirosMudaram) {
+      Object.assign(
+        data,
+        await this.computeFinanceiroSnapshot({
+          pacienteId: data.pacienteId,
+          especialidadeId: data.especialidadeId,
+          terapeutaId: data.terapeutaId,
+          funcaoId: data.funcaoId,
+        }),
+      );
     }
 
     const terapeutaMudou =
@@ -1315,23 +1400,34 @@ export class AgendaService {
       });
 
       try {
-        const eventos = await prisma.calendario.update({
-          data,
-          where: {
-            id: body.id,
-          },
-        });
-
-        if (statusResolvido.cobrar) {
-          await this.baixaService.create({
-            pacienteId: body.paciente.id,
-            terapeutaId: body.terapeuta.id,
-            localidadeId: body.localidade.id,
-            statusEventosId: statusResolvido.id,
-            eventoId: body.id,
-            dataEvento: body.dataInicio,
+        // Update do evento + criação da baixa decorrente numa transação real
+        // (R12): antes, se `baixaService.create` falhasse depois do
+        // `calendario.update` já ter gravado, não havia rollback — o evento
+        // ficava salvo com o novo status mas sem a baixa correspondente.
+        const eventos = await prisma.$transaction(async (tx: any) => {
+          const evento = await tx.calendario.update({
+            data,
+            where: {
+              id: body.id,
+            },
           });
-        }
+
+          if (statusResolvido.cobrar) {
+            await this.baixaService.create(
+              {
+                pacienteId: body.paciente.id,
+                terapeutaId: body.terapeuta.id,
+                localidadeId: body.localidade.id,
+                statusEventosId: statusResolvido.id,
+                eventoId: body.id,
+                dataEvento: body.dataInicio,
+              },
+              tx,
+            );
+          }
+
+          return evento;
+        });
 
         return eventos;
       } catch (error) {
@@ -1369,23 +1465,32 @@ export class AgendaService {
         excludeGroupId: original?.groupId,
       });
 
-      const eventoAtualizado = await prisma.calendario.update({
-        data,
-        where: {
-          id: event.id,
-        },
-      });
-
-      if (statusResolvido.cobrar) {
-        await this.baixaService.create({
-          pacienteId: event.paciente.id,
-          terapeutaId: event.terapeuta.id,
-          localidadeId: event.localidade.id,
-          statusEventosId: statusResolvido.id,
-          eventoId: event.id,
-          dataEvento: event.dateAtual,
+      // Ver comentário equivalente em updateCalendario (R12): update do
+      // evento + baixa decorrente numa única transação.
+      const eventoAtualizado = await prisma.$transaction(async (tx: any) => {
+        const evento = await tx.calendario.update({
+          data,
+          where: {
+            id: event.id,
+          },
         });
-      }
+
+        if (statusResolvido.cobrar) {
+          await this.baixaService.create(
+            {
+              pacienteId: event.paciente.id,
+              terapeutaId: event.terapeuta.id,
+              localidadeId: event.localidade.id,
+              statusEventosId: statusResolvido.id,
+              eventoId: event.id,
+              dataEvento: event.dateAtual,
+            },
+            tx,
+          );
+        }
+
+        return evento;
+      });
 
       return eventoAtualizado;
     }
@@ -1556,43 +1661,52 @@ export class AgendaService {
         const usuario = await this.userService.getUser(login);
 
         try {
-          const [, eventos] = await Promise.all([
-            prisma.calendario.update({
-              data: {
-                exdate: exdate.join(),
-              },
-              where: {
-                id: event.id,
-              },
-            }),
-            prisma.calendario.create({
-              select: {
-                id: true,
-                terapeutaId: true,
-                localidade: true,
-                statusEventos: true,
-                paciente: true,
-              },
-              data: {
-                ...data,
-                dataInicio: event.dataAtual,
-                dataFim,
-                usuarioId: usuario.id,
-                isChildren: true,
-              },
-            }),
-          ]);
+          // Ver comentário em updateCalendario (R12): as duas escritas em
+          // Calendario + a baixa decorrente, atômicas.
+          const eventos = await prisma.$transaction(async (tx: any) => {
+            const [, novoEvento] = await Promise.all([
+              tx.calendario.update({
+                data: {
+                  exdate: exdate.join(),
+                },
+                where: {
+                  id: event.id,
+                },
+              }),
+              tx.calendario.create({
+                select: {
+                  id: true,
+                  terapeutaId: true,
+                  localidade: true,
+                  statusEventos: true,
+                  paciente: true,
+                },
+                data: {
+                  ...data,
+                  dataInicio: event.dataAtual,
+                  dataFim,
+                  usuarioId: usuario.id,
+                  isChildren: true,
+                },
+              }),
+            ]);
 
-          if (eventos.statusEventos.cobrar) {
-            await this.baixaService.create({
-              pacienteId: eventos.paciente.id,
-              terapeutaId: eventos.terapeutaId,
-              localidadeId: eventos.localidade.id,
-              statusEventosId: eventos.statusEventos.id,
-              eventoId: eventos.id,
-              dataEvento: event.dataAtual,
-            });
-          }
+            if (novoEvento.statusEventos.cobrar) {
+              await this.baixaService.create(
+                {
+                  pacienteId: novoEvento.paciente.id,
+                  terapeutaId: novoEvento.terapeutaId,
+                  localidadeId: novoEvento.localidade.id,
+                  statusEventosId: novoEvento.statusEventos.id,
+                  eventoId: novoEvento.id,
+                  dataEvento: event.dataAtual,
+                },
+                tx,
+              );
+            }
+
+            return novoEvento;
+          });
 
           return eventos;
         } catch (error) {
@@ -1668,30 +1782,34 @@ export class AgendaService {
 
       return eventos;
     } else {
-      console.log(data);
+      // Ver comentário em updateCalendario (R12): baixa decorrente + update
+      // da série numa única transação.
+      const eventosAll = await prisma.$transaction(async (tx: any) => {
+        if (statusResolvido.cobrar) {
+          await this.baixaService.create(
+            {
+              pacienteId: event.paciente.id,
+              terapeutaId: event.terapeuta.id,
+              localidadeId: event.localidade.id,
+              statusEventosId: statusResolvido.id,
+              eventoId: event.id,
+              dataEvento: event.dataAtual,
+            },
+            tx,
+          );
+        }
 
-      if (statusResolvido.cobrar) {
-        await this.baixaService.create({
-          pacienteId: event.paciente.id,
-          terapeutaId: event.terapeuta.id,
-          localidadeId: event.localidade.id,
-          statusEventosId: statusResolvido.id,
-          eventoId: event.id,
-          dataEvento: event.dataAtual,
+        delete event.dataAtual;
+        delete event.data;
+
+        return tx.calendario.updateMany({
+          data: {
+            ...data,
+          },
+          where: {
+            groupId: data.groupId,
+          },
         });
-      }
-
-      const statusEventosId = evento.statusEventosId || evento.statusEventos.id;
-      delete event.dataAtual;
-      delete event.data;
-
-      const eventosAll = await prisma.calendario.updateMany({
-        data: {
-          ...data,
-        },
-        where: {
-          groupId: data.groupId,
-        },
       });
 
       return eventosAll;
@@ -1724,6 +1842,30 @@ export class AgendaService {
 
       if (this.isEventoPassado(evento.dataInicio, evento.end)) {
         throw new Error('Não é possível excluir um evento que já ocorreu.');
+      }
+
+      // `deleteMany({ groupId })` logo abaixo remove a série inteira — não
+      // só a ocorrência apontada por `eventId`. Antes disso, o método já
+      // bloqueava excluir quando o evento SELECIONADO já tinha passado, mas
+      // não olhava as outras linhas da mesma série (splits materializados
+      // via isChildren) que podem ter ocorrências passadas mesmo quando
+      // `eventId` aponta para uma ocorrência futura. Regra fechada com o
+      // negócio: só é permitido excluir a série quando NENHUMA ocorrência
+      // dela (passada ou futura) já foi realizada — sem granularidade de
+      // "só as próximas" por enquanto.
+      const ocorrenciasDaSerie = await prisma.calendario.findMany({
+        select: { dataInicio: true, end: true },
+        where: { groupId: evento.groupId },
+      });
+
+      const temSessaoJaRealizada = ocorrenciasDaSerie.some((ocorrencia) =>
+        this.isEventoPassado(ocorrencia.dataInicio, ocorrencia.end),
+      );
+
+      if (temSessaoJaRealizada) {
+        throw new Error(
+          'Não é possível excluir esta série: já existe pelo menos uma sessão já realizada. Só é permitido excluir séries totalmente futuras.',
+        );
       }
 
       await this.vagaService.update({
@@ -1774,6 +1916,11 @@ export class AgendaService {
         km: true,
         ciclo: true,
         observacao: true,
+        valorSessaoSnapshot: true,
+        comissaoSnapshot: true,
+        tipoComissaoSnapshot: true,
+        valorPorKmSnapshot: true,
+        valorSessaoDevolutivaSnapshot: true,
         paciente: {
           select: {
             nome: true,

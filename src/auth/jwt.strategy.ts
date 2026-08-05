@@ -5,10 +5,22 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    // Antes caía silenciosamente em 'dev-secret-key' quando JWT_PRIVATE_KEY
+    // não estava definido — qualquer um que soubesse essa string fixa
+    // conseguia forjar um token válido. Falha explícita no boot em vez de
+    // rodar com um segredo previsível.
+    const jwtSecret = process.env.JWT_PRIVATE_KEY;
+
+    if (!jwtSecret) {
+      throw new Error(
+        'JWT_PRIVATE_KEY não configurado — obrigatório para verificar tokens.',
+      );
+    }
+
     super({
       jwtFromRequest: (req: any) => JwtStrategy.extractJwtFromRequest(req),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_PRIVATE_KEY || 'dev-secret-key',
+      secretOrKey: jwtSecret,
       algorithms: ['HS256'],
     });
   }

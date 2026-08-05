@@ -11,6 +11,23 @@ export function setupRuntimeCompat() {
   }
 }
 
+// Antes a sessão sempre reusava JWT_PRIVATE_KEY com fallback hardcoded
+// 'dev-secret-key' — existe uma SESSION_PRIVATE_KEY dedicada no .env que
+// nunca era lida. Falha explícita se nenhuma das duas estiver configurada,
+// em vez de rodar com um segredo previsível.
+export function resolveSessionSecret(): string {
+  const sessionSecret =
+    process.env.SESSION_PRIVATE_KEY || process.env.JWT_PRIVATE_KEY;
+
+  if (!sessionSecret) {
+    throw new Error(
+      'SESSION_PRIVATE_KEY (ou JWT_PRIVATE_KEY) não configurado — obrigatório para a sessão.',
+    );
+  }
+
+  return sessionSecret;
+}
+
 export function setupShutdownHooks(app: any) {
   const shutdown = async (signal: string) => {
     console.log(`Received ${signal}, shutting down gracefully`);
@@ -50,7 +67,7 @@ async function bootstrap() {
 
   app.use(
     session({
-      secret: process.env.JWT_PRIVATE_KEY || 'dev-secret-key',
+      secret: resolveSessionSecret(),
       resave: false,
       saveUninitialized: false,
       cookie: { secure: false },

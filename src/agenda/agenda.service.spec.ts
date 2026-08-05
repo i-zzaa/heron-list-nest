@@ -482,4 +482,124 @@ describe('AgendaService validations', () => {
       expect(resolved.cobrar).toBe(false);
     });
   });
+
+  describe('computeFinanceiroSnapshot (R17)', () => {
+    it('busca valor da especialidade (via vaga do paciente) e comissão da função (via terapeuta), e inclui as tarifas de km/devolutiva vigentes', async () => {
+      const { service } = buildService({
+        vaga: {
+          findUnique: jest.fn().mockResolvedValue({ id: 55 }),
+        },
+        vagaOnEspecialidade: {
+          findUnique: jest.fn().mockResolvedValue({ valor: '150.00' }),
+        },
+        terapeutaOnFuncao: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ comissao: '80.00', tipo: 'Fixo' }),
+        },
+      });
+
+      const snapshot = await (service as any).computeFinanceiroSnapshot({
+        pacienteId: 1,
+        especialidadeId: 2,
+        terapeutaId: 3,
+        funcaoId: 4,
+      });
+
+      expect(snapshot).toEqual({
+        valorSessaoSnapshot: '150.00',
+        comissaoSnapshot: '80.00',
+        tipoComissaoSnapshot: 'Fixo',
+        valorPorKmSnapshot: expect.any(Number),
+        valorSessaoDevolutivaSnapshot: expect.any(Number),
+      });
+    });
+
+    it('devolve valores null quando paciente não tem vaga ou terapeuta não tem a função — não quebra', async () => {
+      const { service } = buildService({
+        vaga: { findUnique: jest.fn().mockResolvedValue(null) },
+        terapeutaOnFuncao: { findUnique: jest.fn().mockResolvedValue(null) },
+      });
+
+      const snapshot = await (service as any).computeFinanceiroSnapshot({
+        pacienteId: 1,
+        especialidadeId: 2,
+        terapeutaId: 3,
+        funcaoId: 4,
+      });
+
+      expect(snapshot.valorSessaoSnapshot).toBeNull();
+      expect(snapshot.comissaoSnapshot).toBeNull();
+      expect(snapshot.tipoComissaoSnapshot).toBeNull();
+    });
+  });
+
+  describe('delete — bloqueio de série com sessão já realizada (R11)', () => {
+    const eventoBase = {
+      paciente: {
+        id: 1,
+        statusPacienteCod: 'therapy',
+        vaga: { id: 5, especialidades: [] },
+      },
+      especialidadeId: 1,
+      groupId: 'serie-1',
+      dataInicio: moment().add(5, 'days').format('YYYY-MM-DD'),
+      end: '11:00',
+    };
+
+    const buildDeleteService = (ocorrencias: any[]) => {
+      const prisma = {
+        calendario: {
+          findFirstOrThrow: jest.fn().mockResolvedValue(eventoBase),
+          findMany: jest.fn().mockResolvedValue(ocorrencias),
+          deleteMany: jest.fn().mockResolvedValue({ count: ocorrencias.length }),
+        },
+        vaga: { update: jest.fn().mockResolvedValue({}) },
+      };
+
+      const service = new AgendaService(
+        { getPrismaClient: () => prisma } as any,
+        { getUser: jest.fn().mockResolvedValue({ id: 1 }) } as any,
+        {} as any,
+        {} as any,
+        { update: jest.fn().mockResolvedValue(undefined) } as any,
+        {} as any,
+      );
+
+      return { service, prisma };
+    };
+
+    it('bloqueia excluir a série quando alguma ocorrência (mesmo de outra linha da série) já passou', async () => {
+      const { service, prisma } = buildDeleteService([
+        // ocorrência futura (a apontada por eventId)
+        { dataInicio: eventoBase.dataInicio, end: '11:00' },
+        // outra linha da mesma série (split isChildren), já passada
+        {
+          dataInicio: moment().subtract(10, 'days').format('YYYY-MM-DD'),
+          end: '11:00',
+        },
+      ]);
+
+      await expect(service.delete(1, 'usuario.login')).rejects.toThrow(
+        /já realizada/,
+      );
+      expect(prisma.calendario.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('permite excluir quando toda a série ainda é futura', async () => {
+      const { service, prisma } = buildDeleteService([
+        { dataInicio: eventoBase.dataInicio, end: '11:00' },
+        {
+          dataInicio: moment().add(12, 'days').format('YYYY-MM-DD'),
+          end: '11:00',
+        },
+      ]);
+
+      await service.delete(1, 'usuario.login');
+
+      expect(prisma.calendario.deleteMany).toHaveBeenCalledWith({
+        where: { groupId: 'serie-1', usuarioId: 1 },
+      });
+    });
+  });
 });

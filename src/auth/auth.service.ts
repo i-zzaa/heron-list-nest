@@ -40,6 +40,10 @@ export class AuthService {
         permissoes: permissoes,
         perfil: user.perfil,
         nome: user.nome,
+        // Frontend usa isso pra forçar a tela de troca de senha logo após o
+        // login, em vez de deixar o usuário navegar e só descobrir no
+        // primeiro 403 de alguma rota com tag (ver PermissionsGuard).
+        mustChangePassword: !!user.mustChangePassword,
       },
     };
   }

@@ -17,6 +17,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { normalizePageSize } from 'src/util/pagination';
 import { ProgramaService } from './programa.service';
 import { TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('programa')
@@ -56,6 +58,8 @@ export class ProgramaController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PROGRAMA_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: any, @Response() response: any) {
     try {
@@ -66,6 +70,8 @@ export class ProgramaController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PROGRAMA_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: any, @Response() response: any) {
     try {
@@ -76,6 +82,8 @@ export class ProgramaController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PROGRAMA_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: number, @Response() response: any) {
     try {

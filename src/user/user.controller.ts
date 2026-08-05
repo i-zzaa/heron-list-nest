@@ -25,9 +25,13 @@ export class UserController {
   @UseGuards(PermissionsGuard)
   @RequirePermission('CADASTRO_USUARIOS_BOTAO_CADASTRAR')
   @Post()
-  async create(@Body() body: UserRequestProps, @Response() response: any) {
+  async create(
+    @Body() body: UserRequestProps,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.userService.create(body);
+      const data = await this.userService.create(body, req.user?.username);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response, error);
@@ -37,12 +41,40 @@ export class UserController {
   @UseGuards(PermissionsGuard)
   @RequirePermission('CADASTRO_USUARIOS_LISTA_BOTAO_EDITAR')
   @Put()
-  async update(@Body() body: UserRequestProps, @Response() response: any) {
+  async update(
+    @Body() body: UserRequestProps,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.userService.update(body);
+      const data = await this.userService.update(body, req.user?.username);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response, 'Não foi possível atualiar o usuário!');
+      responseError(response, error);
+    }
+  }
+
+  // Trocar o grupoPermissaoId de um usuário existente é uma ação separada
+  // (R4): antes vinha junto do payload de POST/PUT /usuarios, e qualquer um
+  // com permissão de editar usuário podia setar qualquer grupo, inclusive
+  // se autopromover. Guardada com a mesma tag de administrar grupos de
+  // permissão (não a de editar usuário).
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_GRUPO_PERMISSOES_LISTA_BOTAO_EDITAR')
+  @Put(':id/grupo-permissao')
+  async updateGrupoPermissao(
+    @Param('id') id: number,
+    @Body() body: { grupoPermissaoId: number | null },
+    @Response() response: any,
+  ) {
+    try {
+      const data = await this.userService.updateGrupoPermissao(
+        Number(id),
+        body.grupoPermissaoId,
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response, error);
     }
   }
 

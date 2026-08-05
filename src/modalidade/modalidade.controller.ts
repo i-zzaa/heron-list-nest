@@ -16,6 +16,8 @@ import { normalizePageSize } from 'src/util/pagination';
 import { ModalidadeService } from './modalidade.service';
 import { ModalidadeProps } from './modalidade.interface';
 import { responseSuccess, responseError } from 'src/util/response';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('modalidade')
@@ -57,6 +59,8 @@ export class ModalidadeController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_MODALIDADE_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: ModalidadeProps, @Response() response: any) {
     try {
@@ -67,6 +71,8 @@ export class ModalidadeController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_MODALIDADE_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: ModalidadeProps, @Response() response: any) {
     try {
@@ -77,6 +83,8 @@ export class ModalidadeController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_MODALIDADE_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: string, @Response() response: any) {
     try {

@@ -49,6 +49,7 @@ export class PermissionsGuard implements CanActivate {
     const usuario = await prisma.usuario.findUnique({
       where: { login },
       select: {
+        mustChangePassword: true,
         perfil: { select: { nome: true } },
         grupo: {
           select: {
@@ -60,6 +61,20 @@ export class PermissionsGuard implements CanActivate {
 
     if (!usuario) {
       return false;
+    }
+
+    // Reset de senha/criação de usuário deixa a senha antiga sabida por
+    // quem resetou até o usuário trocar. Enquanto isso, bloqueia qualquer
+    // rota já protegida por tag (as de maior risco) — inclusive para quem
+    // tem perfil Developer, já que o flag só é setado por uma ação
+    // deliberada de reset/criação. As rotas de troca de senha propriamente
+    // ditas (PUT /usuarios/reset-senha[/:login]) nunca têm
+    // `@RequirePermission`, então nunca passam por aqui — não travam a
+    // própria saída.
+    if (usuario.mustChangePassword) {
+      throw new ForbiddenException(
+        'Troca de senha obrigatória antes de continuar. Use PUT /usuarios/reset-senha.',
+      );
     }
 
     if (usuario.perfil?.nome === PERFIL.dev) {

@@ -7,6 +7,7 @@ import {
   Put,
   Delete,
   Param,
+  Query,
   Response,
   Request,
 } from '@nestjs/common';
@@ -61,14 +62,26 @@ export class BaixaController {
     }
   }
 
+  // Motivo é obrigatório (BaixaService.delete rejeita se vier vazio) — aceito
+  // tanto no corpo quanto na query string, porque clientes DELETE nem sempre
+  // mandam body com facilidade.
   @UseGuards(PermissionsGuard)
   @RequirePermission('AGENDA_BAIXA_DELETE')
   @Delete(':id')
-  async delete(@Param('id') id: number, @Response() response: any) {
-    console.log(id);
-
+  async delete(
+    @Param('id') id: number,
+    @Body() body: { motivo?: string },
+    @Query('motivo') motivoQuery: string,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.baixaService.delete(Number(id));
+      const motivo = body?.motivo || motivoQuery;
+      const data = await this.baixaService.delete(
+        Number(id),
+        motivo,
+        req.user?.username,
+      );
       responseSuccess(response, data);
     } catch (error) {
       responseError(response, error);

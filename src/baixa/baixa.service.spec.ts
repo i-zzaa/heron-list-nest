@@ -116,4 +116,66 @@ describe('BaixaService', () => {
       expect(result).toMatchObject({ created: true, duplicate: false });
     });
   });
+
+  describe('delete', () => {
+    const buildPrisma = (baixaExistente: any = { id: 7, eventoId: 42 }) => {
+      const baixaExclusaoLogCreate = { data: undefined };
+      const prisma = {
+        baixa: {
+          findUnique: jest.fn().mockResolvedValue(baixaExistente),
+          delete: jest.fn().mockResolvedValue(baixaExistente),
+        },
+        baixaExclusaoLog: {
+          create: jest.fn((args: any) => {
+            baixaExclusaoLogCreate.data = args.data;
+            return args.data;
+          }),
+        },
+        $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
+      };
+
+      return { prisma, baixaExclusaoLogCreate };
+    };
+
+    it('rejeita exclusão sem motivo', async () => {
+      const { prisma } = buildPrisma();
+      (service as any).prismaService = { getPrismaClient: () => prisma };
+      (service as any).userService = { getUser: jest.fn() };
+
+      await expect(service.delete(7, '', 'alguem')).rejects.toThrow(/[Mm]otivo/);
+      expect(prisma.baixa.delete).not.toHaveBeenCalled();
+    });
+
+    it('rejeita quando a baixa não existe mais', async () => {
+      const { prisma } = buildPrisma(null);
+      (service as any).prismaService = { getPrismaClient: () => prisma };
+      (service as any).userService = { getUser: jest.fn() };
+
+      await expect(
+        service.delete(999, 'duplicada por engano', 'alguem'),
+      ).rejects.toThrow(/não encontrada/);
+    });
+
+    it('grava snapshot + motivo + usuário no log antes de excluir fisicamente', async () => {
+      const { prisma } = buildPrisma({ id: 7, eventoId: 42, baixa: true });
+      (service as any).prismaService = { getPrismaClient: () => prisma };
+      (service as any).userService = {
+        getUser: jest.fn().mockResolvedValue({ id: 3, login: 'admin.user' }),
+      };
+
+      await service.delete(7, 'baixa lançada errada', 'admin.user');
+
+      expect(prisma.baixaExclusaoLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            baixaId: 7,
+            motivo: 'baixa lançada errada',
+            usuarioId: 3,
+            snapshot: expect.objectContaining({ id: 7, eventoId: 42 }),
+          }),
+        }),
+      );
+      expect(prisma.baixa.delete).toHaveBeenCalledWith({ where: { id: 7 } });
+    });
+  });
 });

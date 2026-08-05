@@ -25,6 +25,8 @@ import { RequirePermission } from 'src/auth/require-permission.decorator';
 export class PacienteController {
   constructor(private pacienteService: PacienteService) {}
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PACIENTES_FILTRO_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: PatientCreate, @Response() response: any) {
     try {
@@ -35,6 +37,8 @@ export class PacienteController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PACIENTES_LISTA_BOTAO_EDITAR')
   @Put()
   async update(@Body() body: PatientProps, @Response() response: any) {
     try {

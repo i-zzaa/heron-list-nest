@@ -3,8 +3,20 @@ export enum DEVICE {
   web = 'DEVICE_WEB',
 }
 
+// Lista fechada dos perfis existentes no banco real (conferido via
+// `SELECT id, nome FROM Perfil`: só existem essas 5 linhas hoje —
+// Developer (bypass técnico) + os 4 papéis de negócio do enunciado). Não é
+// um enum de banco (mudar o tipo da coluna Perfil.nome exigiria migration
+// de dado arriscada); serve para checagens de código que antes usavam só
+// `PERFIL.dev` e strings soltas (ex.: `validatePerfilId` continua validando
+// contra a tabela, não contra este enum — isto aqui é para comparações
+// pontuais, tipo "só Developer pode promover outro usuário a Developer").
 export enum PERFIL {
   dev = 'Developer',
+  admin = 'Administrador',
+  coordenadora = 'Coordenadora',
+  secretaria = 'Secretária',
+  terapeuta = 'Terapeuta',
 }
 
 export type DeviceProps = 'DEVICE_MOBILE' | 'DEVICE_WEB';

@@ -199,8 +199,13 @@ export class PacienteService {
     });
   }
 
-  async setTipoSessaoTerapia(pacienteId: number) {
-    const prisma = getPrismaClient(this.prismaService);
+  // `tx` opcional: quando informado (chamado de dentro de um
+  // `prisma.$transaction`, ver VagaService.update), usa o client
+  // transacional em vez do client normal — para que a transição de fila
+  // (VagaOnEspecialidade + Vaga + Paciente, potencialmente cruzando
+  // serviços) seja atômica de verdade, não só concorrente (R13).
+  async setTipoSessaoTerapia(pacienteId: number, tx?: any) {
+    const prisma = tx || getPrismaClient(this.prismaService);
 
     const paciente: any = await prisma.paciente.update({
       data: {
@@ -214,8 +219,8 @@ export class PacienteService {
     return paciente;
   }
 
-  async setStatusPaciente(statusPacienteCod: string, pacienteId: number) {
-    const prisma = getPrismaClient(this.prismaService);
+  async setStatusPaciente(statusPacienteCod: string, pacienteId: number, tx?: any) {
+    const prisma = tx || getPrismaClient(this.prismaService);
 
     const paciente: any = await prisma.paciente.update({
       data: {

@@ -102,7 +102,7 @@ model Periodo {
 
 model Especialidade {
   id         Int                   @id @default(autoincrement())
-  nome       String
+  nome       String                @unique
   cor        String                @default("#000000")
   Funcao     Funcao[]
   calendario Calendario[]
@@ -130,6 +130,11 @@ model Usuario {
   ativo            Boolean @default(true)
   perfilId         Int
   grupoPermissaoId Int?
+  // Setado toda vez que a senha é definida por outra pessoa (reset de
+  // admin) ou na criação do usuário — o login continua funcionando, mas
+  // até o usuário trocar a própria senha (PUT /usuarios/reset-senha*),
+  // ações que exigem tag de permissão ficam bloqueadas (ver PermissionsGuard).
+  mustChangePassword Boolean @default(false)
 
   createdAt DateTime @default(now())
 
@@ -160,7 +165,7 @@ model Localidade {
 
 model StatusEventos {
   id         Int          @id @default(autoincrement())
-  nome       String
+  nome       String       @unique
   cobrar     Boolean      @default(false)
   ativo      Boolean      @default(true)
   createdAt  DateTime     @default(now())
@@ -208,6 +213,8 @@ model Funcao {
   calendario    Calendario[]
 
   terapeutas TerapeutaOnFuncao[]
+
+  @@unique([nome, especialidadeId])
 }
 
 model Terapeuta {
@@ -253,6 +260,20 @@ model Calendario {
   isChildren     Boolean @default(false)
   km             Decimal @default(0.00) @db.Decimal(10, 2)
 
+  // Snapshot financeiro: valor/comissão/tarifas vigentes gravados no momento
+  // em que o evento foi criado ou teve paciente/especialidade/terapeuta/
+  // função alterados — para que um reajuste de preço feito depois não altere
+  // relatórios de período já fechado (ver FinanceiroService, que passa a
+  // preferir esses campos em vez de sempre reler o cadastro atual). Nullable
+  // porque eventos criados antes desta coluna existir foram populados
+  // retroativamente com o melhor valor disponível (o atual, na migration),
+  // mas o campo continua opcional por segurança.
+  valorSessaoSnapshot           Decimal? @db.Decimal(10, 2)
+  comissaoSnapshot              Decimal? @db.Decimal(10, 2)
+  tipoComissaoSnapshot          String?
+  valorPorKmSnapshot            Decimal? @db.Decimal(10, 2)
+  valorSessaoDevolutivaSnapshot Decimal? @db.Decimal(10, 2)
+
   ciclo           String
   observacao      String?
   pacienteId      Int
@@ -284,6 +305,10 @@ model Calendario {
   Baixa           Baixa[]
   Sessao          Sessao[]
   AtividadeSessao AtividadeSessao?
+
+  @@index([terapeutaId, start])
+  @@index([pacienteId])
+  @@index([groupId])
 }
 
 model Permissao {
@@ -343,6 +368,24 @@ model Baixa {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+
+  @@unique([eventoId])
+  @@index([usuarioId])
+  @@index([dataEvento])
+}
+
+// Auditoria de exclusão de Baixa (R16): a tabela já existia via migration
+// solta (20260805123719_baixa_exclusao_log) sem estar mapeada aqui nem usada
+// pelo código — conectada agora em BaixaService.delete(). Sem relation
+// declarada de propósito (baixaId não é FK: o registro de Baixa já foi
+// apagado quando este log é gravado, então não há nada para referenciar).
+model BaixaExclusaoLog {
+  id        Int      @id @default(autoincrement())
+  baixaId   Int
+  motivo    String
+  usuarioId Int?
+  snapshot  Json
+  createdAt DateTime @default(now())
 }
 
 model Programa {

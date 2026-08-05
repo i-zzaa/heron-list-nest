@@ -4,6 +4,7 @@ import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { buildPagination } from 'src/util/pagination';
 import { toNumberId } from 'src/util/normalizers';
 import { buildTextSearchWhere } from 'src/util/search';
+import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
 
 @Injectable()
 export class FuncaoService {
@@ -145,10 +146,20 @@ export class FuncaoService {
 
   async delete(id: number) {
     const prisma = this.prismaService.getPrismaClient();
+    const funcaoId = toNumberId(id);
+
+    await assertEntidadeNaoEstaEmUso(
+      prisma,
+      [
+        { model: 'calendario', where: { funcaoId } },
+        { model: 'terapeutaOnFuncao', where: { funcaoId } },
+      ],
+      'Não é possível excluir: função em uso (evento ou terapeuta vinculados).',
+    );
 
     return await prisma.funcao.delete({
       where: {
-        id: toNumberId(id),
+        id: funcaoId,
       },
     });
   }

@@ -136,8 +136,12 @@ export class BaixaService {
     });
   }
 
-  async create(data: BaixaCreateProps) {
-    const prisma = this.prismaService.getPrismaClient();
+  // `tx` opcional: quando chamado de dentro da transação de
+  // AgendaService (update do evento + criação da baixa decorrente, R12),
+  // usa o client transacional em vez do client normal, para que uma falha
+  // na baixa desfaça também o update do evento.
+  async create(data: BaixaCreateProps, tx?: any) {
+    const prisma = tx || this.prismaService.getPrismaClient();
 
     const existentes = await prisma.baixa.findMany({
       where: {
@@ -166,17 +170,43 @@ export class BaixaService {
     return { created: true, duplicate: false, baixa };
   }
 
-  async delete(id: number) {
+  /**
+   * Exclusão de baixa era física e silenciosa (sem motivo, sem quem
+   * excluiu, erro só logado no console — nunca chegava ao controller). A
+   * tabela `BaixaExclusaoLog` já existia via migration solta desde antes
+   * (schema+código nunca conectados); agora: motivo é obrigatório, snapshot
+   * completo da baixa é preservado antes de apagar, e a exclusão em si
+   * continua física — mas com histórico/motivo/quem fez, que é o que R16
+   * pedia (não confundir com soft delete: o registro sai de `Baixa`, mas
+   * fica auditado em `BaixaExclusaoLog`).
+   */
+  async delete(id: number, motivo: string, login?: string) {
     const prisma = this.prismaService.getPrismaClient();
 
-    try {
-      return await prisma.baixa.delete({
-        where: {
-          id,
-        },
-      });
-    } catch (error) {
-      console.log(error);
+    if (!motivo || !motivo.trim()) {
+      throw new Error('Motivo da exclusão é obrigatório.');
     }
+
+    const usuario = login ? await this.userService.getUser(login) : null;
+
+    const baixa = await prisma.baixa.findUnique({ where: { id } });
+
+    if (!baixa) {
+      throw new Error('Baixa não encontrada.');
+    }
+
+    const [, baixaExcluida] = await prisma.$transaction([
+      prisma.baixaExclusaoLog.create({
+        data: {
+          baixaId: baixa.id,
+          motivo: motivo.trim(),
+          usuarioId: usuario?.id,
+          snapshot: JSON.parse(JSON.stringify(baixa)),
+        },
+      }),
+      prisma.baixa.delete({ where: { id } }),
+    ]);
+
+    return baixaExcluida;
   }
 }

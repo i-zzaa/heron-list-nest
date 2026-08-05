@@ -4,6 +4,7 @@ import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { toNumberId } from 'src/util/normalizers';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
+import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
 
 @Injectable()
 export class EspecialidadeService {
@@ -100,10 +101,25 @@ export class EspecialidadeService {
 
   async delete(id: number) {
     const prisma = getPrismaClient(this.prismaService);
+    const especialidadeId = toNumberId(id);
+
+    // R20: antes era hard delete direto — se a especialidade estivesse em
+    // uso, o Prisma rejeitava com erro cru de FK (500 genérico). Agora
+    // checa antes e devolve mensagem clara.
+    await assertEntidadeNaoEstaEmUso(
+      prisma,
+      [
+        { model: 'calendario', where: { especialidadeId } },
+        { model: 'terapeuta', where: { especialidadeId } },
+        { model: 'vagaOnEspecialidade', where: { especialidadeId } },
+        { model: 'funcao', where: { especialidadeId } },
+      ],
+      'Não é possível excluir: especialidade em uso (evento, terapeuta, vaga ou função vinculados).',
+    );
 
     return await prisma.especialidade.delete({
       where: {
-        id: toNumberId(id),
+        id: especialidadeId,
       },
     });
   }

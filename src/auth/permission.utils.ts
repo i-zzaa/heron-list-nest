@@ -22,6 +22,7 @@ export async function userHasPermission(
   const usuario = await prisma.usuario.findUnique({
     where: { login },
     select: {
+      mustChangePassword: true,
       perfil: { select: { nome: true } },
       grupo: {
         select: {
@@ -32,6 +33,12 @@ export async function userHasPermission(
   });
 
   if (!usuario) {
+    return false;
+  }
+
+  // Mesma trava do PermissionsGuard: troca de senha pendente bloqueia
+  // qualquer checagem de permissão, mesmo para Developer.
+  if (usuario.mustChangePassword) {
     return false;
   }
 

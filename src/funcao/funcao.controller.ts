@@ -16,6 +16,8 @@ import { normalizePageSize } from 'src/util/pagination';
 import { FuncaoService } from './funcao.service';
 import { FuncaoProps } from './funcao.interface';
 import { responseSuccess, responseError } from 'src/util/response';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('funcao')
@@ -84,6 +86,8 @@ export class FuncaoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_FUNCAO_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: FuncaoProps, @Response() response: any) {
     try {
@@ -94,6 +98,8 @@ export class FuncaoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_FUNCAO_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: FuncaoProps, @Response() response: any) {
     try {
@@ -104,6 +110,8 @@ export class FuncaoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_FUNCAO_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: string, @Response() response: any) {
     try {
