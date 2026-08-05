@@ -63,7 +63,15 @@ export class AuthService {
         const { senha, ...result } = user;
         return result;
       }
+
+      // Log temporário de diagnóstico (não muda a resposta pro cliente,
+      // que continua "Login e/ou senha inválido!" via LocalStrategy) — dá
+      // pra ver no log do servidor qual das três condições falhou.
+      console.warn(
+        `[login] falhou pra "${login}": encontrado=${!!user} senhaOk=${checkPassword} ativo=${user?.ativo}`,
+      );
     } catch (error) {
+      console.error(`[login] erro ao validar "${login}":`, error);
       return null;
     }
   }
