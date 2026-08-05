@@ -58,21 +58,16 @@ export const dateFormatDDMMYYYYHHMM = (date: Date | string) =>
   moment(date).format('DD/MM/YYYY HH:mm');
 
 export function getDatesBetween(start: string, end: string) {
-  // Defina a data de início e a data final como objetos moment
-  const startDate = momentBusinessDays(start);
-  const endDate = momentBusinessDays(end).add(1, 'days');
+  const datas: string[] = [];
+  const dataAtual = moment(start, 'YYYY-MM-DD').startOf('day');
+  const dataFim = moment(end, 'YYYY-MM-DD').startOf('day');
 
-  // Obtenha todas as datas úteis entre a data de início e a data final usando o método businessDates
-
-  const datasUteis = [];
-  const diff = endDate.businessDiff(startDate);
-  for (let index = 0; index < diff; index++) {
-    datasUteis.push(startDate.businessAdd(index).format('YYYY-MM-DD'));
+  while (dataAtual.isSameOrBefore(dataFim)) {
+    datas.push(dataAtual.format('YYYY-MM-DD'));
+    dataAtual.add(1, 'day');
   }
 
-  // Imprima as datas úteis
-  // console.log('Datas úteis:', datasUteis);
-  return datasUteis;
+  return datas;
 }
 
 export function getDates(

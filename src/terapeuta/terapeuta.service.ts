@@ -224,6 +224,39 @@ export class TerapeutaService {
     return eventStart.isBefore(slotEnd) && eventEnd.isAfter(slotStart);
   }
 
+  private getOccupiedSlotHours(events: any[]) {
+    const occupiedSlots = new Set<string>();
+
+    events.forEach((event: any) => {
+      const eventStartRaw = event?.data?.start || event?.start;
+      const eventEndRaw = event?.data?.end || event?.end;
+
+      if (!eventStartRaw || !eventEndRaw) {
+        return;
+      }
+
+      const normalizedStart = this.normalizeHour(eventStartRaw);
+      const normalizedEnd = this.normalizeHour(eventEndRaw);
+      const eventStart = moment(normalizedStart, 'HH:mm', true);
+      const eventEnd = moment(normalizedEnd, 'HH:mm', true);
+
+      if (!eventStart.isValid() || !eventEnd.isValid()) {
+        return;
+      }
+
+      HOURS.forEach((hour: string) => {
+        const slotStart = moment(hour, 'HH:mm', true);
+        const slotEnd = moment(hour, 'HH:mm', true).add(1, 'hour');
+
+        if (eventStart.isBefore(slotEnd) && eventEnd.isAfter(slotStart)) {
+          occupiedSlots.add(hour);
+        }
+      });
+    });
+
+    return occupiedSlots;
+  }
+
   private getCargaHorariaDayKey(date: Date | string) {
     const dayOfWeek =
       typeof date === 'string'
@@ -479,6 +512,7 @@ export class TerapeutaService {
       const eventosDoDia = (eventosFormatados[day] || []).filter(
         (event: any) => !this.isEventExcludedOnDay(event, day),
       );
+      const occupiedSlots = this.getOccupiedSlotHours(eventosDoDia);
 
       for (const hour of horariosDoDia) {
         if (!horariosTerapeuta?.[hour]) {
@@ -495,7 +529,7 @@ export class TerapeutaService {
           continue;
         }
 
-        if (slotDate.isAfter(new Date())) {
+        if (!occupiedSlots.has(hour) && slotDate.isAfter(new Date())) {
           addItemToArrays(day, this.buildFreeSlot(day, hour, terapeuta));
         }
       }
