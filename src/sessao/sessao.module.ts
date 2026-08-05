@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { PrismaService } from 'src/prisma/prisma.service';
 import { SessaoService } from './sessao.service';
 import { SessaoController } from './sessao.controller';
 import { AgendaService } from 'src/agenda/agenda.service';
@@ -15,7 +14,6 @@ import { VagaService } from 'src/vaga/vaga.service';
 @Module({
   providers: [
     SessaoService,
-    PrismaService,
     AgendaService,
     UserService,
     LocalidadeService,

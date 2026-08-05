@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { AgendaModule } from './agenda/agenda.module';
@@ -31,6 +30,7 @@ import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
 import { PeiModule } from './pei/pei.module';
 import { ProtocoloeModule } from './protocolo/protocolo.module';
 import { GuiaAmilModule } from './guia-amil/guia-amil.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -38,6 +38,7 @@ import { GuiaAmilModule } from './guia-amil/guia-amil.module';
       isGlobal: true,
       envFilePath: ['.env', '.env.local'],
     }),
+    PrismaModule,
     AuthModule,
     UserModule,
     TerapeutaModule,
@@ -67,6 +68,6 @@ import { GuiaAmilModule } from './guia-amil/guia-amil.module';
     GuiaAmilModule,
   ],
   controllers: [AppController],
-  providers: [PrismaService, AppService],
+  providers: [AppService],
 })
 export class AppModule {}

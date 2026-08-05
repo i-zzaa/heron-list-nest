@@ -1,36 +1,22 @@
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PERFIL } from 'src/util/util';
-import { getPrismaClient } from 'src/util/crud';
+import { getUsuarioPermissoes, isDeveloper } from './permission-lookup';
 
 /**
  * Checagem de tag de permissão reutilizável fora de um guard — para regras
  * que dependem do estado do próprio recurso (ex.: "só o criador pode
  * excluir, a menos que o evento já tenha sido editado, aí quem tem a tag
  * pode"), que não dá pra expressar só com `@RequirePermission` na rota.
- * Mesma lógica do `PermissionsGuard` (perfil Developer sempre passa).
+ * Mesma lógica do `PermissionsGuard` (perfil Developer sempre passa, e
+ * mustChangePassword pendente bloqueia) — agora as duas compartilham a
+ * mesma consulta cacheada em vez de bater no banco cada uma por conta
+ * própria (ver `permission-lookup.ts`).
  */
 export async function userHasPermission(
   prismaService: PrismaService,
   login: string | undefined,
   requiredCods: string[],
 ): Promise<boolean> {
-  if (!login) {
-    return false;
-  }
-
-  const prisma = getPrismaClient(prismaService);
-  const usuario = await prisma.usuario.findUnique({
-    where: { login },
-    select: {
-      mustChangePassword: true,
-      perfil: { select: { nome: true } },
-      grupo: {
-        select: {
-          permissoes: { select: { permissao: { select: { cod: true } } } },
-        },
-      },
-    },
-  });
+  const usuario = await getUsuarioPermissoes(prismaService, login);
 
   if (!usuario) {
     return false;
@@ -42,13 +28,9 @@ export async function userHasPermission(
     return false;
   }
 
-  if (usuario.perfil?.nome === PERFIL.dev) {
+  if (isDeveloper(usuario.perfilNome)) {
     return true;
   }
 
-  const tags = (usuario.grupo?.permissoes || []).map(
-    (item: any) => item.permissao.cod,
-  );
-
-  return requiredCods.some((cod) => tags.includes(cod));
+  return requiredCods.some((cod) => usuario.tags.includes(cod));
 }

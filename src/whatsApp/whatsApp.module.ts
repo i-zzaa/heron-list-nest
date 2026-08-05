@@ -8,10 +8,9 @@ import { PacienteModule } from 'src/paciente/paciente.module';
 import { UserModule } from 'src/user/user.module';
 import { VagaModule } from 'src/vaga/vaga.module';
 import { WhatsappController } from './whatsApp.controller';
-import { PrismaService } from 'src/prisma/prisma.service';
 
 @Module({
-  providers: [WhatsappService, PrismaService, AgendaService],
+  providers: [WhatsappService, AgendaService],
   exports: [WhatsappService],
   controllers: [WhatsappController],
   imports: [

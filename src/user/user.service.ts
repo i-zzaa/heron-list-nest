@@ -10,6 +10,7 @@ import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
 import { normalizeCurrencyValue, readDecimal } from 'src/util/normalizers';
 import { generateRandomPassword } from 'src/util/password';
+import { invalidateUsuarioPermissoesCache } from 'src/auth/permission-lookup';
 
 @Injectable()
 export class UserService {
@@ -443,7 +444,7 @@ export class UserService {
     const prisma = this.prismaService.getPrismaClient();
 
     if (!body.ativo) {
-      return await prisma.usuario.update({
+      const desativado = await prisma.usuario.update({
         data: {
           ativo: false,
         },
@@ -451,6 +452,10 @@ export class UserService {
           id: body.id,
         },
       });
+
+      invalidateUsuarioPermissoesCache(desativado.login);
+
+      return desativado;
     }
 
     const perfil = await this.validatePerfilId(body.perfilId);
@@ -501,6 +506,8 @@ export class UserService {
       },
     });
 
+    invalidateUsuarioPermissoesCache(user.login);
+
     return user;
   }
 
@@ -525,7 +532,7 @@ export class UserService {
       }
     }
 
-    return await prisma.usuario.update({
+    const user = await prisma.usuario.update({
       select: {
         id: true,
         nome: true,
@@ -539,6 +546,10 @@ export class UserService {
         id: Number(id),
       },
     });
+
+    invalidateUsuarioPermissoesCache(user.login);
+
+    return user;
   }
 
   /**
@@ -565,6 +576,8 @@ export class UserService {
       },
     });
 
+    invalidateUsuarioPermissoesCache(user.login);
+
     return { ...user, senhaTemporaria };
   }
 
@@ -584,6 +597,8 @@ export class UserService {
         login,
       },
     });
+
+    invalidateUsuarioPermissoesCache(login);
 
     return {};
   }

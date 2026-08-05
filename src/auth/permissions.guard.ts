@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PERFIL } from 'src/util/util';
 import { PERMISSION_KEY } from './require-permission.decorator';
+import { getUsuarioPermissoes, isDeveloper } from './permission-lookup';
 
 /**
  * Autorização por tag, finalmente viável agora que o catálogo real de
@@ -45,19 +45,7 @@ export class PermissionsGuard implements CanActivate {
       return false;
     }
 
-    const prisma = this.prismaService.getPrismaClient();
-    const usuario = await prisma.usuario.findUnique({
-      where: { login },
-      select: {
-        mustChangePassword: true,
-        perfil: { select: { nome: true } },
-        grupo: {
-          select: {
-            permissoes: { select: { permissao: { select: { cod: true } } } },
-          },
-        },
-      },
-    });
+    const usuario = await getUsuarioPermissoes(this.prismaService, login);
 
     if (!usuario) {
       return false;
@@ -77,15 +65,11 @@ export class PermissionsGuard implements CanActivate {
       );
     }
 
-    if (usuario.perfil?.nome === PERFIL.dev) {
+    if (isDeveloper(usuario.perfilNome)) {
       return true;
     }
 
-    const tags = (usuario.grupo?.permissoes || []).map(
-      (item: any) => item.permissao.cod,
-    );
-
-    const permitido = required.some((cod) => tags.includes(cod));
+    const permitido = required.some((cod) => usuario.tags.includes(cod));
 
     if (!permitido) {
       throw new ForbiddenException(
