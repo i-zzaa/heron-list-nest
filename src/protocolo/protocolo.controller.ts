@@ -11,6 +11,7 @@ import {
 
 import { responseError, responseSuccess } from 'src/util/response';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { ProtocoloService } from './protocolo.service';
 import { PortageProps } from './protocolo.interface';
 
@@ -23,7 +24,7 @@ export class ProtocoloController {
   async filtro(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await this.protocoloService.filter(req.body, page, pageSize);
 

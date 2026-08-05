@@ -9,6 +9,7 @@ import {
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { GrupoPermissaoService } from './grupoPermissao.service';
 import { GrupoPermissaoProps } from './grupoPermissao.interface';
 import { responseError, responseSuccess } from 'src/util/response';
@@ -32,7 +33,7 @@ export class GrupoPermissaoController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await await this.grupoPermissaoService.getAll(
         page,

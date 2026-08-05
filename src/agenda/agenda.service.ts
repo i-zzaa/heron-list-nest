@@ -733,7 +733,7 @@ export class AgendaService {
         });
 
         if (body.statusEventos.cobrar) {
-          this.baixaService.create({
+          await this.baixaService.create({
             pacienteId: body.paciente.id,
             terapeutaId: body.terapeuta.id,
             localidadeId: body.localidade.id,
@@ -771,7 +771,7 @@ export class AgendaService {
       });
 
       if (event.statusEventos.cobrar) {
-        this.baixaService.create({
+        await this.baixaService.create({
           pacienteId: event.paciente.id,
           terapeutaId: event.terapeuta.id,
           localidadeId: event.localidade.id,
@@ -954,7 +954,7 @@ export class AgendaService {
           ]);
 
           if (eventos.statusEventos.cobrar) {
-            this.baixaService.create({
+            await this.baixaService.create({
               pacienteId: eventos.paciente.id,
               terapeutaId: eventos.terapeutaId,
               localidadeId: eventos.localidade.id,
@@ -1025,7 +1025,7 @@ export class AgendaService {
       console.log(data);
 
       if (event.statusEventos.cobrar) {
-        this.baixaService.create({
+        await this.baixaService.create({
           pacienteId: event.paciente.id,
           terapeutaId: event.terapeuta.id,
           localidadeId: event.localidade.id,

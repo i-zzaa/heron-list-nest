@@ -11,6 +11,7 @@ import {
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { StatusEventoService } from './status-evento.service';
 import { StatusEventosProps } from './status-evento.interface';
 import { responseError, responseSuccess } from 'src/util/response';
@@ -34,7 +35,7 @@ export class StatusEventoController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await this.statusEvento.getAll(page, pageSize);
       responseSuccess(response, data);
@@ -74,9 +75,9 @@ export class StatusEventoController {
   }
 
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.statusEvento.delete(id);
+      const data = await this.statusEvento.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

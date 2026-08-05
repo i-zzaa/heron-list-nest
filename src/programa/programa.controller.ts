@@ -14,6 +14,7 @@ import {
 import { ProgramaProps } from './programa.interface';
 import { responseError, responseSuccess } from 'src/util/response';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { ProgramaService } from './programa.service';
 import { TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
 
@@ -36,7 +37,7 @@ export class ProgramaController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await this.programaService.getAll(page, pageSize);
       responseSuccess(response, data);

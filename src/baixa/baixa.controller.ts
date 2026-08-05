@@ -11,6 +11,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { BaixaService } from './baixa.service';
 import { BaixaFilterProps, BaixaProps } from './baixa.interface';
 import { responseError, responseSuccess } from 'src/util/response';
@@ -28,7 +29,7 @@ export class BaixaController {
   ) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
       const filterBody = Body && Object.keys(Body).length ? Body : {};
 
       const data = await this.baixaService.getAll(page, pageSize, filterBody);

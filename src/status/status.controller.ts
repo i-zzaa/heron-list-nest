@@ -12,6 +12,7 @@ import {
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { StatusService } from './status.service';
 import { StatusProps } from './status.interface';
 import { responseSuccess, responseError } from 'src/util/response';
@@ -25,7 +26,7 @@ export class StatusController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await await this.statusService.getAll(page, pageSize);
       responseSuccess(response, data);
@@ -78,9 +79,9 @@ export class StatusController {
   }
 
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.statusService.delete(id);
+      const data = await this.statusService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

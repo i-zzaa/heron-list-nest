@@ -537,7 +537,13 @@ export class PacienteService {
   async delete(id: number) {
     const prisma = getPrismaClient(this.prismaService);
 
-    return await prisma.localidade.delete({
+    // Pacientes nunca são excluídos fisicamente: histórico clínico/financeiro
+    // (eventos, baixas, sessões) depende do registro. "Excluir" aqui inativa,
+    // equivalente ao endpoint dedicado `updateDisabled`.
+    return await prisma.paciente.update({
+      data: {
+        disabled: true,
+      },
       where: {
         id: Number(id),
       },

@@ -64,9 +64,9 @@ export class EspecialidadeController {
   }
 
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.especialidadeService.delete(id);
+      const data = await this.especialidadeService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
       responseError(response);

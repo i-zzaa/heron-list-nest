@@ -43,6 +43,7 @@ export class VagaService {
               STATUS_PACIENT_COD.avaliation,
             ),
           ]);
+          break;
         case STATUS_PACIENT_COD.avaliation:
           await Promise.all([
             prisma.vagaOnEspecialidade.updateMany({
