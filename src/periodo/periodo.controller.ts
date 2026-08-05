@@ -11,6 +11,7 @@ import {
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { PeriodoService } from './periodo.service';
 import { PeriodoProps } from './periodo.interface';
 import { responseError, responseSuccess } from 'src/util/response';
@@ -26,7 +27,7 @@ export class PeriodoController {
       const data = await this.periodoService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -34,11 +35,11 @@ export class PeriodoController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
       const data = await this.periodoService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -48,7 +49,7 @@ export class PeriodoController {
       const data = await this.periodoService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -58,7 +59,7 @@ export class PeriodoController {
       const data = await this.periodoService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -68,17 +69,17 @@ export class PeriodoController {
       const data = await this.periodoService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.periodoService.delete(id);
+      const data = await this.periodoService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

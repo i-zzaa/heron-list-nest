@@ -21,7 +21,7 @@ export class AppController {
       const data = await this.appService.intervaloDropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

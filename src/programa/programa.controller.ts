@@ -14,8 +14,11 @@ import {
 import { ProgramaProps } from './programa.interface';
 import { responseError, responseSuccess } from 'src/util/response';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { ProgramaService } from './programa.service';
 import { TIPO_PROTOCOLO_ID } from 'src/protocolo/protocolo';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('programa')
@@ -28,7 +31,7 @@ export class ProgramaController {
       const data = await this.programaService.dropdown(Number(tipoProtocolo));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -36,12 +39,12 @@ export class ProgramaController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await this.programaService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -51,39 +54,45 @@ export class ProgramaController {
       const data = await this.programaService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PROGRAMA_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.programaService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PROGRAMA_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: any, @Response() response: any) {
     try {
       const data = await this.programaService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PROGRAMA_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: number, @Response() response: any) {
     try {
-      console.log(id);
+      // console.log(id);
 
       const data = await this.programaService.delete(id);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

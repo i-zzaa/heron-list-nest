@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
-import * as cors from 'cors';
 
 import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
@@ -31,9 +30,14 @@ import { SessaoModule } from './sessao/sessao.module';
 import { GrupoPermissaoModule } from './grupoPermissao/grupoPermissao.module';
 import { PeiModule } from './pei/pei.module';
 import { ProtocoloeModule } from './protocolo/protocolo.module';
+import { GuiaAmilModule } from './guia-amil/guia-amil.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '.env.local'],
+    }),
     AuthModule,
     UserModule,
     TerapeutaModule,
@@ -60,18 +64,9 @@ import { ProtocoloeModule } from './protocolo/protocolo.module';
     GrupoPermissaoModule,
     PeiModule,
     ProtocoloeModule,
+    GuiaAmilModule,
   ],
   controllers: [AppController],
   providers: [PrismaService, AppService],
 })
-export class AppModule {
-  configure(consumer) {
-    consumer
-      .apply(
-        cors({
-          origin: '*',
-        }),
-      ) // Aplica o middleware cors
-      .forRoutes('*'); // Habilita o CORS para todas as rotas
-  }
-}
+export class AppModule {}

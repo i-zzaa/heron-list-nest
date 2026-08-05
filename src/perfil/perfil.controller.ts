@@ -25,7 +25,7 @@ export class PerfilController {
       const data = await this.perfilService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -35,7 +35,7 @@ export class PerfilController {
       const data = await this.perfilService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -45,17 +45,17 @@ export class PerfilController {
       const data = await this.perfilService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.perfilService.delete(id);
+      const data = await this.perfilService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

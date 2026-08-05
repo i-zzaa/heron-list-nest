@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildPagination } from 'src/util/pagination';
+import { toNumberId } from 'src/util/normalizers';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { buildTextSearchWhere } from 'src/util/search';
+import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
 
 @Injectable()
 export class LocalidadeService {
@@ -29,13 +34,7 @@ export class LocalidadeService {
       }),
       prisma.localidade.count(),
     ]);
-    const totalPages = Math.ceil(totalItems / pageSize); // Calcula o total de páginas
-
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
+    const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
   }
@@ -69,7 +68,7 @@ export class LocalidadeService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.localidade.findMany({
       select: {
@@ -81,21 +80,9 @@ export class LocalidadeService {
       orderBy: {
         casa: 'asc',
       },
-      where: {
+      where: buildTextSearchWhere(word, ['casa', 'sala'], {
         ativo: true,
-        OR: [
-          {
-            casa: {
-              contains: word,
-            },
-          },
-          {
-            sala: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      }),
     });
   }
 
@@ -103,7 +90,7 @@ export class LocalidadeService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.localidade.create({
-      data: body,
+      data: buildCreatePayload(body, ['casa', 'sala', 'ativo']),
     });
   }
 
@@ -111,23 +98,29 @@ export class LocalidadeService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.localidade.update({
-      data: {
-        casa: body.casa,
-        sala: body.sala,
-        ativo: body.ativo,
-      },
+      data: buildCreatePayload(body, ['casa', 'sala', 'ativo']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }
 
   async delete(id: number) {
     const prisma = this.prismaService.getPrismaClient();
+    const localidadeId = toNumberId(id);
+
+    await assertEntidadeNaoEstaEmUso(
+      prisma,
+      [
+        { model: 'calendario', where: { localidadeId } },
+        { model: 'baixa', where: { localidadeId } },
+      ],
+      'Não é possível excluir: localidade em uso (evento ou baixa vinculados).',
+    );
 
     return await prisma.localidade.delete({
       where: {
-        id: Number(id),
+        id: localidadeId,
       },
     });
   }

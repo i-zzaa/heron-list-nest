@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { ProgramaProps } from './programa.interface';
+import { buildTextSearchWhere } from 'src/util/search';
+import { buildPagination } from 'src/util/pagination';
 
 @Injectable()
 export class ProgramaService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async getAll(page: number, pageSize: number, query?: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const skip = (page - 1) * pageSize;
 
@@ -30,20 +33,14 @@ export class ProgramaService {
       prisma.programa.count(),
     ]);
 
-    const totalPages = Math.ceil(result.length / pageSize);
-    const data = [];
+    const data = result;
+    const pagination = buildPagination(page, pageSize, totalItems);
 
-    const pagination = {
-      currentPage: page,
-      pageSize,
-      totalPages,
-    };
-
-    return { data: data, pagination };
+    return { data, pagination };
   }
 
   async update(data: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const nome = data.nome;
     const id = data.id;
@@ -53,10 +50,7 @@ export class ProgramaService {
 
     try {
       return await prisma.programa.update({
-        data: {
-          nome,
-          ativo: true,
-        },
+        data: buildCreatePayload({ nome, ativo: true }, ['nome', 'ativo']),
         where: {
           id,
         },
@@ -67,11 +61,11 @@ export class ProgramaService {
   }
 
   async create(data: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     try {
       return await prisma.programa.create({
-        data: data,
+        data: buildCreatePayload(data, ['nome', 'ativo']),
       });
     } catch (error) {
       console.log(error);
@@ -79,7 +73,7 @@ export class ProgramaService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.programa.findMany({
       select: {
@@ -90,26 +84,14 @@ export class ProgramaService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
+      where: buildTextSearchWhere(word, ['nome'], {
         ativo: true,
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-          // {
-          //   atividades: {
-          //     contains: word,
-          //   },
-          // },
-        ],
-      },
+      }),
     });
   }
 
   async delete(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.programa.delete({
       where: {
@@ -119,7 +101,7 @@ export class ProgramaService {
   }
 
   async dropdown(tipoProtocolo: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.programa.findMany({
       select: {
@@ -127,10 +109,10 @@ export class ProgramaService {
         nome: true,
       },
       where: {
-        tipoProtocolo : {
-          array_contains: tipoProtocolo //Feito assim para filtrar apenas quando for portage 
-        }
-      }
+        tipoProtocolo: {
+          array_contains: tipoProtocolo, //Feito assim para filtrar apenas quando for portage
+        },
+      },
     });
   }
 }

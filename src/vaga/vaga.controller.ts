@@ -13,7 +13,7 @@ import { VagaService } from './vaga.service';
 import { messageUpdate } from 'src/util/message.response';
 import { VagaEspecialidadeProps, VagaProps } from './vaga.interface';
 
-// @UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'))
 @Controller('vagas')
 export class VagaController {
   constructor(private vagaService: VagaService) {}

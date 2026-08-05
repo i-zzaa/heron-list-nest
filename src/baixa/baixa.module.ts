@@ -3,9 +3,12 @@ import { Module } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { BaixaService } from './baixa.service';
 import { BaixaController } from './baixa.controller';
+import { UserModule } from 'src/user/user.module';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
 
 @Module({
-  providers: [BaixaService, PrismaService],
+  imports: [UserModule],
+  providers: [BaixaService, PrismaService, PermissionsGuard],
   exports: [BaixaService],
   controllers: [BaixaController],
 })

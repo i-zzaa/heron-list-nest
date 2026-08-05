@@ -5,14 +5,60 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    // Antes caía silenciosamente em 'dev-secret-key' quando JWT_PRIVATE_KEY
+    // não estava definido — qualquer um que soubesse essa string fixa
+    // conseguia forjar um token válido. Falha explícita no boot em vez de
+    // rodar com um segredo previsível.
+    const jwtSecret = process.env.JWT_PRIVATE_KEY;
+
+    if (!jwtSecret) {
+      throw new Error(
+        'JWT_PRIVATE_KEY não configurado — obrigatório para verificar tokens.',
+      );
+    }
+
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignorExpiration: false,
-      secretOrKey: process.env.JWT_PRIVATE_KEY,
+      jwtFromRequest: (req: any) => JwtStrategy.extractJwtFromRequest(req),
+      ignoreExpiration: false,
+      secretOrKey: jwtSecret,
+      algorithms: ['HS256'],
     });
   }
 
+  extractJwt(req: any) {
+    return JwtStrategy.extractJwtFromRequest(req);
+  }
+
+  static extractJwtFromRequest(req: any) {
+    const fromAuthHeader = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+
+    if (fromAuthHeader) {
+      return fromAuthHeader;
+    }
+
+    const fromHeader =
+      req?.headers?.['x-access-token'] ||
+      req?.headers?.['x-auth-token'] ||
+      req?.headers?.token ||
+      req?.headers?.Authorization;
+
+    if (typeof fromHeader === 'string' && fromHeader.trim()) {
+      return fromHeader;
+    }
+
+    const fromQuery = req?.query?.token;
+
+    if (typeof fromQuery === 'string' && fromQuery.trim()) {
+      return fromQuery;
+    }
+
+    return null;
+  }
+
   async validate(payload: any) {
-    return { sub: payload.id, username: payload.username };
+    return {
+      sub: payload.sub ?? payload.id,
+      username: payload.username ?? payload.login,
+    };
   }
 }

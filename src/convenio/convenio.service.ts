@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { toNumberId } from 'src/util/normalizers';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class ConvenioService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return prisma.convenio.findMany({
       select: {
@@ -20,7 +23,7 @@ export class ConvenioService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.convenio.findMany({
       select: {
@@ -30,45 +33,37 @@ export class ConvenioService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      where: buildTextSearchWhere(word, ['nome']),
     });
   }
 
   async create(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.convenio.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome']),
     });
   }
 
   async update(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.convenio.update({
       data: {
         nome: body.nome,
       },
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }
 
   async delete(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
-    return await prisma.frequencia.delete({
+    return await prisma.convenio.delete({
       where: {
-        id: Number(id),
+        id: toNumberId(id),
       },
     });
   }

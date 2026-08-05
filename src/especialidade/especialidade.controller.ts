@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Body,
+  Request,
   Response,
   Put,
   Delete,
@@ -13,11 +14,28 @@ import { AuthGuard } from '@nestjs/passport';
 import { EspecialidadeService } from './especialidade.service';
 import { EspecialidadeProps } from './especialidade.interface';
 import { responseSuccess, responseError } from 'src/util/response';
+import { normalizePageSize } from 'src/util/pagination';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('especialidade')
 export class EspecialidadeController {
   constructor(private especialidadeService: EspecialidadeService) {}
+
+  // Faltava o endpoint de listagem paginada (só existia dropdown/search) —
+  // o frontend chama GET /especialidade?page=&pageSize= e caía direto no
+  // 404, já que ':search' abaixo exige um segmento de rota (não casa com a
+  // raiz do controller).
+  @Get()
+  async getAll(@Request() req: any, @Response() response: any) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
+      const data = await this.especialidadeService.getAll(page, pageSize);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response, error);
+    }
+  }
 
   @Get('/dropdown')
   async dropdown(@Response() response: any) {
@@ -25,7 +43,7 @@ export class EspecialidadeController {
       const data = await this.especialidadeService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -35,7 +53,7 @@ export class EspecialidadeController {
       const data = this.especialidadeService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -45,7 +63,7 @@ export class EspecialidadeController {
       const data = await this.especialidadeService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -59,17 +77,17 @@ export class EspecialidadeController {
       const data = await this.especialidadeService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.especialidadeService.delete(id);
+      const data = await this.especialidadeService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

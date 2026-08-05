@@ -11,9 +11,12 @@ import {
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { normalizePageSize } from 'src/util/pagination';
 import { LocalidadeService } from './localidade.service';
 import { LocalidadeProps } from './localidade.interface';
 import { responseError, responseSuccess } from 'src/util/response';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('localidade')
@@ -26,7 +29,7 @@ export class LocalidadeController {
       const data = await this.localidadeService.dropdown();
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -34,12 +37,12 @@ export class LocalidadeController {
   async getAll(@Request() req: any, @Response() response: any) {
     try {
       const page = Number(req.query.page) || 1;
-      const pageSize = Number(req.query.pageSize) || 10;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
 
       const data = await await this.localidadeService.getAll(page, pageSize);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
@@ -49,37 +52,43 @@ export class LocalidadeController {
       const data = await this.localidadeService.search(search);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_LOCALIDADE_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: LocalidadeProps, @Response() response: any) {
     try {
       const data = await this.localidadeService.create(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_LOCALIDADE_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: LocalidadeProps, @Response() response: any) {
     try {
       const data = await this.localidadeService.update(body);
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_LOCALIDADE_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
-  async delete(@Param() id: number, @Response() response: any) {
+  async delete(@Param('id') id: string, @Response() response: any) {
     try {
-      const data = await this.localidadeService.delete(id);
+      const data = await this.localidadeService.delete(Number(id));
       responseSuccess(response, data);
     } catch (error) {
-      responseError(response);
+      responseError(response, error);
     }
   }
 }

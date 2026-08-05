@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
+import { toNumberId } from 'src/util/normalizers';
+import { buildTextSearchWhere } from 'src/util/search';
 
 @Injectable()
 export class FrequenciaService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async dropdown() {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return prisma.frequencia.findMany({
       select: {
@@ -23,7 +26,7 @@ export class FrequenciaService {
   }
 
   async getFrequenciaName(nome: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.frequencia.findFirstOrThrow({
       select: {
@@ -37,7 +40,7 @@ export class FrequenciaService {
   }
 
   async search(word: string) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.frequencia.findMany({
       select: {
@@ -48,47 +51,37 @@ export class FrequenciaService {
       orderBy: {
         nome: 'asc',
       },
-      where: {
+      where: buildTextSearchWhere(word, ['nome'], {
         ativo: true,
-        OR: [
-          {
-            nome: {
-              contains: word,
-            },
-          },
-        ],
-      },
+      }),
     });
   }
 
   async create(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.frequencia.create({
-      data: body,
+      data: buildCreatePayload(body, ['nome', 'ativo']),
     });
   }
 
   async update(body: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.frequencia.update({
-      data: {
-        nome: body.nome,
-        ativo: body.ativo,
-      },
+      data: buildCreatePayload(body, ['nome', 'ativo']),
       where: {
-        id: Number(body.id),
+        id: toNumberId(body.id),
       },
     });
   }
 
   async delete(id: number) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.frequencia.delete({
       where: {
-        id: Number(id),
+        id: toNumberId(id),
       },
     });
   }

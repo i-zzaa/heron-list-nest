@@ -47,6 +47,7 @@ model Paciente {
   Pei               Pei[]
   Portage           Portage[]
   VBMappResultado   VBMappResultado[]
+  guiaAmil          GuiaAmil[]
 }
 
 model StatusPaciente {
@@ -84,8 +85,8 @@ model VagaOnEspecialidade {
   vagaId          Int
   especialidadeId Int
 
-  valor String @default("200")
-  km    String @default("0")
+  valor Decimal @default(200.00) @db.Decimal(10, 2)
+  km    Decimal @default(0.00) @db.Decimal(10, 2)
 
   especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
   vaga          Vaga          @relation(fields: [vagaId], references: [id], onDelete: Cascade)
@@ -101,7 +102,7 @@ model Periodo {
 
 model Especialidade {
   id         Int                   @id @default(autoincrement())
-  nome       String
+  nome       String                @unique
   cor        String                @default("#000000")
   Funcao     Funcao[]
   calendario Calendario[]
@@ -129,6 +130,11 @@ model Usuario {
   ativo            Boolean @default(true)
   perfilId         Int
   grupoPermissaoId Int?
+  // Setado toda vez que a senha é definida por outra pessoa (reset de
+  // admin) ou na criação do usuário — o login continua funcionando, mas
+  // até o usuário trocar a própria senha (PUT /usuarios/reset-senha*),
+  // ações que exigem tag de permissão ficam bloqueadas (ver PermissionsGuard).
+  mustChangePassword Boolean @default(false)
 
   createdAt DateTime @default(now())
 
@@ -159,7 +165,7 @@ model Localidade {
 
 model StatusEventos {
   id         Int          @id @default(autoincrement())
-  nome       String
+  nome       String       @unique
   cobrar     Boolean      @default(false)
   ativo      Boolean      @default(true)
   createdAt  DateTime     @default(now())
@@ -207,6 +213,8 @@ model Funcao {
   calendario    Calendario[]
 
   terapeutas TerapeutaOnFuncao[]
+
+  @@unique([nome, especialidadeId])
 }
 
 model Terapeuta {
@@ -229,8 +237,8 @@ model Terapeuta {
 model TerapeutaOnFuncao {
   terapeutaId Int
   funcaoId    Int
-  comissao    String? @default("80")
-  tipo        String? @default("Fixo")
+  comissao    Decimal? @default(80.00) @db.Decimal(10, 2)
+  tipo        String?  @default("Fixo")
 
   terapeuta Terapeuta? @relation(fields: [terapeutaId], references: [usuarioId], onDelete: Cascade)
   funcao    Funcao?    @relation(fields: [funcaoId], references: [id], onDelete: Cascade)
@@ -250,7 +258,21 @@ model Calendario {
   exdate         String?
   isExterno      Boolean @default(false)
   isChildren     Boolean @default(false)
-  km             String  @default("0")
+  km             Decimal @default(0.00) @db.Decimal(10, 2)
+
+  // Snapshot financeiro: valor/comissão/tarifas vigentes gravados no momento
+  // em que o evento foi criado ou teve paciente/especialidade/terapeuta/
+  // função alterados — para que um reajuste de preço feito depois não altere
+  // relatórios de período já fechado (ver FinanceiroService, que passa a
+  // preferir esses campos em vez de sempre reler o cadastro atual). Nullable
+  // porque eventos criados antes desta coluna existir foram populados
+  // retroativamente com o melhor valor disponível (o atual, na migration),
+  // mas o campo continua opcional por segurança.
+  valorSessaoSnapshot           Decimal? @db.Decimal(10, 2)
+  comissaoSnapshot              Decimal? @db.Decimal(10, 2)
+  tipoComissaoSnapshot          String?
+  valorPorKmSnapshot            Decimal? @db.Decimal(10, 2)
+  valorSessaoDevolutivaSnapshot Decimal? @db.Decimal(10, 2)
 
   ciclo           String
   observacao      String?
@@ -283,6 +305,10 @@ model Calendario {
   Baixa           Baixa[]
   Sessao          Sessao[]
   AtividadeSessao AtividadeSessao?
+
+  @@index([terapeutaId, start])
+  @@index([pacienteId])
+  @@index([groupId])
 }
 
 model Permissao {
@@ -342,6 +368,24 @@ model Baixa {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+
+  @@unique([eventoId])
+  @@index([usuarioId])
+  @@index([dataEvento])
+}
+
+// Auditoria de exclusão de Baixa (R16): a tabela já existia via migration
+// solta (20260805123719_baixa_exclusao_log) sem estar mapeada aqui nem usada
+// pelo código — conectada agora em BaixaService.delete(). Sem relation
+// declarada de propósito (baixaId não é FK: o registro de Baixa já foi
+// apagado quando este log é gravado, então não há nada para referenciar).
+model BaixaExclusaoLog {
+  id        Int      @id @default(autoincrement())
+  baixaId   Int
+  motivo    String
+  usuarioId Int?
+  snapshot  Json
+  createdAt DateTime @default(now())
 }
 
 model Programa {
@@ -353,7 +397,9 @@ model Programa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Pei Pei[]
+  Pei               Pei[]
+  VBMappAtividades  VBMappAtividades[]
+  PortageAtividades PortageAtividades[]
 }
 
 model Protocolo {
@@ -391,6 +437,98 @@ model Sessao {
 
   paciente Paciente    @relation(fields: [pacienteId], references: [id])
   evento   Calendario? @relation(fields: [calendarioId], references: [id])
+
+  guiaAmil GuiaAmil[]
+}
+
+model GuiaAmil {
+  id                Int       @id @default(autoincrement())
+  numeroGuia        String
+  tipoGuia          String
+  pacienteId        Int
+  sessaoId          Int?
+  prestadorId       Int?
+  status            String    @default("RASCUNHO")
+  dadosGuia         Json?
+  valorTotal        Decimal?  @db.Decimal(10, 2)
+  prontoParaEnvioEm DateTime?
+  enviadoEm         DateTime?
+  processadoEm      DateTime?
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
+  loteId            Int?
+
+  paciente      Paciente            @relation(fields: [pacienteId], references: [id])
+  sessao        Sessao?             @relation(fields: [sessaoId], references: [id])
+  loteGuiaItems LoteGuiaItem[]
+  historico     GuiaAmilHistorico[]
+}
+
+model LoteGuia {
+  id              Int       @id @default(autoincrement())
+  numeroLote      String?
+  origem          String    @default("MANUAL")
+  status          String    @default("CRIADO")
+  protocolo       String?
+  idempotencyKey  String?   @unique
+  quantidadeGuias Int       @default(0)
+  xmlEnvio        String?   @db.Text
+  xmlRetorno      String?   @db.Text
+  enviadoEm       DateTime?
+  consultadoEm    DateTime?
+  processadoEm    DateTime?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+
+  itens      LoteGuiaItem[]
+  transacoes TransacaoAmil[]
+}
+
+model LoteGuiaItem {
+  id               Int      @id @default(autoincrement())
+  loteId           Int
+  guiaId           Int
+  status           String   @default("AGUARDANDO_LOTE")
+  codigoRetorno    String?
+  mensagemRetorno  String?
+  valorApresentado Decimal? @db.Decimal(10, 2)
+  valorProcessado  Decimal? @db.Decimal(10, 2)
+  valorGlosado     Decimal? @db.Decimal(10, 2)
+
+  lote LoteGuia @relation(fields: [loteId], references: [id])
+  guia GuiaAmil @relation(fields: [guiaId], references: [id])
+}
+
+model GuiaAmilHistorico {
+  id             Int      @id @default(autoincrement())
+  guiaId         Int
+  loteId         Int?
+  statusAnterior String?
+  statusNovo     String?
+  acao           String?
+  mensagem       String?
+  detalhes       Json?
+  usuarioId      Int?
+  criadoEm       DateTime @default(now())
+
+  guia GuiaAmil @relation(fields: [guiaId], references: [id])
+}
+
+model TransacaoAmil {
+  id           Int      @id @default(autoincrement())
+  loteId       Int
+  tipo         String
+  statusHttp   Int?
+  sucesso      Boolean  @default(false)
+  tentativa    Int      @default(1)
+  duracaoMs    Int?
+  codigoErro   String?
+  mensagemErro String?
+  xmlEnvio     String?  @db.Text
+  xmlRetorno   String?  @db.Text
+  criadoEm     DateTime @default(now())
+
+  lote LoteGuia @relation(fields: [loteId], references: [id])
 }
 
 model AtividadeSessao {
@@ -398,8 +536,8 @@ model AtividadeSessao {
   calendarioId Int    @unique
   peisIds      String
 
-  atividades   Json
-  selectedKeys Json
+  atividades   Json?
+  selectedKeys Json?
 
   maintenance             Json?
   selectedMaintenanceKeys Json?
@@ -484,21 +622,25 @@ model VBMappAtividades {
   id              Int     @id @default(autoincrement())
   nome            String  @db.Text // Para valores longos, usamos `Text`
   nivel           Int
-  programa        String
+  programaId      Int
   permiteSubitens Boolean @default(false)
 
   createdAt       DateTime?         @default(now())
   updatedAt       DateTime?         @updatedAt
   VBMappResultado VBMappResultado[]
+
+  programa Programa @relation(fields: [programaId], references: [id])
 }
 
 model PortageAtividades {
   id              Int     @id @default(autoincrement())
   nome            String  @db.Text // Para valores longos, usamos `Text`
+  programaId      Int
   faixaEtaria     String
-  programa        String
   permiteSubitens Boolean @default(false)
 
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
+
+  programa Programa @relation(fields: [programaId], references: [id])
 }

@@ -1,0 +1,104 @@
+export const getModalidadeIdsByStatusPaciente = (
+  statusPacienteCod?: string,
+) => {
+  const mapping: Record<string, number[]> = {
+    queue_avaliation: [1],
+    queue_devolutiva: [2],
+    queue_therapy: [3],
+    devolutiva: [3],
+  };
+
+  return mapping[statusPacienteCod || ''] || [1, 2, 3];
+};
+
+export const buildDateRangeWhere = (dataInicio: string, dataFim: string) => ({
+  dataInicio: {
+    lte: dataFim,
+  },
+  OR: [
+    {
+      dataFim: '',
+    },
+    {
+      dataFim: {
+        gte: dataInicio,
+      },
+    },
+  ],
+});
+
+export const buildPacienteFilter = (
+  pacienteId: number | string | undefined,
+  extraWhere: Record<string, any> = {},
+) => {
+  if (pacienteId === undefined || pacienteId === null || pacienteId === '') {
+    return extraWhere;
+  }
+
+  return {
+    pacienteId: Number(pacienteId),
+    ...extraWhere,
+  };
+};
+
+const ALLOWED_QUERY_FIELDS = new Set([
+  'baixa',
+  'convenioId',
+  'pacienteId',
+  'terapeutaId',
+  'localidadeId',
+  'statusEventosId',
+  'usuarioId',
+]);
+
+export const buildQueryFilter = (
+  query: Record<string, any> = {},
+  extraWhere: Record<string, any> = {},
+) => {
+  const filter: Record<string, any> = { ...extraWhere };
+
+  Object.entries(query || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    if (key === '_' || key.startsWith('_')) {
+      return;
+    }
+
+    if (!ALLOWED_QUERY_FIELDS.has(key)) {
+      return;
+    }
+
+    switch (key) {
+      case 'baixa':
+        filter[key] =
+          value === true || value === 'true' || value === 1 || value === '1';
+        break;
+      case 'convenioId':
+        filter.paciente = {
+          ...(filter.paciente || {}),
+          convenio: {
+            ...(filter.paciente?.convenio || {}),
+            id: Number(value),
+          },
+        };
+        break;
+      case 'pacienteId':
+      case 'terapeutaId':
+      case 'localidadeId':
+      case 'statusEventosId':
+      case 'usuarioId':
+        filter[key] = Number(value);
+        break;
+      default:
+        filter[key] =
+          typeof value === 'string' && /^-?\d+$/.test(value)
+            ? Number(value)
+            : value;
+        break;
+    }
+  });
+
+  return filter;
+};

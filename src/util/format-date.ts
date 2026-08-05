@@ -1,17 +1,80 @@
 import * as moment from 'moment';
 import * as momentBusinessDays from 'moment-business-days';
 
-export const FERIADOS = [
-  '01-01-2022',
-  '21-04-2022',
-  '01-05-2022',
-  '16-06-2022',
-  '07-09-2022',
-  '12-10-2022',
-  '02-11-2022',
-  '15-11-2022',
-  '25-12-2022',
-];
+/**
+ * Calcula a data da Páscoa (domingo) para um ano, pelo algoritmo de
+ * Meeus/Jones/Butcher — usado para derivar os feriados móveis (Carnaval,
+ * Sexta-feira Santa, Corpus Christi).
+ */
+function calcularPascoa(ano: number): moment.Moment {
+  const a = ano % 19;
+  const b = Math.floor(ano / 100);
+  const c = ano % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31);
+  const dia = ((h + l - 7 * m + 114) % 31) + 1;
+
+  return moment(`${ano}-${mes}-${dia}`, 'YYYY-MM-DD');
+}
+
+/**
+ * Feriados nacionais brasileiros para um ano: fixos + móveis (calculados a
+ * partir da Páscoa). Antes disso a lista era uma constante fixa que só ia
+ * até 2022 — qualquer evento/disponibilidade calculado a partir de 2023 em
+ * diante simplesmente não considerava nenhum feriado.
+ *
+ * Não cobre feriados municipais/estaduais (não há como saber a cidade da
+ * clínica a partir do código); se isso for necessário, precisa de cadastro
+ * próprio.
+ */
+export function calcularFeriadosNacionais(ano: number): string[] {
+  const pascoa = calcularPascoa(ano);
+
+  const fixos = [
+    `${ano}-01-01`, // Confraternização Universal
+    `${ano}-04-21`, // Tiradentes
+    `${ano}-05-01`, // Dia do Trabalho
+    `${ano}-09-07`, // Independência
+    `${ano}-10-12`, // Nossa Senhora Aparecida
+    `${ano}-11-02`, // Finados
+    `${ano}-11-15`, // Proclamação da República
+    `${ano}-12-25`, // Natal
+  ];
+
+  const moveis = [
+    pascoa.clone().subtract(48, 'days').format('YYYY-MM-DD'), // Carnaval (segunda)
+    pascoa.clone().subtract(47, 'days').format('YYYY-MM-DD'), // Carnaval (terça)
+    pascoa.clone().subtract(2, 'days').format('YYYY-MM-DD'), // Sexta-feira Santa
+    pascoa.clone().add(60, 'days').format('YYYY-MM-DD'), // Corpus Christi
+  ];
+
+  return [...fixos, ...moveis];
+}
+
+// Gera os feriados de uma janela de anos ao redor de hoje, em vez de uma
+// lista fixa que fica desatualizada — cobre agendamentos passados recentes
+// e recorrências futuras de longo prazo (ver HORIZONTE_RECORRENCIA_SEM_FIM_DIAS
+// em agenda.service.ts).
+const ANO_ATUAL = moment().year();
+const JANELA_ANOS_FERIADOS = 5;
+
+export const FERIADOS: string[] = [];
+for (
+  let ano = ANO_ATUAL - 1;
+  ano <= ANO_ATUAL + JANELA_ANOS_FERIADOS;
+  ano += 1
+) {
+  FERIADOS.push(...calcularFeriadosNacionais(ano));
+}
+
 momentBusinessDays.updateLocale('pt', {
   holidays: FERIADOS,
   holidayFormat: 'YYYY-MM-DD',
@@ -58,75 +121,77 @@ export const dateFormatDDMMYYYYHHMM = (date: Date | string) =>
   moment(date).format('DD/MM/YYYY HH:mm');
 
 export function getDatesBetween(start: string, end: string) {
-  // Defina a data de início e a data final como objetos moment
-  const startDate = momentBusinessDays(start);
-  const endDate = momentBusinessDays(end).add(1, 'days');
+  const datas: string[] = [];
+  const dataAtual = moment(start, 'YYYY-MM-DD').startOf('day');
+  const dataFim = moment(end, 'YYYY-MM-DD').startOf('day');
 
-  // Obtenha todas as datas úteis entre a data de início e a data final usando o método businessDates
-
-  const datasUteis = [];
-  const diff = endDate.businessDiff(startDate);
-  for (let index = 0; index < diff; index++) {
-    datasUteis.push(startDate.businessAdd(index).format('YYYY-MM-DD'));
+  while (dataAtual.isSameOrBefore(dataFim)) {
+    datas.push(dataAtual.format('YYYY-MM-DD'));
+    dataAtual.add(1, 'day');
   }
 
-  // Imprima as datas úteis
-  // console.log('Datas úteis:', datasUteis);
-  return datasUteis;
+  return datas;
 }
 
 export function getDates(
   diasDaSemana: string[],
   startDate: string,
   endDate: string,
-  intervaloSemana: number = 1,
+  intervaloSemana = 1,
   deleteDates: string[],
 ) {
-  // Crie uma matriz para armazenar as datas
-  let datas: string[] = [];
+  const datas: string[] = [];
+  const start = moment(startDate, 'YYYY-MM-DD').startOf('day');
+  const end = moment(endDate, 'YYYY-MM-DD').startOf('day');
+  const skipDates = new Set(
+    (deleteDates || []).map((d: string) => moment(d).format('YYYY-MM-DD')),
+  );
+  const normalizedInterval =
+    Number(intervaloSemana) > 0 ? Number(intervaloSemana) : 1;
 
-  // console.log(startDate, endDate);
-  // Defina a data de início e a data final como objetos moment
-  const start = momentBusinessDays(startDate); //.subtract(1);
-  const end = momentBusinessDays(endDate);
-  // const end = momentBusinessDays(endDate).add(1, 'days');
+  const weekDays = (diasDaSemana || [])
+    .map((day: string) => {
+      const parsed = Number(day);
 
-  // Defina um objeto moment para a próxima ocorrência do dia da semana especificado após a data de início
-  let dataAtual = start;
+      if (Number.isNaN(parsed)) {
+        return null;
+      }
 
-  // Itere enquanto a data atual for menor ou igual à data final
+      // Dias salvos no banco usam ISO weekday: 1-7 (segunda-domingo).
+      if (parsed >= 1 && parsed <= 7) {
+        return parsed;
+      }
+
+      // Compatibilidade com payloads antigos em 0-6 (domingo-sabado).
+      if (parsed >= 0 && parsed <= 6) {
+        return parsed === 0 ? 7 : parsed;
+      }
+
+      return null;
+    })
+    .filter((day): day is number => day !== null);
+
+  const dataAtual = start.clone();
+
   while (dataAtual.isSameOrBefore(end)) {
-    // Adicione a data atual à matriz de datas
+    const diffDays = dataAtual.diff(start, 'days');
+    const weekOffset = Math.floor(diffDays / 7);
+    const isOnIntervalWeek = weekOffset % normalizedInterval === 0;
+    const isMatchingWeekday =
+      weekDays.length === 0 || weekDays.includes(dataAtual.isoWeekday());
+    const dateFormatted = dataAtual.format('YYYY-MM-DD');
 
-    if (diasDaSemana.length) {
-      let diasPercorridos = 1;
-      diasDaSemana.map((day: string) => {
-        if (parseInt(day) == dataAtual.day()) {
-          datas.push(dataAtual.format('YYYY-MM-DD'));
-          dataAtual.nextBusinessDay();
-          diasPercorridos++;
-        }
-      });
-
-      if (diasPercorridos > 1) dataAtual.businessSubtract(diasPercorridos - 1);
-    } else {
-      datas.push(dataAtual.format('YYYY-MM-DD'));
+    if (
+      isOnIntervalWeek &&
+      isMatchingWeekday &&
+      !skipDates.has(dateFormatted)
+    ) {
+      datas.push(dateFormatted);
     }
 
-    switch (intervaloSemana) {
-      case 1:
-        dataAtual = dataAtual.businessAdd(4);
-        break;
-      case 2:
-        dataAtual = dataAtual.businessAdd(10);
-        break;
-      case 3:
-        dataAtual = dataAtual.businessAdd(15);
-        break;
-    }
+    dataAtual.add(1, 'day');
   }
 
-  // Retorne a matriz de datas
   return datas;
 }
 
@@ -207,68 +272,33 @@ export function getDatesWhiteEvents(
   diasDaSemana: string[],
   startDate: string,
   endDate: string,
-  intervaloSemana: number = 1,
+  intervaloSemana = 1,
   events: any,
 ) {
-  // Crie uma matriz para armazenar as datas
-  let arrEvents: string[] = [];
+  const arrEvents: any[] = [];
+  const datas = getDates(diasDaSemana, startDate, endDate, intervaloSemana, []);
 
-  // console.log(startDate, endDate);
-  // Defina a data de início e a data final como objetos moment
-  const start = momentBusinessDays(startDate);
-  const end = momentBusinessDays(endDate);
-
-  // Defina um objeto moment para a próxima ocorrência do dia da semana especificado após a data de início
-  let dataAtual = start;
-
-  // Itere enquanto a data atual for menor ou igual à data final
-  while (dataAtual.isSameOrBefore(end)) {
-    // Adicione a data atual à matriz de datas
-
-    const dataFim = moment(dataAtual).add(1, 'days').format('YYYY-MM-DD');
-    const newEvents = {
+  datas.forEach((dataInicio: string) => {
+    arrEvents.push({
       ...events,
-      dataInicio: dataAtual.format('YYYY-MM-DD'),
-      dataFim,
-    };
+      dataInicio,
+      dataFim: moment(dataInicio).add(1, 'days').format('YYYY-MM-DD'),
+    });
+  });
 
-    if (diasDaSemana.length) {
-      let diasPercorridos = 0;
-      diasDaSemana.map((day: string) => {
-        if (parseInt(day) == dataAtual.day()) {
-          arrEvents.push(newEvents);
-          dataAtual.nextBusinessDay();
-          diasPercorridos++;
-        }
-      });
-
-      if (diasPercorridos > 1) dataAtual.businessSubtract(diasPercorridos);
-    } else {
-      arrEvents.push(newEvents);
-    }
-
-    switch (intervaloSemana) {
-      case 1:
-        dataAtual = dataAtual.businessAdd(5);
-        break;
-      case 2:
-        dataAtual = dataAtual.businessAdd(10);
-        break;
-      case 3:
-        dataAtual = dataAtual.businessAdd(15);
-        break;
-    }
-  }
-
-  // Retorne a matriz de datas
   return arrEvents;
 }
 
 export const formaTime = (duration: any) => {
-  return `${duration.hours().toString().padStart(2, '0')}:${duration
+  const safeDuration =
+    duration && typeof duration.hours === 'function'
+      ? duration
+      : moment.duration(duration || 0);
+
+  return `${safeDuration.hours().toString().padStart(2, '0')}:${safeDuration
     .minutes()
     .toString()
-    .padStart(2, '0')}:${duration.seconds().toString().padStart(2, '0')}`;
+    .padStart(2, '0')}:${safeDuration.seconds().toString().padStart(2, '0')}`;
 };
 
 export const getDateBeforeDay = (days: number) => {

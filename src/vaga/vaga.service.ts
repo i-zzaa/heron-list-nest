@@ -7,6 +7,7 @@ import {
 import { calculaData, formatadataPadraoBD } from 'src/util/format-date';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 import { PacienteService } from 'src/paciente/paciente.service';
+import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 
 @Injectable()
 export class VagaService {
@@ -15,284 +16,327 @@ export class VagaService {
     private pacienteService: PacienteService,
   ) {}
 
+  /**
+   * Transição de fila (avaliação → devolutiva → terapia) inteira dentro de
+   * um `prisma.$transaction` real (R13) — antes as chamadas continuavam em
+   * `Promise.all`, que dá concorrência (paraleliza I/O) mas não atomicidade
+   * nenhuma: se uma das escritas falhasse no meio (ex.: `setStatusPaciente`
+   * depois de `vagaOnEspecialidade.updateMany` já ter gravado), o paciente
+   * ficava com `VagaOnEspecialidade.agendado` e `Paciente.statusPacienteCod`
+   * inconsistentes entre si, sem chance de rollback. Todo método chamado
+   * daqui pra baixo (`setQueueStatus`, `verifyInFila`, `removeEvents`,
+   * `pacienteService.setStatusPaciente/setTipoSessaoTerapia`) recebe o
+   * client transacional (`tx`) e usa ele em vez do client normal.
+   */
   async update(body: VagaEspecialidadeProps) {
     const dataAgendado = formatadataPadraoBD(new Date());
-    const prisma = this.prismaService.getPrismaClient();
+    const prismaBase = getPrismaClient(this.prismaService);
 
-    if (body.agendar.length) {
-      switch (body.statusPacienteCod) {
-        case STATUS_PACIENT_COD.queue_avaliation:
-          await Promise.all([
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: true,
-                dataAgendado: dataAgendado,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.agendar,
+    return prismaBase.$transaction(async (tx: any) => {
+      if (body.agendar.length) {
+        switch (body.statusPacienteCod) {
+          case STATUS_PACIENT_COD.queue_avaliation:
+            await Promise.all([
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: true,
+                  dataAgendado: dataAgendado,
                 },
-              },
-            }),
-            this.setQueueStatus(
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.agendar,
+                  },
+                },
+              }),
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.queue_avaliation,
+                STATUS_PACIENT_COD.avaliation,
+                tx,
+              ),
+            ]);
+            break;
+          case STATUS_PACIENT_COD.avaliation:
+            await Promise.all([
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: true,
+                  dataAgendado: dataAgendado,
+                },
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.agendar,
+                  },
+                },
+              }),
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.avaliation,
+                STATUS_PACIENT_COD.queue_devolutiva,
+                tx,
+              ),
+            ]);
+            break;
+          case STATUS_PACIENT_COD.queue_devolutiva:
+            await Promise.all([
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: true,
+                  dataAgendado: dataAgendado,
+                },
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.agendar,
+                  },
+                },
+              }),
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.devolutiva,
+                STATUS_PACIENT_COD.devolutiva,
+                tx,
+              ),
+            ]);
+
+            break;
+          case STATUS_PACIENT_COD.queue_therapy:
+          case STATUS_PACIENT_COD.crud_therapy:
+          case STATUS_PACIENT_COD.therapy:
+            const [, , now] = await Promise.all([
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: true,
+                  dataAgendado: dataAgendado,
+                },
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.agendar,
+                  },
+                },
+              }),
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.devolutiva,
+                STATUS_PACIENT_COD.devolutiva,
+                tx,
+              ),
+              body.statusPacienteCod === STATUS_PACIENT_COD.crud_therapy
+                ? STATUS_PACIENT_COD.crud_therapy
+                : STATUS_PACIENT_COD.therapy,
+            ]);
+
+            // Antes não era `await`ado — a escrita podia terminar depois da
+            // resposta ao cliente (e, dentro de uma transação, fora dela).
+            await this.setQueueStatus(
               body.vagaId,
               body.pacienteId,
-              STATUS_PACIENT_COD.queue_avaliation,
-              STATUS_PACIENT_COD.avaliation,
-            ),
-          ]);
-        case STATUS_PACIENT_COD.avaliation:
-          await Promise.all([
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: true,
-                dataAgendado: dataAgendado,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.agendar,
-                },
-              },
-            }),
-            this.setQueueStatus(
-              body.vagaId,
-              body.pacienteId,
-              STATUS_PACIENT_COD.avaliation,
-              STATUS_PACIENT_COD.queue_devolutiva,
-            ),
-          ]);
-          break;
-        case STATUS_PACIENT_COD.queue_devolutiva:
-          await Promise.all([
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: true,
-                dataAgendado: dataAgendado,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.agendar,
-                },
-              },
-            }),
-            this.setQueueStatus(
-              body.vagaId,
-              body.pacienteId,
-              STATUS_PACIENT_COD.devolutiva,
-              STATUS_PACIENT_COD.devolutiva,
-            ),
-          ]);
+              body.statusPacienteCod,
+              now,
+              tx,
+            );
 
-          break;
-        case STATUS_PACIENT_COD.queue_therapy:
-        case STATUS_PACIENT_COD.crud_therapy:
-        case STATUS_PACIENT_COD.therapy:
-          const [, , now] = await Promise.all([
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: true,
-                dataAgendado: dataAgendado,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.agendar,
-                },
-              },
-            }),
-            this.setQueueStatus(
-              body.vagaId,
-              body.pacienteId,
-              STATUS_PACIENT_COD.devolutiva,
-              STATUS_PACIENT_COD.devolutiva,
-            ),
-            body.statusPacienteCod === STATUS_PACIENT_COD.crud_therapy
-              ? STATUS_PACIENT_COD.crud_therapy
-              : STATUS_PACIENT_COD.therapy,
-          ]);
-
-          this.setQueueStatus(
-            body.vagaId,
-            body.pacienteId,
-            body.statusPacienteCod,
-            now,
-          );
-
-          break;
-        default:
-          break;
+            break;
+          default:
+            break;
+        }
       }
-    }
 
-    if (body.desagendar.length) {
-      switch (body.statusPacienteCod) {
-        case STATUS_PACIENT_COD.queue_avaliation:
-        case STATUS_PACIENT_COD.avaliation:
-          const [, , , isQueueAvaliation] = await Promise.all([
-            this.removeEvents(
-              body.pacienteId,
-              body.statusPacienteCod,
-              body.desagendar,
-            ),
+      if (body.desagendar.length) {
+        switch (body.statusPacienteCod) {
+          case STATUS_PACIENT_COD.queue_avaliation:
+          case STATUS_PACIENT_COD.avaliation:
+            const [, , , isQueueAvaliation] = await Promise.all([
+              this.removeEvents(
+                body.pacienteId,
+                body.statusPacienteCod,
+                body.desagendar,
+                tx,
+              ),
 
-            await prisma.vaga.update({
-              data: {
-                dataRetorno: dataAgendado,
-                naFila: true,
-              },
+              tx.vaga.update({
+                data: buildCreatePayload(
+                  {
+                    dataRetorno: dataAgendado,
+                    naFila: true,
+                  },
+                  ['dataRetorno', 'naFila'],
+                ),
+                where: {
+                  id: body.vagaId,
+                },
+              }),
+
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: false,
+                },
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.desagendar,
+                  },
+                },
+              }),
+
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.queue_avaliation,
+                STATUS_PACIENT_COD.avaliation,
+                tx,
+              ),
+            ]);
+
+            return isQueueAvaliation;
+          case STATUS_PACIENT_COD.queue_devolutiva:
+            await tx.vaga.update({
+              data: buildCreatePayload(
+                {
+                  dataRetorno: dataAgendado,
+                  naFila: true,
+                },
+                ['dataRetorno', 'naFila'],
+              ),
               where: {
                 id: body.vagaId,
               },
-            }),
+            });
 
-            await prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: false,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.desagendar,
+            const [, , isQueueDevolutiva] = await Promise.all([
+              this.removeEvents(
+                body.pacienteId,
+                body.statusPacienteCod,
+                body.desagendar,
+                tx,
+              ),
+
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: false,
                 },
-              },
-            }),
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.desagendar,
+                  },
+                },
+              }),
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.queue_avaliation,
+                STATUS_PACIENT_COD.avaliation,
+                tx,
+              ),
+            ]);
 
-            this.setQueueStatus(
+            return isQueueDevolutiva;
+          case STATUS_PACIENT_COD.devolutiva:
+            const [, , , isQueue] = await Promise.all([
+              this.removeEvents(
+                body.pacienteId,
+                body.statusPacienteCod,
+                body.desagendar,
+                tx,
+              ),
+              tx.vaga.update({
+                data: buildCreatePayload(
+                  {
+                    dataRetorno: dataAgendado,
+                    naFila: true,
+                  },
+                  ['dataRetorno', 'naFila'],
+                ),
+                where: {
+                  id: body.vagaId,
+                },
+              }),
+
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: false,
+                },
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.desagendar,
+                  },
+                },
+              }),
+              this.setQueueStatus(
+                body.vagaId,
+                body.pacienteId,
+                STATUS_PACIENT_COD.devolutiva,
+                STATUS_PACIENT_COD.queue_devolutiva,
+                tx,
+              ),
+            ]);
+            return isQueue;
+
+          case STATUS_PACIENT_COD.queue_therapy:
+          case STATUS_PACIENT_COD.crud_therapy:
+          case STATUS_PACIENT_COD.therapy:
+            const [, , now] = await Promise.all([
+              tx.vaga.update({
+                data: buildCreatePayload(
+                  {
+                    naFila: true,
+                  },
+                  ['naFila'],
+                ),
+                where: {
+                  id: body.vagaId,
+                },
+              }),
+              tx.vagaOnEspecialidade.updateMany({
+                data: {
+                  agendado: false,
+                },
+                where: {
+                  vagaId: body.vagaId,
+                  especialidadeId: {
+                    in: body.desagendar,
+                  },
+                },
+              }),
+              body.statusPacienteCod === STATUS_PACIENT_COD.crud_therapy
+                ? STATUS_PACIENT_COD.crud_therapy
+                : STATUS_PACIENT_COD.queue_therapy,
+            ]);
+
+            // Antes retornava a Promise sem `await` (bug: caller recebia uma
+            // Promise em vez do boolean, e a escrita corria o risco de
+            // terminar fora da transação).
+            const isQueueTherapy = await this.setQueueStatus(
               body.vagaId,
-              body.pacienteId,
-              STATUS_PACIENT_COD.queue_avaliation,
-              STATUS_PACIENT_COD.avaliation,
-            ),
-          ]);
-
-          return isQueueAvaliation;
-        case STATUS_PACIENT_COD.queue_devolutiva:
-          await prisma.vaga.update({
-            data: {
-              dataRetorno: dataAgendado,
-              naFila: true,
-            },
-            where: {
-              id: body.vagaId,
-            },
-          });
-
-          const [, , isQueueDevolutiva] = await Promise.all([
-            this.removeEvents(
               body.pacienteId,
               body.statusPacienteCod,
-              body.desagendar,
-            ),
-
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: false,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.desagendar,
-                },
-              },
-            }),
-            this.setQueueStatus(
-              body.vagaId,
-              body.pacienteId,
-              STATUS_PACIENT_COD.queue_avaliation,
-              STATUS_PACIENT_COD.avaliation,
-            ),
-          ]);
-
-          return isQueueDevolutiva;
-        case STATUS_PACIENT_COD.devolutiva:
-          const [, , , isQueue] = await Promise.all([
-            this.removeEvents(
-              body.pacienteId,
-              body.statusPacienteCod,
-              body.desagendar,
-            ),
-            prisma.vaga.update({
-              data: {
-                dataRetorno: dataAgendado,
-                naFila: true,
-              },
-              where: {
-                id: body.vagaId,
-              },
-            }),
-
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: false,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.desagendar,
-                },
-              },
-            }),
-            this.setQueueStatus(
-              body.vagaId,
-              body.pacienteId,
-              STATUS_PACIENT_COD.devolutiva,
-              STATUS_PACIENT_COD.queue_devolutiva,
-            ),
-          ]);
-          return isQueue;
-
-        case STATUS_PACIENT_COD.queue_therapy:
-        case STATUS_PACIENT_COD.crud_therapy:
-        case STATUS_PACIENT_COD.therapy:
-          const [, , now] = await Promise.all([
-            prisma.vaga.update({
-              data: {
-                // dataVoltouAba: dataAgendado,
-                naFila: true,
-              },
-              where: {
-                id: body.vagaId,
-              },
-            }),
-            prisma.vagaOnEspecialidade.updateMany({
-              data: {
-                agendado: false,
-              },
-              where: {
-                vagaId: body.vagaId,
-                especialidadeId: {
-                  in: body.desagendar,
-                },
-              },
-            }),
-            body.statusPacienteCod === STATUS_PACIENT_COD.crud_therapy
-              ? STATUS_PACIENT_COD.crud_therapy
-              : STATUS_PACIENT_COD.queue_therapy,
-          ]);
-
-          const isQueueTherapy = this.setQueueStatus(
-            body.vagaId,
-            body.pacienteId,
-            body.statusPacienteCod,
-            now,
-          );
-          return isQueueTherapy;
+              now,
+              tx,
+            );
+            return isQueueTherapy;
+        }
       }
-    }
 
-    await prisma.pacienteHistorico.create({
-      data: {
-        historico: JSON.stringify(body),
-        pacienteId: body.pacienteId,
-      },
+      await tx.pacienteHistorico.create({
+        data: {
+          historico: JSON.stringify(body),
+          pacienteId: body.pacienteId,
+        },
+      });
     });
   }
 
-  async verifyInFila(vagaId: number, dataAgendado: string) {
-    const prisma = this.prismaService.getPrismaClient();
+  async verifyInFila(vagaId: number, dataAgendado: string, tx?: any) {
+    const prisma = tx || getPrismaClient(this.prismaService);
 
     let naFila = false;
 
@@ -322,11 +366,13 @@ export class VagaService {
 
       const diff = calculaData(dataAgendado, dataContato);
       await prisma.vaga.update({
-        data: {
-          // naFila: naFila,
-          dataSaiuFila: dataAgendado,
-          diff: diff.toString(),
-        },
+        data: buildCreatePayload(
+          {
+            dataSaiuFila: dataAgendado,
+            diff: diff.toString(),
+          },
+          ['dataSaiuFila', 'diff'],
+        ),
         where: {
           id: vagaId,
         },
@@ -341,35 +387,40 @@ export class VagaService {
     pacienteId: number,
     statusOne: string,
     statusTwo: string,
+    tx?: any,
   ) {
     const dataAgendado = formatadataPadraoBD(new Date());
 
-    const isQueue = await this.verifyInFila(vagaId, dataAgendado);
+    const isQueue = await this.verifyInFila(vagaId, dataAgendado, tx);
 
     await this.pacienteService.setStatusPaciente(
       isQueue ? statusOne : statusTwo,
       pacienteId,
+      tx,
     );
 
     if (
       (isQueue && statusTwo !== STATUS_PACIENT_COD.avaliation) ||
       statusTwo !== STATUS_PACIENT_COD.queue_avaliation
     ) {
-      await this.pacienteService.setTipoSessaoTerapia(pacienteId);
+      await this.pacienteService.setTipoSessaoTerapia(pacienteId, tx);
     }
 
     return isQueue;
   }
 
   async updateReturn({ id, devolutiva }: any) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const dataDevolutiva = formatadataPadraoBD(new Date());
     await prisma.vaga.update({
-      data: {
-        devolutiva: devolutiva,
-        dataDevolutiva,
-      },
+      data: buildCreatePayload(
+        {
+          devolutiva: devolutiva,
+          dataDevolutiva,
+        },
+        ['devolutiva', 'dataDevolutiva'],
+      ),
       where: {
         id: id,
       },
@@ -396,7 +447,7 @@ export class VagaService {
     pacienteId,
     especialidades,
   }: AgendarEspecialidadeProps) {
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = getPrismaClient(this.prismaService);
 
     const dataAgendado = formatadataPadraoBD(new Date());
 
@@ -505,9 +556,10 @@ export class VagaService {
     pacienteId: number,
     statusPacienteCod: string,
     especialidadeIds: number[],
+    tx?: any,
   ) {
     let modalidade = '';
-    const prisma = this.prismaService.getPrismaClient();
+    const prisma = tx || getPrismaClient(this.prismaService);
 
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:

@@ -8,6 +8,8 @@ export interface UserProps {
   ativo?: boolean;
   grupo?: any;
   permissoes?: any;
+  mustChangePassword?: boolean;
+  senhaTemporaria?: string;
 }
 
 export interface PerfilProps {

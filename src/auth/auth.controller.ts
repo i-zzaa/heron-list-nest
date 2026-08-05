@@ -22,7 +22,7 @@ export class AuthController {
       res.status(200).json(data);
       return data;
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 
@@ -34,7 +34,7 @@ export class AuthController {
       res.status(200).json(data);
       return data;
     } catch (error) {
-      responseError(res);
+      responseError(res, error);
     }
   }
 }

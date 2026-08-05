@@ -1,4 +1,4 @@
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as moment from 'moment';
 import { AgendaService } from 'src/agenda/agenda.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -7,10 +7,10 @@ import {
   dateFormatYYYYMMDD,
   getDates,
   getDatesBetween,
-  horaEstaEntre,
   weekDay,
 } from 'src/util/format-date';
 import { DEVICE } from 'src/util/util';
+import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
 
 @Injectable()
 export class TerapeutaService {
@@ -80,6 +80,204 @@ export class TerapeutaService {
     private readonly agendaService: AgendaService,
   ) {}
 
+  private getEventRecurrenceData(ev: any, endDate: string) {
+    const frequenciaId = Number(ev?.frequencia?.id ?? 1);
+    const intervaloId = Number(ev?.intervalo?.id ?? 1);
+    const diasFrequencia = Array.isArray(ev?.diasFrequencia)
+      ? ev.diasFrequencia
+      : typeof ev?.diasFrequencia === 'string'
+      ? ev.diasFrequencia.split(',')
+      : [];
+    const exdate = Array.isArray(ev?.exdate) ? ev.exdate : [];
+
+    if (frequenciaId === 1) {
+      return {
+        frequenciaId,
+        intervaloId,
+        diasFrequencia,
+        exdate,
+        isSingleEvent: true,
+      };
+    }
+
+    return {
+      frequenciaId,
+      intervaloId,
+      diasFrequencia,
+      exdate,
+      isSingleEvent: false,
+      dataFim: ev.dataFim || endDate,
+    };
+  }
+
+  private groupEventByDate(
+    eventosFormatados: Record<string, any[]>,
+    date: string,
+    event: any,
+  ) {
+    if (eventosFormatados[date]) {
+      eventosFormatados[date].push(event);
+      return;
+    }
+
+    eventosFormatados[date] = [event];
+  }
+
+  private buildEventKey(day: string, event: any) {
+    const start = this.normalizeHour(event?.data?.start || event?.start);
+    const end = this.normalizeHour(event?.data?.end || event?.end);
+    const pacienteId = event?.paciente?.id || 'free';
+    const id = event?.groupId || event?.id || 'free';
+
+    return `${day}:${id}:${pacienteId}:${start}:${end}`;
+  }
+
+  private normalizeHour(value: any) {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) {
+      return value;
+    }
+
+    const normalized = moment(value);
+
+    return normalized.isValid() ? normalized.format('HH:mm') : String(value);
+  }
+
+  private buildFreeSlot(day: string, hour: string, terapeuta: any) {
+    const date = moment(`${day}T${hour}:00`);
+    const hoursFinal = moment(`${day}T${hour}:00`).add(1, 'hours');
+    const hoursFinalFormat = hoursFinal.format('HH:mm');
+
+    return {
+      ...this.eventFree,
+      dataInicio: day,
+      dataFim: day,
+      start: hour,
+      startTime: hour,
+      time: `${hour} - ${hoursFinalFormat}`,
+      end: hoursFinalFormat,
+      endTime: hoursFinalFormat,
+      date: day,
+      data: {
+        start: hour,
+        end: hoursFinalFormat,
+      },
+      terapeuta: {
+        nome: terapeuta?.usuario?.nome || '',
+        id: terapeuta?.usuario?.id || '',
+      },
+      rrule: {
+        dtstart: date.format('YYYY-MM-DD HH:mm'),
+        until: hoursFinal.format('YYYY-MM-DD HH:mm'),
+        freq: 'weekly',
+      },
+    };
+  }
+
+  private buildSessionSlot(day: string, sessao: any) {
+    const sessaoDataHoraFim = moment(`${day}T${sessao.data.end}:00`);
+    const isInPast = sessaoDataHoraFim.isBefore(new Date());
+
+    return {
+      ...sessao,
+      date: day,
+      isDevolutiva: sessao.modalidade.nome === 'Devolutiva',
+      time: `${sessao.data.start} - ${sessao.data.end}`,
+      disabled:
+        isInPast ||
+        sessao.statusEventos.nome.includes('permanente') ||
+        sessao.statusEventos.nome == 'Atendido',
+      icon: 'pi pi-calendar',
+      color: '#FACC15',
+    };
+  }
+
+  private isSlotOccupiedByEvent(slotHour: string, sessao: any) {
+    const eventStartRaw = sessao?.data?.start || sessao?.start;
+    const eventEndRaw = sessao?.data?.end || sessao?.end;
+
+    if (!eventStartRaw || !eventEndRaw) {
+      return false;
+    }
+
+    const normalizedSlot = this.normalizeHour(slotHour);
+    const normalizedStart = this.normalizeHour(eventStartRaw);
+    const normalizedEnd = this.normalizeHour(eventEndRaw);
+
+    const slotStart = moment(normalizedSlot, 'HH:mm', true);
+    const slotEnd = moment(normalizedSlot, 'HH:mm', true).add(1, 'hour');
+    const eventStart = moment(normalizedStart, 'HH:mm', true);
+    const eventEnd = moment(normalizedEnd, 'HH:mm', true);
+
+    if (
+      !slotStart.isValid() ||
+      !slotEnd.isValid() ||
+      !eventStart.isValid() ||
+      !eventEnd.isValid()
+    ) {
+      return false;
+    }
+
+    return eventStart.isBefore(slotEnd) && eventEnd.isAfter(slotStart);
+  }
+
+  private getOccupiedSlotHours(events: any[]) {
+    const occupiedSlots = new Set<string>();
+
+    events.forEach((event: any) => {
+      const eventStartRaw = event?.data?.start || event?.start;
+      const eventEndRaw = event?.data?.end || event?.end;
+
+      if (!eventStartRaw || !eventEndRaw) {
+        return;
+      }
+
+      const normalizedStart = this.normalizeHour(eventStartRaw);
+      const normalizedEnd = this.normalizeHour(eventEndRaw);
+      const eventStart = moment(normalizedStart, 'HH:mm', true);
+      const eventEnd = moment(normalizedEnd, 'HH:mm', true);
+
+      if (!eventStart.isValid() || !eventEnd.isValid()) {
+        return;
+      }
+
+      HOURS.forEach((hour: string) => {
+        const slotStart = moment(hour, 'HH:mm', true);
+        const slotEnd = moment(hour, 'HH:mm', true).add(1, 'hour');
+
+        if (eventStart.isBefore(slotEnd) && eventEnd.isAfter(slotStart)) {
+          occupiedSlots.add(hour);
+        }
+      });
+    });
+
+    return occupiedSlots;
+  }
+
+  private getCargaHorariaDayKey(date: Date | string) {
+    const dayOfWeek =
+      typeof date === 'string'
+        ? moment(date, 'YYYY-MM-DD').isoWeekday()
+        : moment(date).isoWeekday();
+
+    if (dayOfWeek === 7) {
+      return undefined;
+    }
+
+    return weekDay[dayOfWeek - 1];
+  }
+
+  private isEventExcludedOnDay(event: any, day: string) {
+    return Boolean(event?.exdate?.includes(`${day} ${event?.data?.start}`));
+  }
+
+  private eventMatchesSlot(slot: string, event: any) {
+    return this.isSlotOccupiedByEvent(slot, event);
+  }
+
   async dropdown() {
     const prisma = this.prismaService.getPrismaClient();
 
@@ -141,8 +339,7 @@ export class TerapeutaService {
   ) {
     const prisma = this.prismaService.getPrismaClient();
 
-    const filter: any = {};
-    Object.keys(query).map((key: string) => (filter[key] = Number(query[key])));
+    const filter = buildQueryFilter(query);
 
     const terapeutaId = parseInt(query.terapeutaId);
     const [terapeuta, events, datas] = await Promise.all([
@@ -225,21 +422,7 @@ export class TerapeutaService {
         where: {
           ...filter,
           terapeutaId: terapeutaId,
-          dataInicio: {
-            lte: endDate, // menor que o ultimo dia do mes
-            // gte: inicioDoMes, // maior que o primeiro dia do mes
-          },
-          OR: [
-            {
-              dataFim: '',
-            },
-            {
-              dataFim: {
-                // lte: ultimoDiaDoMes, // menor que o ultimo dia do mes
-                gte: startDate, // maior que o primeiro dia do mes
-              },
-            },
-          ],
+          ...buildDateRangeWhere(startDate, endDate),
         },
         orderBy: {
           dataInicio: 'asc',
@@ -257,167 +440,104 @@ export class TerapeutaService {
 
     const eventosFormatados: any = {};
 
-    await eventosFormat.flatMap(async (ev: any) => {
-      if (ev.frequencia.id === 1) {
-        if (Boolean(eventosFormatados[ev.dataInicio])) {
-          eventosFormatados[ev.dataInicio].push(ev);
-        } else {
-          eventosFormatados[ev.dataInicio] = [ev];
-        }
-        return;
+    for (const ev of eventosFormat) {
+      const recurrenceData = this.getEventRecurrenceData(ev, endDate);
+
+      if (recurrenceData.isSingleEvent) {
+        this.groupEventByDate(eventosFormatados, ev.dataInicio, {
+          ...ev,
+          date: ev.dataInicio,
+        });
+        continue;
       }
 
-      const dataFim = ev.dataFim || endDate;
-
       const datasRecorrentes = await getDates(
-        ev.diasFrequencia,
+        recurrenceData.diasFrequencia,
         ev.dataInicio,
-        dataFim,
-        ev.intervalo.id,
-        ev.exdate,
+        recurrenceData.dataFim,
+        recurrenceData.intervaloId,
+        recurrenceData.exdate,
       );
 
-      await Promise.all(
-        datasRecorrentes.map((dataRecorrentes: string) => {
-          ev.date = dateFormatYYYYMMDD(dataRecorrentes);
-          if (Boolean(eventosFormatados[dataRecorrentes])) {
-            eventosFormatados[dataRecorrentes].push(ev);
-          } else {
-            eventosFormatados[dataRecorrentes] = [ev];
-          }
-        }),
-      );
-    });
+      datasRecorrentes
+        .filter(
+          (dataRecorrente: string) =>
+            dataRecorrente >= startDate && dataRecorrente <= endDate,
+        )
+        .forEach((dataRecorrente: string) => {
+          this.groupEventByDate(eventosFormatados, dataRecorrente, {
+            ...ev,
+            date: dateFormatYYYYMMDD(dataRecorrente),
+          });
+        });
+    }
 
-    let cargaHoraria: any =
+    const cargaHoraria: any =
       terapeuta?.cargaHoraria && typeof terapeuta.cargaHoraria === 'string'
         ? JSON.parse(terapeuta.cargaHoraria)
         : {};
 
     const mobileArray: any = {};
     const webArray: any = [];
+    const diasRetorno = Array.from(
+      new Set([...datas, ...Object.keys(eventosFormatados)]),
+    ).sort((a, b) => a.localeCompare(b));
+    const includedEvents = new Set<string>();
+    const addItemToArrays = (day: string, item: any) => {
+      const key = this.buildEventKey(day, item);
 
-    await Promise.all(
-      datas.map(async (day: any) => {
-        const dateEvent = new Date(day);
-        const dayOfWeek = weekDay[dateEvent.getDay()];
-        const horariosTerapeuta = cargaHoraria[dayOfWeek];
+      if (includedEvents.has(key)) {
+        return;
+      }
 
-        if (!horariosTerapeuta) {
-          return;
+      includedEvents.add(key);
+
+      if (mobileArray[day]) {
+        mobileArray[day].push(item);
+      } else {
+        mobileArray[day] = [item];
+      }
+
+      webArray.push(item);
+    };
+
+    for (const day of diasRetorno) {
+      const dayOfWeek = this.getCargaHorariaDayKey(day);
+      const horariosTerapeuta = dayOfWeek ? cargaHoraria[dayOfWeek] : undefined;
+      const horariosDoDia = horariosTerapeuta
+        ? Array.from(
+            new Set([...HOURS, ...Object.keys(horariosTerapeuta)]),
+          ).sort((a, b) => a.localeCompare(b))
+        : [];
+      const eventosDoDia = (eventosFormatados[day] || []).filter(
+        (event: any) => !this.isEventExcludedOnDay(event, day),
+      );
+      const occupiedSlots = this.getOccupiedSlotHours(eventosDoDia);
+
+      for (const hour of horariosDoDia) {
+        if (!horariosTerapeuta?.[hour]) {
+          continue;
         }
 
-        await Promise.all(
-          HOURS?.map(async (h) => {
-            const strDate = `${day}T${h}:00`;
-            const date = moment(strDate);
+        const slotDate = moment(`${day}T${hour}:00`);
+        const sessoes = eventosDoDia
+          .filter((event: any) => this.eventMatchesSlot(hour, event))
+          .map((event: any) => this.buildSessionSlot(day, event));
 
-            const hoursFinal = moment(strDate).add(1, 'hours');
-            const hoursFinalFormat = hoursFinal.format('HH:mm');
+        if (sessoes.length) {
+          sessoes.forEach((sessao: any) => addItemToArrays(day, sessao));
+          continue;
+        }
 
-            const eventoAdd = {
-              ...this.eventFree,
-              dataInicio: day,
-              dataFim: day,
-              start: h,
-              startTime: h,
-              time: `${h} - ${hoursFinalFormat}`,
-              end: hoursFinalFormat,
-              endTime: hoursFinalFormat,
-              date: day,
-              terapeuta: {
-                nome: terapeuta?.usuario?.nome || '',
-                id: terapeuta?.usuario?.id || '',
-              },
-              rrule: {
-                dtstart: date.format('YYYY-MM-DD HH:mm'),
-                until: hoursFinal.format('YYYY-MM-DD HH:mm'),
-                freq: 'weekly',
-              },
-            };
+        if (!occupiedSlots.has(hour) && slotDate.isAfter(new Date())) {
+          addItemToArrays(day, this.buildFreeSlot(day, hour, terapeuta));
+        }
+      }
 
-            const eventosDoDia = eventosFormatados[day] || [];
-
-            if (
-              date.isAfter(new Date()) &&
-              horariosTerapeuta[h] &&
-              !eventosDoDia.length
-            ) {
-              if (Boolean(mobileArray[day])) {
-                mobileArray[day].push(eventoAdd);
-              } else {
-                mobileArray[day] = [eventoAdd];
-              }
-
-              webArray.push(eventoAdd);
-            }
-
-            if (eventosDoDia.length) {
-              const sessoes = await Promise.all(
-                eventosDoDia.filter(
-                  (e: any) =>
-                    horaEstaEntre(h, e.data.start) &&
-                    !e.exdate.includes(`${day} ${h}`),
-                ),
-              );
-
-              if (sessoes.length) {
-                await Promise.all(
-                  sessoes.map((sessao: any) => {
-                    const verificaSeJaFoiIncluido = webArray.filter(
-                      (e: any) => {
-                        if (
-                          e.id === sessao.id &&
-                          e.paciente.nome === sessao.paciente.nome &&
-                          // day === sessao.date &&
-                          e.data.start === sessao.data.start
-                        ) {
-                          return e;
-                        }
-                      },
-                    );
-
-                    if (!verificaSeJaFoiIncluido.length) {
-                      const sessaoDataHoraFim = moment(
-                        `${day}T${sessao.data.end}:00`,
-                      );
-                      const isInPast = sessaoDataHoraFim.isBefore(new Date());
-
-                      sessao.isDevolutiva =
-                        sessao.modalidade.nome === 'Devolutiva';
-                      sessao.time = `${sessao.data.start} - ${sessao.data.end}`;
-                      sessao.disabled =
-                        isInPast ||
-                        sessao.statusEventos.nome.includes('permanente') ||
-                        sessao.statusEventos.nome == 'Atendido';
-
-                      sessao.icon = 'pi pi-calendar';
-                      sessao.color = '#FACC15';
-
-                      if (Boolean(mobileArray[day])) {
-                        mobileArray[day].push(sessao);
-                      } else {
-                        mobileArray[day] = [sessao];
-                      }
-
-                      webArray.push(sessao);
-                    }
-                  }),
-                );
-              } else if (horariosTerapeuta[h] && date.isAfter(new Date())) {
-                if (Boolean(mobileArray[day])) {
-                  mobileArray[day].push(eventoAdd);
-                } else {
-                  mobileArray[day] = [eventoAdd];
-                }
-
-                webArray.push(eventoAdd);
-              }
-            }
-          }),
-        );
-      }),
-    );
+      eventosDoDia
+        .map((event: any) => this.buildSessionSlot(day, event))
+        .forEach((event: any) => addItemToArrays(day, event));
+    }
 
     const mobileSort = {};
 
@@ -438,6 +558,12 @@ export class TerapeutaService {
         );
       });
     }
+
+    webArray.sort((a, b) => {
+      const first = `${a.date || a.dataInicio} ${a.data.start}`;
+      const second = `${b.date || b.dataInicio} ${b.data.start}`;
+      return first.localeCompare(second);
+    });
 
     return device === DEVICE.mobile ? mobileSort : webArray;
   }

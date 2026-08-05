@@ -27,7 +27,7 @@ export class WhatsappController {
     //   responseSuccess(response, data);
     // } catch (error) {
 
-    //   responseError(response);
+    //   responseError(response, error);
     // }
   }
 }
