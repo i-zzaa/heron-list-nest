@@ -17,6 +17,8 @@ import { PacienteService } from './paciente.service';
 import { PatientCreate, PatientProps } from './paciente.interface';
 import { responseSuccess, responseError, MESSAGE } from 'src/util/response';
 import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('paciente')
@@ -146,6 +148,8 @@ export class PacienteController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PACIENTES_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: string, @Response() response: any) {
     try {
@@ -156,6 +160,8 @@ export class PacienteController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_PACIENTES_LISTA_BOTAO_EXCLUIR')
   @Put('desabilitar')
   async updateDisabled(@Body() body: any, @Response() response: any) {
     try {

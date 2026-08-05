@@ -13,6 +13,8 @@ import { normalizePageSize } from 'src/util/pagination';
 import { GrupoPermissaoService } from './grupoPermissao.service';
 import { GrupoPermissaoProps } from './grupoPermissao.interface';
 import { responseError, responseSuccess } from 'src/util/response';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('grupo-permissoes')
@@ -45,6 +47,8 @@ export class GrupoPermissaoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_GRUPO_PERMISSOES_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: GrupoPermissaoProps, @Response() response: any) {
     try {
@@ -55,6 +59,8 @@ export class GrupoPermissaoController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_GRUPO_PERMISSOES_LISTA_BOTAO_EDITAR')
   @Put()
   async put(@Body() body: GrupoPermissaoProps, @Response() response: any) {
     try {

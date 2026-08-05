@@ -46,7 +46,10 @@ export class UserService {
     });
 
     if (user) {
-      user.permissoes = user.grupo.permissoes;
+      // Usuário sem grupo (grupoPermissaoId null) fazia `user.grupo.permissoes`
+      // estourar aqui — agora trata como "sem permissão nenhuma" em vez de
+      // derrubar o login/consulta inteira.
+      user.permissoes = user.grupo?.permissoes || [];
       delete user.grupo;
     }
 
@@ -192,7 +195,10 @@ export class UserService {
     });
 
     if (user) {
-      user.permissoes = user.grupo.permissoes;
+      // Usuário sem grupo (grupoPermissaoId null) fazia `user.grupo.permissoes`
+      // estourar aqui — agora trata como "sem permissão nenhuma" em vez de
+      // derrubar o login/consulta inteira.
+      user.permissoes = user.grupo?.permissoes || [];
       delete user.grupo;
     }
 

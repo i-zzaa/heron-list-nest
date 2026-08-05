@@ -29,7 +29,7 @@
 
 | Módulo | Situação |
 |---|---|
-| Autenticação/Autorização | ⚠️ Parcial — identidade agora vem do JWT verificado, não de header (corrigido); `VagaController` estava sem guard nenhum (corrigido). **Autorização por tag continua não implementada** — decisão consciente, ver §9 rodada 2 e §11 |
+| Autenticação/Autorização | ⚠️ Parcial — identidade via JWT verificado (corrigido); `VagaController` sem guard (corrigido); **autorização por tag agora implementada nas rotas de maior risco** (usuários, grupo-permissão, baixa, exclusão de paciente — corrigido, rodada 4). Demais rotas (agenda, outros cadastros) seguem só com `AuthGuard('jwt')`, sem tag |
 | Cadastro de terapeuta (jornada, comissão, especialidade/funções) | ⚠️ Parcial — 1 especialidade + N funções está correto; jornada 8h–20h/sem sobreposição agora é validada no agendamento (corrigido) |
 | Paciente | ⚠️ Parcial — sem dedupe de carteirinha, sem snapshot financeiro; `delete()` apagava a entidade errada (corrigido) |
 | Filas (avaliação/devolutiva/terapia) | ⚠️ Parcial — máquina de estados via `Vaga`; `switch` com fallthrough corrigido; **transação real (`$transaction`) entre vaga↔paciente ainda não implementada** |
@@ -42,13 +42,13 @@
 | Tratamento de erro (`responseError`) | ✅ Corrigido — status e mensagem reais por tipo de erro (HttpException/Prisma/Error/string), nunca mais 401 fixo pra tudo, nunca vaza stack trace |
 | Rota `/especialidade` (e prefixo `/api`) | ✅ Corrigido — faltava `setGlobalPrefix('api')` e o endpoint `GET` paginado inteiro não existia nesse controller |
 | Monitoramento | ✅ Novo — log estruturado de toda requisição/erro (interceptor + filtro globais) |
-| Testes | ⚠️ Melhorou, ainda insuficiente — 66 testes (31 originais + 35 novos entre as três rodadas desta sessão); segue sem e2e, sem teste de fila/financeiro/concorrência/permissão |
+| Testes | ⚠️ Melhorou, ainda insuficiente — 73 testes (31 originais + 42 novos entre as quatro rodadas desta sessão); segue sem e2e, sem teste de fila/financeiro/concorrência |
 | Migrations/Seeds | ⚠️ Parcial — seed de 18 tabelas de cadastro criado nesta sessão (real, exclui PII/agendamento/filas); ainda sem histórico de migrations (`prisma migrate`) |
 | Multiclínica | ❌ Não existe (não há `Clinica`/tenant em nenhuma entidade) |
 
 ### Riscos críticos (bloqueadores de produção)
 
-1. **Escalada de privilégio**: qualquer usuário autenticado ainda pode criar/editar usuários, grupos de permissão e **resetar a senha de qualquer conta** (inclusive administrador) para uma senha padrão fixa. **Não corrigido nesta rodada** — decisão consciente (autorização por tag foi adiada, ver §11); a única mitigação já feita é que a *identidade* de quem faz a chamada agora é a verificada pelo JWT, não mais um header livre.
+1. ~~**Escalada de privilégio**: qualquer usuário autenticado podia criar/editar usuários, grupos de permissão e resetar a senha de qualquer conta~~ — **corrigido**: `PermissionsGuard` + tags reais do banco (`CADASTRO_USUARIOS_*`, `CADASTRO_GRUPO_PERMISSOES_*`) agora exigidas nessas rotas. **Ressalva**: a senha resetada continua sendo sempre `'12345678'` (previsível) para quem *tem* a permissão — isso não mudou. E os grupos `RECEPCAO`/`RECEPCAO BASICO` têm hoje as mesmas tags perigosas que `ADM` no banco real (dado, não bug de código — ver §9 rodada 4).
 2. ~~**Identidade de negócio via header HTTP livre** (`req.headers.login`)~~ — **corrigido**: `agenda`, `usuarios`, `sessao` e `baixa` agora usam `req.user.username`, populado pelo payload assinado do JWT (`AuthGuard('jwt')`), não mais um header que o cliente controla.
 3. ~~**`VagaController` sem autenticação nenhuma**~~ — **corrigido** (guard reativado). Antes da correção, qualquer pessoa na internet, sem token, conseguia mover pacientes entre filas.
 4. ~~**Nenhuma verificação de conflito de horário** ao criar/editar eventos~~ — **corrigido**: dupla marcação, sobreposição parcial e evento fora da jornada (8h–20h ou fora do dia cadastrado) agora são rejeitados na criação e em toda edição que troca a terapeuta.
@@ -79,7 +79,7 @@
 - **Padrão arquitetural:** Controller → Service → Prisma direto, sem repository, sem DTOs de classe validados (`*.interface.ts` são apenas `interface`/`enum`, não `class` com `class-validator`); `ValidationPipe` global está registrado mas não tem o que validar.
 - **Migrations:** ainda não existem (`prisma/migrations/` ausente); schema aplicado via `db push`.
 - **Seeds:** criado nesta sessão — [prisma/seed.ts](prisma/seed.ts), 18 tabelas de cadastro/referência com dados reais atuais, PII e agendamento/filas excluídos (ver §9 rodada 3, §11).
-- **Testes:** 8 suites / 31 testes unitários no diagnóstico original (hoje 66, após os testes adicionados nesta sessão — ver §8), todos passam; nenhum e2e (pasta `test/` inexistente apesar do script `test:e2e` referenciá-la).
+- **Testes:** 8 suites / 31 testes unitários no diagnóstico original (hoje 73, em 11 suites, após os testes adicionados nesta sessão — ver §8), todos passam; nenhum e2e (pasta `test/` inexistente apesar do script `test:e2e` referenciá-la).
 - **Build/lint:** `tsc --noEmit` limpo; `nest build` sem erros; `eslint` com 35 erros de formatação e 71 warnings de variável não usada — não bloqueante.
 - **CORS:** corrigido nesta sessão — configuração única, sem o bug de origem com `/` no final.
 - **Prefixo de rota:** corrigido nesta sessão — `setGlobalPrefix('api')` (não existia; toda rota respondia sem `/api`, causando 404 no frontend).
@@ -94,10 +94,10 @@
 
 | ID | Área | Regra | Status | Evidência | Problema | Severidade | Correção |
 |----|------|-------|--------|-----------|----------|------------|----------|
-| R1 | Segurança | Guard de permissão por tag protegendo rotas | **NÃO ATENDE** | `src/auth/autheticated.guard.ts` não é usado; todos os controllers usam só `@UseGuards(AuthGuard('jwt'))` | Não existe checagem de `cod` de permissão em nenhuma rota | **Crítico** | Criar `PermissionsGuard` + decorator `@RequirePermission('cod')` |
+| R1 | Segurança | Guard de permissão por tag protegendo rotas | **ATENDE PARCIALMENTE (corrigido nos pontos mais críticos)** | `PermissionsGuard` + `@RequirePermission('cod')` novos em `src/auth/`, aplicados em usuários (create/update/reset-senha de terceiro), grupo-permissões (create/update), baixa (update/delete), paciente (delete/desabilitar) | As tags do sistema são de granularidade de UI (menu/botão/campo — 154 tags), não de rota de API; só foram usadas onde o mapeamento tag→ação é inequívoco. A maioria das rotas (agenda, demais cadastros) segue só com `AuthGuard('jwt')`, sem tag | **Crítico** | ✅ Corrigido para as rotas de maior risco (§9 rodada 4); estender para os demais cadastros é possível com o mesmo padrão, mas não foi feito |
 | R2 | Segurança | Identidade do usuário vem do JWT verificado | **ATENDE (corrigido)** | `agenda`, `usuarios`, `sessao`, `baixa` agora usam `req.user?.username`, preenchido pelo Passport a partir do payload assinado do JWT | — | — | ✅ Corrigido (§9 item 7/8) |
-| R3 | Segurança | Reset de senha exige permissão e não é previsível | **INCORRETO** | `user.service.ts updatePassword` seta `'12345678'`; exposto em `GET /usuarios/reset-senha/:id` só com `AuthGuard('jwt')` | Qualquer autenticado reseta senha de qualquer usuário | **Crítico** | Permissão específica + senha aleatória/token |
-| R4 | Segurança | Escalada de privilégio bloqueada | **NÃO ATENDE** | `UserService.create/update` aceitam `body.grupoPermissaoId`/`body.perfilId` sem whitelist | Usuário comum pode virar admin | **Crítico** | Whitelist de campos + checagem de quem altera |
+| R3 | Segurança | Reset de senha exige permissão e não é previsível | **ATENDE PARCIALMENTE** | `GET /usuarios/reset-senha/:id` agora exige `CADASTRO_USUARIOS_LISTA_BOTAO_RESETAR_SENHA` | Só quem tem a tag consegue resetar senha de terceiro; a senha continua sendo sempre `'12345678'` (previsível) — isso não foi alterado | **Alto** | ✅ Permissão corrigida (§9 rodada 4); senha previsível segue pendente |
+| R4 | Segurança | Escalada de privilégio bloqueada | **ATENDE PARCIALMENTE** | `POST/PUT /usuarios` agora exigem `CADASTRO_USUARIOS_BOTAO_CADASTRAR`/`_LISTA_BOTAO_EDITAR` | Quem tem a tag ainda pode setar `grupoPermissaoId`/`perfilId` livremente (sem whitelist de campo nem checagem extra de "só quem já é ADM pode promover para ADM") — reduz quem chega perto do endpoint, mas não impede um ADM legítimo de se autopromover além do previsto | **Alto** | ✅ Acesso à rota corrigido (§9 rodada 4); whitelist de campo dentro da rota segue pendente |
 | R4b | Segurança | Todas as rotas de negócio exigem autenticação | **INCORRETO (corrigido)** | `vaga.controller.ts:16` tinha `@UseGuards(AuthGuard('jwt'))` **comentado** | Fila de pacientes (`/vagas/agendar`, `/vagas/devolutiva`) ficava 100% pública | **Crítico** | ✅ Guard reativado nesta sessão |
 | R5 | Segurança | 401 vs 403 diferenciados | **ATENDE (corrigido)** | `resolveError` em `response.ts`, usado por `responseError` e por `AllExceptionsFilter` | Status resolvido pelo tipo real do erro (HttpException/Prisma/Error/string); nunca vaza stack trace | — | ✅ Corrigido (§9 item 25) |
 | R6 | Agenda | Conflito de horário do mesmo terapeuta é rejeitado | **ATENDE (corrigido)** | `hasScheduleConflict` em `agenda.service.ts`, chamado no create e em toda edição que muda a terapeuta | Cobre evento único × único, único × recorrente e recorrente × recorrente (materializando datas com `getDates`, teto de 365 dias) | — | ✅ Corrigido (§9 item 13) — falta teste de concorrência real (duas requisições simultâneas, ver R12) |
@@ -234,12 +234,13 @@
 
 Estado original: 31 testes unitários (formatação/filtro), 8 suites. Nenhum cobria: permissões, conflito de horário, transição de fila, cancelamento com/sem antecedência, baixa duplicada, financeiro com snapshot, concorrência, isolamento entre clínicas. Nenhum teste e2e.
 
-**Após as correções desta sessão: 66 testes, 10 suites.** Distribuição dos 35 novos:
+**Após as correções desta sessão: 73 testes, 11 suites.** Distribuição dos 42 novos:
 
 - [agenda.service.spec.ts](src/agenda/agenda.service.spec.ts) (19): `hasScheduleConflict` (sobreposição parcial, horário idêntico, encostado sem sobrepor, evento cancelado ignorado), `validateJornada` (fora de 8h–20h, início ≥ fim, dia sem jornada cadastrada, dentro da jornada), `isEventoPassado`/`assertSomenteStatusAlterado` (passado vs. futuro, dentro/fora da tolerância de 2h, campo bloqueado rejeitado, só status permitido), `assertStatusPermitidoParaEventoPassado` (só Atestado aceito), `resolveStatusCancelamento` (status não-cancelamento intocado, <48h/≥48h).
 - [response.spec.ts](src/util/response.spec.ts) (11, novo): status/mensagem reais por `HttpException` (401/403/404/400), por código do Prisma (P2025/P2002/P2003), por `Error` genérico, por string customizada, fallback 500 sem vazar stack.
 - [format-date.spec.ts](src/util/format-date.spec.ts) (3, novo): feriados fixos e móveis de um ano, offset do Carnaval em relação à Páscoa em anos distintos.
 - [baixa.service.spec.ts](src/baixa/baixa.service.spec.ts) (+2): duplicidade sinalizada sem criar de novo, criação normal quando não há duplicidade.
+- [permissions.guard.spec.ts](src/auth/permissions.guard.spec.ts) (7, novo): rota sem `@RequirePermission` libera direto, sem usuário autenticado bloqueia, perfil Developer sempre libera, usuário com a tag libera, usuário sem a tag rejeita com 403, usuário sem grupo é tratado como sem permissão nenhuma, usuário inexistente bloqueia.
 
 Ainda faltam: testes de `createCalendario`/`updateCalendario` ponta a ponta (com Prisma mockado ou banco de teste), transição de fila, financeiro, concorrência, isolamento entre clínicas e e2e — não cobertos nesta sessão.
 
@@ -288,7 +289,7 @@ Todos os itens abaixo foram validados com `tsc --noEmit`, `nest build` e `npx je
 
 ### Rodada 3 — CORS, migration financeira, 404, tratamento de erro, feriados, seed e monitoramento
 
-Validado com `tsc --noEmit`, `nest build`, `npx jest` (66/66 passando).
+Validado com `tsc --noEmit`, `nest build`, `npx jest` (73/73 passando, ver rodada 4 abaixo para os 7 mais recentes).
 
 | # | Arquivo(s) | O que estava errado | O que foi feito |
 |---|---|---|---|
@@ -306,6 +307,25 @@ Validado com `tsc --noEmit`, `nest build`, `npx jest` (66/66 passando).
 | 30 | [prisma/seed.ts](prisma/seed.ts) (novo) | Sem seed nenhum — R28 do diagnóstico original | Seed gerado a partir dos dados **reais atuais** de 18 tabelas de cadastro/referência (convênio, especialidade, função, localidade, status de evento, frequência, modalidade, intervalo, período, status, tipo de sessão, status de paciente, perfil, permissão, grupo de permissão, programa, atividades VB-MAPP/Portage). **Decisão tomada por mim, não pedida explicitamente**: excluí `Usuario`/`Terapeuta`/`TerapeutaOnFuncao`/`Paciente`/`PacienteHistorico` do seed além de agendamento/filas — são dados de pessoas reais (nome, telefone, hash de senha) e versionar isso no git exporia PII permanentemente no histórico. Idempotente (`upsert`), configurado em `package.json` (`npm run seed` / `npx prisma db seed`). Não rodei contra o banco remoto (upsert de um snapshot antigo poderia sobrescrever uma edição concorrente feita depois do dump) |
 | 31 | [src/util/logging.interceptor.ts](src/util/logging.interceptor.ts), [src/util/all-exceptions.filter.ts](src/util/all-exceptions.filter.ts) (novos) | Nenhum log estruturado de requisição/erro — só `console.log` esparsos e inconsistentes pelos services | Interceptor global loga toda requisição (método, rota, usuário, status, duração); filtro global captura erro que escapa do try/catch de controller (guard, pipe) usando a mesma lógica de status/mensagem do item 25. Smoke-testado manualmente (sem token → 401 logado; rota inexistente → 404 logado; login inválido → 401 com mensagem real logado) |
 | 32 | [tsconfig.build.json](tsconfig.build.json) | **Bug que eu mesmo introduzi** ao criar `prisma/seed.ts`: sem esse arquivo excluído do build, o TypeScript recalculava o `rootDir` para a raiz do projeto (em vez de `src/`), e `nest build` passou a gerar `dist/src/main.js` em vez de `dist/main.js` — quebrando `npm run start:prod` (`node dist/main`) e o `Procfile` de produção | Adicionado `"prisma"` ao `exclude` de `tsconfig.build.json`; rebuild limpo confirmou `dist/main.js` de volta ao lugar certo antes de considerar a rodada concluída |
+
+### Rodada 4 — autorização por tag nas rotas de maior risco
+
+O seed (item 30) trouxe o catálogo real de `Permissao`/`GrupoPermissao`/`GrupoPermissaoOnPermissao` (154 tags, 5 grupos). Inspecionei os dados antes de codar: as tags são de granularidade de **UI** (menu/botão/campo — ex.: `CADASTRO_USUARIOS_LISTA_BOTAO_RESETAR_SENHA`, `AGENDA_CALENDARIO_EVENTO_EDITAR_TERAPEUTA`), não de rota de API 1:1. Por isso a autorização por tag só foi aplicada onde o mapeamento tag → ação é inequívoco — as rotas mais perigosas identificadas desde a v1 do relatório (R1/R3/R4).
+
+Validado com `tsc --noEmit`, `nest build`, `npx jest` (73/73 passando, 7 testes novos em [permissions.guard.spec.ts](src/auth/permissions.guard.spec.ts)).
+
+| # | Arquivo(s) | O que estava errado | O que foi feito |
+|---|---|---|---|
+| 33 | [src/auth/permissions.guard.ts](src/auth/permissions.guard.ts), [src/auth/require-permission.decorator.ts](src/auth/require-permission.decorator.ts) (novos) | Nenhum guard checava tag de permissão em rota nenhuma | `PermissionsGuard` + `@RequirePermission('cod')`: busca o grupo do usuário autenticado (pelo login do JWT) e confere se tem alguma das tags exigidas; perfil "Developer" sempre passa (mesmo bypass já usado no login); rota sem `@RequirePermission` não é afetada |
+| 34 | [src/user/user.controller.ts](src/user/user.controller.ts) | `POST/PUT /usuarios` e `GET /usuarios/reset-senha/:id` abertos a qualquer autenticado | Agora exigem `CADASTRO_USUARIOS_BOTAO_CADASTRAR`, `CADASTRO_USUARIOS_LISTA_BOTAO_EDITAR` e `CADASTRO_USUARIOS_LISTA_BOTAO_RESETAR_SENHA` respectivamente. As rotas de troca da **própria** senha (`PUT /usuarios/reset-senha`, `PUT /usuarios/reset-senha/:login`) continuam sem tag — não são a mesma ação que resetar a senha de terceiro |
+| 35 | [src/grupoPermissao/grupoPermissao.controller.ts](src/grupoPermissao/grupoPermissao.controller.ts) | `POST/PUT /grupo-permissoes` abertos a qualquer autenticado | Agora exigem `CADASTRO_GRUPO_PERMISSOES_BOTAO_CADASTRAR`/`_LISTA_BOTAO_EDITAR` |
+| 36 | [src/baixa/baixa.controller.ts](src/baixa/baixa.controller.ts) | `PUT /baixa` e `DELETE /baixa/:id` abertos a qualquer autenticado | Agora exigem `AGENDA_BAIXA_UPDATE`/`AGENDA_BAIXA_DELETE` |
+| 37 | [src/paciente/paciente.controller.ts](src/paciente/paciente.controller.ts) | `DELETE /paciente/:id` e `PUT /paciente/desabilitar` abertos a qualquer autenticado | Ambos agora exigem `CADASTRO_PACIENTES_LISTA_BOTAO_EXCLUIR` |
+| 38 | [src/user/user.service.ts](src/user/user.service.ts) — `findUserAuth`/`getUser` | **Bug real encontrado no processo, fora do que foi pedido**: `user.permissoes = user.grupo.permissoes` quebrava (`TypeError`) para qualquer usuário com `grupoPermissaoId` nulo. Conferi no banco real: **muitos usuários ativos hoje têm `grupo: null`** (`tati.granado`, `larissa.lima`, `alda.carrara`, `caroline.viana` e outros). Como `AuthService.validateUser` engole qualquer erro e retorna "login inválido", **esses usuários provavelmente não conseguem logar mesmo com a senha certa**, e isso nunca apareceu como erro — só como "login e/ou senha inválido" | `user.permissoes = user.grupo?.permissoes \|\| []` nos dois pontos — usuário sem grupo passa a logar normalmente e ser tratado como "sem permissão nenhuma" (bloqueado pelo `PermissionsGuard` nas rotas com tag, liberado nas sem tag), em vez de não conseguir logar |
+
+**Observação sobre os dados reais (não é bug de código, é configuração)**: os grupos `RECEPCAO` e `RECEPCAO BASICO` têm hoje exatamente as mesmas tags perigosas que `ADM` — incluindo resetar senha de terceiro e criar/editar grupo de permissão. O `PermissionsGuard` preserva esse comportamento (é o que está configurado no banco); se não for intencional, é uma mudança de dados em `GrupoPermissaoOnPermissao`, não uma correção de código, e não fiz essa mudança sem você confirmar.
+
+**Continua fora do escopo**: as demais rotas de agenda e dos outros cadastros (modalidade, status-eventos, frequência, função, localidade, programa) têm tags equivalentes disponíveis no catálogo e poderiam ser protegidas com o mesmo padrão — não fiz por conta própria para não arriscar travar fluxo de trabalho de grupos sem revisão sua tag a tag. `permissao`/`perfil` (CRUD dos próprios cadastros de permissão/perfil) não têm tag correspondente no catálogo atual.
 
 ---
 
@@ -334,7 +354,7 @@ Numeração e prioridades mantidas do diagnóstico original. Itens 3 e 4 (Agenda
 1. ~~Recorrência sem data final — precisa de regra de encerramento.~~ **Resolvido**: é o comportamento esperado (paciente ainda em atendimento); não é tratado como erro, nenhuma trava foi adicionada.
 2. ~~Significado exato de "um dia de antecedência".~~ **Resolvido**: 48 horas corridas até o início do evento.
 3. ~~Edição de paciente/especialidade/terapeuta/função/local em evento já existente — quais campos podem mudar.~~ **Resolvido**: paciente, especialidade, terapeuta, função, local, status e observação podem mudar; modalidade, data, horário, frequência, intervalo e dias da semana nunca mudam (mantidos do original, silenciosamente).
-4. ~~Autorização por tag agora ou depois.~~ **Resolvido por ora**: adiada; só a identidade (JWT) foi corrigida nesta rodada.
+4. ~~Autorização por tag agora ou depois.~~ **Resolvido**: implementada nas rotas de maior risco assim que o catálogo real de tags apareceu no seed (rodada 4) — usuários, grupo-permissão, baixa, exclusão de paciente. As demais rotas (agenda, outros cadastros) têm tags disponíveis no catálogo mas não foram protegidas ainda — extensão possível com o mesmo padrão, sob pedido.
 5. ~~Lista exata de status permitidos para evento passado.~~ **Resolvido**: apenas **Atestado**. Implementado em `assertStatusPermitidoParaEventoPassado` ([src/agenda/agenda.service.ts](src/agenda/agenda.service.ts)) — qualquer outra tentativa de mudança de status em evento já ocorrido (Atendido, Falta, Cancelado com/sem Antecedência etc.) é rejeitada.
 6. ~~Conflito dessa regra com o check-in mobile (`PUT /evento/check`, marca Atendido).~~ **Resolvido**: definida uma tolerância de **2 horas após o horário final** do evento durante a qual ele ainda não é considerado "passado" — dentro dessa janela, o evento se comporta normalmente (qualquer status, inclusive Atendido, pode ser aplicado). Só depois de 2h do término é que a trava "somente Atestado" passa a valer. Implementado em `isEventoPassado` via a constante `TOLERANCIA_EVENTO_PASSADO_HORAS`.
 
@@ -349,9 +369,10 @@ Numeração e prioridades mantidas do diagnóstico original. Itens 3 e 4 (Agenda
 16. Atualização retroativa de valores/comissão — congelar snapshot (recomendado) ou permitir reprocessamento explícito. A precisão decimal já foi corrigida; falta decidir e implementar o snapshot em si.
 17. Relação entre Baixa e status "Atendido" — baixa deve existir para todo status cobrável (comportamento atual) ou só para "Atendido"?
 18. Quem pode excluir/editar evento criado por outro usuário (hoje só o criador consegue excluir — comportamento inalterado nesta sessão).
-19. Whitelist de `grupoPermissaoId`/`perfilId` e permissão para reset de senha — depende da mesma decisão de autorização por tag do item 4.
+19. Whitelist de `grupoPermissaoId`/`perfilId` dentro do corpo de `POST/PUT /usuarios` — a rota agora exige permissão pra ser chamada (item 4 resolvido), mas quem tem a permissão ainda pode setar qualquer `grupoPermissaoId`/`perfilId` sem checagem adicional (ex.: "só ADM pode promover outro usuário a ADM"). Senha de reset continua sempre `'12345678'`, previsível.
 20. Rotação de credenciais reais expostas no histórico do git (`.env`: banco, JWT, sessão) — preciso que você faça isso na sua ponta (não tenho acesso ao painel da hospedagem); ver §4 Altos.
+21. **`RECEPCAO` e `RECEPCAO BASICO` têm hoje as mesmas tags perigosas que `ADM`** no banco real (resetar senha de terceiro, criar/editar grupo de permissão, editar/excluir usuário) — descoberto ao implementar o `PermissionsGuard` (§9 rodada 4). É dado de `GrupoPermissaoOnPermissao`, não bug de código; o guard só passou a *aplicar* o que já estava configurado. Se não for intencional, precisa de uma decisão sua sobre quais tags cada grupo deveria ter — não mexi nisso sozinho.
 
 ---
 
-*Relatório gerado e atualizado por auditoria assistida. Três rodadas de correção aplicadas e verificadas nesta mesma sessão (`tsc --noEmit`, `nest build`, `npx jest` — 66/66 passando).*
+*Relatório gerado e atualizado por auditoria assistida. Quatro rodadas de correção aplicadas e verificadas nesta mesma sessão (`tsc --noEmit`, `nest build`, `npx jest` — 73/73 passando).*

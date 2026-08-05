@@ -15,6 +15,8 @@ import { normalizePageSize } from 'src/util/pagination';
 import { BaixaService } from './baixa.service';
 import { BaixaFilterProps, BaixaProps } from './baixa.interface';
 import { responseError, responseSuccess } from 'src/util/response';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('baixa')
@@ -41,6 +43,8 @@ export class BaixaController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('AGENDA_BAIXA_UPDATE')
   @Put()
   async put(
     @Body() body: BaixaFilterProps,
@@ -57,6 +61,8 @@ export class BaixaController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('AGENDA_BAIXA_DELETE')
   @Delete(':id')
   async delete(@Param('id') id: number, @Response() response: any) {
     console.log(id);
