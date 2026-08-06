@@ -90,11 +90,8 @@ export class UserService {
                   id: true,
                 },
               },
-              funcoes: {
-                include: {
-                  funcao: true,
-                },
-              },
+              // funcoes NÃO vem aninhado aqui de propósito — ver
+              // attachFuncoesTerapeutas logo abaixo.
             },
           },
         },
@@ -117,11 +114,52 @@ export class UserService {
       prisma.usuario.count(),
     ]);
 
+    await this.attachFuncoesTerapeutas(usuarios);
+
     const data = await this.formatUsers(usuarios);
 
     const pagination = buildPagination(page, pageSize, totalItems);
 
     return { data, pagination };
+  }
+
+  // TerapeutaOnFuncao é N:N (terapeuta <-> função) e, se pedida aninhada
+  // dentro de `usuario.terapeuta.funcoes.funcao` numa única consulta, o
+  // Prisma resolve via subconsultas JSON correlacionadas (duplamente
+  // aninhadas) que o MySQL não otimiza bem — medido em ~965ms contra ~65ms
+  // pra buscar sem essa relação, pra 10 usuários. Buscando as funções à
+  // parte, com um único `IN (...)` pelos terapeutaIds da página atual, e
+  // juntando em memória, o resultado final é o mesmo que `formatUsers`
+  // espera (`usuario.terapeuta.funcoes`), só que rápido.
+  private async attachFuncoesTerapeutas(usuarios: any[]) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const terapeutaIds = usuarios
+      .map((usuario) => usuario?.terapeuta?.usuarioId)
+      .filter((id): id is number => typeof id === 'number');
+
+    if (!terapeutaIds.length) {
+      return;
+    }
+
+    const funcoes = await prisma.terapeutaOnFuncao.findMany({
+      where: { terapeutaId: { in: terapeutaIds } },
+      include: { funcao: true },
+    });
+
+    const funcoesPorTerapeuta = new Map<number, any[]>();
+    funcoes.forEach((funcao: any) => {
+      const lista = funcoesPorTerapeuta.get(funcao.terapeutaId) || [];
+      lista.push(funcao);
+      funcoesPorTerapeuta.set(funcao.terapeutaId, lista);
+    });
+
+    usuarios.forEach((usuario) => {
+      if (usuario?.terapeuta) {
+        usuario.terapeuta.funcoes =
+          funcoesPorTerapeuta.get(usuario.terapeuta.usuarioId) || [];
+      }
+    });
   }
 
   async formatUsers(usuarios: any) {
