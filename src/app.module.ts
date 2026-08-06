@@ -31,6 +31,7 @@ import { PeiModule } from './pei/pei.module';
 import { ProtocoloeModule } from './protocolo/protocolo.module';
 import { GuiaAmilModule } from './guia-amil/guia-amil.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PeiModule,
     ProtocoloeModule,
     GuiaAmilModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
