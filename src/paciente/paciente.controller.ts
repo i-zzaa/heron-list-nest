@@ -28,9 +28,13 @@ export class PacienteController {
   @UseGuards(PermissionsGuard)
   @RequirePermission('CADASTRO_PACIENTES_FILTRO_BOTAO_CADASTRAR')
   @Post()
-  async create(@Body() body: PatientCreate, @Response() response: any) {
+  async create(
+    @Body() body: PatientCreate,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.pacienteService.create(body);
+      const data = await this.pacienteService.create(body, req.user?.username);
       responseSuccess(response, data, MESSAGE.cadastro_sucesso);
     } catch (error) {
       responseError(response, error);
@@ -40,9 +44,13 @@ export class PacienteController {
   @UseGuards(PermissionsGuard)
   @RequirePermission('CADASTRO_PACIENTES_LISTA_BOTAO_EDITAR')
   @Put()
-  async update(@Body() body: PatientProps, @Response() response: any) {
+  async update(
+    @Body() body: PatientProps,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.pacienteService.update(body);
+      const data = await this.pacienteService.update(body, req.user?.username);
       responseSuccess(response, data, MESSAGE.atualizacao_sucesso);
     } catch (error) {
       responseError(response, error);
@@ -155,9 +163,13 @@ export class PacienteController {
   @UseGuards(PermissionsGuard)
   @RequirePermission('CADASTRO_PACIENTES_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
-  async delete(@Param('id') id: string, @Response() response: any) {
+  async delete(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Response() response: any,
+  ) {
     try {
-      const data = await this.pacienteService.delete(Number(id));
+      const data = await this.pacienteService.delete(Number(id), req.user?.username);
       responseSuccess(response, data, MESSAGE.desabilitado_sucesso);
     } catch (error) {
       responseError(response, error);

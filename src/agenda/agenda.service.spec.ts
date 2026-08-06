@@ -1,6 +1,15 @@
 import * as moment from 'moment';
 import { AgendaService } from './agenda.service';
 
+// Usado nos vários pontos que instanciam AgendaService diretamente (sem
+// Nest DI) — historicoService é o 7º argumento do construtor desde que
+// criação/edição/exclusão de evento passaram a gerar histórico.
+const buildHistoricoMock = () => ({
+  registrarCriacao: jest.fn().mockResolvedValue(undefined),
+  registrarEdicao: jest.fn().mockResolvedValue(undefined),
+  registrarExclusao: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('AgendaService.formatEvents', () => {
   let service: AgendaService;
 
@@ -16,6 +25,7 @@ describe('AgendaService.formatEvents', () => {
       {} as any,
       {} as any,
       {} as any,
+      buildHistoricoMock() as any,
     );
   });
 
@@ -105,6 +115,7 @@ describe('AgendaService validations', () => {
       {} as any,
       {} as any,
       {} as any,
+      buildHistoricoMock() as any,
     );
 
     return { service, prisma };
@@ -564,6 +575,7 @@ describe('AgendaService validations', () => {
         {} as any,
         { update: jest.fn().mockResolvedValue(undefined) } as any,
         {} as any,
+        buildHistoricoMock() as any,
       );
 
       return { service, prisma };

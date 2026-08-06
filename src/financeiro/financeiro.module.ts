@@ -10,6 +10,7 @@ import { FrequenciaModule } from 'src/frequencia/frequencia.module';
 import { VagaModule } from 'src/vaga/vaga.module';
 import { BaixaModule } from 'src/baixa/baixa.module';
 import { PacienteModule } from 'src/paciente/paciente.module';
+import { HistoricoModule } from 'src/historico/historico.module';
 
 @Module({
   providers: [FinanceiroService, AgendaService],
@@ -22,6 +23,7 @@ import { PacienteModule } from 'src/paciente/paciente.module';
     VagaModule,
     BaixaModule,
     PacienteModule,
+    HistoricoModule,
   ],
 })
 export class FinanceiroModule {}

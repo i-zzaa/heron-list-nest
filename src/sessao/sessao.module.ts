@@ -10,6 +10,7 @@ import { PacienteService } from 'src/paciente/paciente.service';
 import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { UserService } from 'src/user/user.service';
 import { VagaService } from 'src/vaga/vaga.service';
+import { HistoricoModule } from 'src/historico/historico.module';
 
 @Module({
   providers: [
@@ -25,5 +26,6 @@ import { VagaService } from 'src/vaga/vaga.service';
   ],
   exports: [SessaoService],
   controllers: [SessaoController],
+  imports: [HistoricoModule],
 })
 export class SessaoModule {}

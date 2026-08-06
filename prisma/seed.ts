@@ -1316,6 +1316,51 @@ const permissao: any[] = [
     "id": 545,
     "cod": "PEI_FILTRO_BOTAO_CADASTRAR",
     "descricao": "Botão Cadastrar do PEI"
+  },
+  {
+    "id": 546,
+    "cod": "DASHBOARD_RESUMO",
+    "descricao": "Cards de resumo do dashboard gerencial (pacientes ativos, sessões hoje, fila de espera, taxa de presença)"
+  },
+  {
+    "id": 547,
+    "cod": "DASHBOARD_SESSOES_ESPECIALIDADE",
+    "descricao": "Gráfico de sessões realizadas na semana, por especialidade"
+  },
+  {
+    "id": 548,
+    "cod": "DASHBOARD_SESSOES_STATUS",
+    "descricao": "Gráfico de sessões de hoje por status"
+  },
+  {
+    "id": 549,
+    "cod": "DASHBOARD_OCUPACAO_PERIODO",
+    "descricao": "Distribuição das sessões de hoje por período (manhã/tarde/noite)"
+  },
+  {
+    "id": 550,
+    "cod": "DASHBOARD_FLUXO_PACIENTES",
+    "descricao": "Funil de pacientes por estágio (fila avaliação, avaliação, fila terapia, terapia)"
+  },
+  {
+    "id": 551,
+    "cod": "DASHBOARD_FILA_ESPECIALIDADE",
+    "descricao": "Fila de espera agrupada por especialidade"
+  },
+  {
+    "id": 552,
+    "cod": "DASHBOARD_PENDENCIAS",
+    "descricao": "Lista de pendências do dia (avisar, evolução pendente, conflito de agenda)"
+  },
+  {
+    "id": 553,
+    "cod": "DASHBOARD_SESSOES_HOJE",
+    "descricao": "Tabela de próximas sessões de hoje"
+  },
+  {
+    "id": 554,
+    "cod": "DASHBOARD_TOP_TERAPEUTAS",
+    "descricao": "Ranking de terapeutas do dia"
   }
 ];
 
@@ -5846,6 +5891,46 @@ const grupoPermissaoOnPermissao: any[] = [
   {
     "grupoPermissaoId": 6,
     "permissaoId": 545
+  },
+  // Tags do dashboard gerencial (546-554) atribuídas só ao ADM — o módulo
+  // já é restrito por perfil (ProfileGuard, Admin/Developer), essas tags
+  // controlam a granularidade por widget em cima disso. Developer não
+  // precisa de entrada aqui: bypassa PermissionsGuard inteiro por perfil.
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 546
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 547
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 548
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 549
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 550
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 551
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 552
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 553
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 554
   }
 ];
 

@@ -11,6 +11,7 @@ import { TerapeutaService } from 'src/terapeuta/terapeuta.service';
 import { BaixaService } from 'src/baixa/baixa.service';
 import { PacienteService } from 'src/paciente/paciente.service';
 import { TerapeutaModule } from 'src/terapeuta/terapeuta.module';
+import { HistoricoModule } from 'src/historico/historico.module';
 
 @Module({
   providers: [
@@ -25,6 +26,6 @@ import { TerapeutaModule } from 'src/terapeuta/terapeuta.module';
   ],
   exports: [AgendaService],
   controllers: [AgendaController],
-  imports: [PacienteModule],
+  imports: [PacienteModule, HistoricoModule],
 })
 export class AgendaModule {}

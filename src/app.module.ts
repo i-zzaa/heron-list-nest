@@ -32,6 +32,7 @@ import { ProtocoloeModule } from './protocolo/protocolo.module';
 import { GuiaAmilModule } from './guia-amil/guia-amil.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HistoricoModule } from './historico/historico.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ProtocoloeModule,
     GuiaAmilModule,
     DashboardModule,
+    HistoricoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

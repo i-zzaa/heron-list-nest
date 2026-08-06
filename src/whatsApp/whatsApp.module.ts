@@ -8,6 +8,7 @@ import { PacienteModule } from 'src/paciente/paciente.module';
 import { UserModule } from 'src/user/user.module';
 import { VagaModule } from 'src/vaga/vaga.module';
 import { WhatsappController } from './whatsApp.controller';
+import { HistoricoModule } from 'src/historico/historico.module';
 
 @Module({
   providers: [WhatsappService, AgendaService],
@@ -20,6 +21,7 @@ import { WhatsappController } from './whatsApp.controller';
     VagaModule,
     BaixaModule,
     PacienteModule,
+    HistoricoModule,
   ],
 })
 export class WhatsappModule {}

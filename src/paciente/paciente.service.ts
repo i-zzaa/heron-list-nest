@@ -13,10 +13,14 @@ import { getPrismaClient } from 'src/util/crud';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
 import { normalizeCurrencyValue, readDecimal } from 'src/util/normalizers';
+import { HistoricoService } from 'src/historico/historico.service';
 
 @Injectable()
 export class PacienteService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly historicoService: HistoricoService,
+  ) {}
 
   async getAll(query: any, page: number, pageSize: number) {
     const statusPacienteCod = query.statusPacienteCod;
@@ -357,7 +361,7 @@ export class PacienteService {
     });
   }
 
-  async create(body: PatientCreate) {
+  async create(body: PatientCreate, login?: string) {
     const prisma = getPrismaClient(this.prismaService);
 
     const dataContato =
@@ -403,33 +407,65 @@ export class PacienteService {
         },
       },
     });
+
+    await this.historicoService.registrarCriacao(
+      'Paciente',
+      paciente.id,
+      paciente,
+      login,
+    );
+
     return paciente;
   }
 
-  async update(body: any) {
+  async update(body: any, login?: string) {
     switch (body.statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
       case STATUS_PACIENT_COD.queue_therapy:
       case STATUS_PACIENT_COD.crud_therapy:
-        return this.updatePatient(body);
+        return this.updatePatient(body, login);
       case STATUS_PACIENT_COD.queue_devolutiva:
-        return this.updatePatient({
-          ...body,
-          dataVoltouAba: formatadataPadraoBD(new Date()),
-          tipoSessaoId: 3,
-          statusPacienteCod: STATUS_PACIENT_COD.queue_therapy,
-        });
+        return this.updatePatient(
+          {
+            ...body,
+            dataVoltouAba: formatadataPadraoBD(new Date()),
+            tipoSessaoId: 3,
+            statusPacienteCod: STATUS_PACIENT_COD.queue_therapy,
+          },
+          login,
+        );
       default:
         break;
     }
   }
 
-  async updatePatient(body: any) {
+  // Campos escalares de Paciente usados no diff de histórico — os mesmos
+  // que `updatePatient` de fato grava (ver `data` do update abaixo).
+  private static readonly CAMPOS_HISTORICO_PACIENTE = [
+    'nome',
+    'telefone',
+    'responsavel',
+    'convenioId',
+    'dataNascimento',
+    'tipoSessaoId',
+    'statusId',
+    'carteirinha',
+    'statusPacienteCod',
+  ];
+
+  async updatePatient(body: any, login?: string) {
     const prisma = getPrismaClient(this.prismaService);
 
     try {
       const pacienteId = body.id;
       const vagaId = body.vagaId;
+
+      const antes = await prisma.paciente.findUnique({
+        where: { id: pacienteId },
+        select: Object.fromEntries(
+          PacienteService.CAMPOS_HISTORICO_PACIENTE.map((campo) => [campo, true]),
+        ),
+      });
 
       let resolvedVagaId = vagaId;
 
@@ -535,19 +571,43 @@ export class PacienteService {
         }),
       );
 
+      if (antes) {
+        const depois = Object.fromEntries(
+          PacienteService.CAMPOS_HISTORICO_PACIENTE.map((campo) => [
+            campo,
+            typeof body[campo] === 'string' && (campo === 'nome' || campo === 'responsavel')
+              ? body[campo].toUpperCase()
+              : body[campo],
+          ]),
+        );
+
+        await this.historicoService.registrarEdicao(
+          'Paciente',
+          pacienteId,
+          antes,
+          depois,
+          login,
+        );
+      }
+
       return [];
     } catch (error) {
       console.log(error);
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number, login?: string) {
     const prisma = getPrismaClient(this.prismaService);
+
+    const antes = await prisma.paciente.findUnique({
+      where: { id: Number(id) },
+      select: { disabled: true },
+    });
 
     // Pacientes nunca são excluídos fisicamente: histórico clínico/financeiro
     // (eventos, baixas, sessões) depende do registro. "Excluir" aqui inativa,
     // equivalente ao endpoint dedicado `updateDisabled`.
-    return await prisma.paciente.update({
+    const paciente = await prisma.paciente.update({
       data: {
         disabled: true,
       },
@@ -555,6 +615,18 @@ export class PacienteService {
         id: Number(id),
       },
     });
+
+    if (antes) {
+      await this.historicoService.registrarEdicao(
+        'Paciente',
+        Number(id),
+        antes,
+        { disabled: true },
+        login,
+      );
+    }
+
+    return paciente;
   }
 
   async getPatientsActived() {

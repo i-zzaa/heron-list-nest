@@ -29,6 +29,7 @@ import {
   VALOR_POR_KM,
   VALOR_SESSAO_DEVOLUTIVA,
 } from 'src/util/financeiro-config';
+import { HistoricoService } from 'src/historico/historico.service';
 
 // Antecedência mínima, em horas, para um cancelamento não ser cobrado.
 // Definido com o negócio: 48 horas corridas antes do horário de início do evento.
@@ -55,6 +56,7 @@ export class AgendaService {
     private readonly frequenciaService: FrequenciaService,
     private readonly vagaService: VagaService,
     private readonly baixaService: BaixaService,
+    private readonly historicoService: HistoricoService,
   ) {}
 
   private buildQueryFilter(query: Record<string, any> = {}) {
@@ -1164,9 +1166,24 @@ export class AgendaService {
       }),
     );
 
-    return await prisma.calendario.createMany({
+    const resultado = await prisma.calendario.createMany({
       data: datas,
     });
+
+    // createMany não devolve as linhas criadas — busca de volta pelos
+    // groupIds únicos que acabaram de ser gerados (1 consulta batch, não
+    // 1 por evento) só pra registrar o histórico de cada uma.
+    const criados = await prisma.calendario.findMany({
+      where: { groupId: { in: datas.map((d: any) => d.groupId) } },
+    });
+
+    await Promise.all(
+      criados.map((evento: any) =>
+        this.historicoService.registrarCriacao('Calendario', evento.id, evento, login),
+      ),
+    );
+
+    return resultado;
   }
 
   async createEventoDefault(
@@ -1208,6 +1225,13 @@ export class AgendaService {
         data: eventData,
       }),
     ]);
+
+    await this.historicoService.registrarCriacao(
+      'Calendario',
+      evento[0].id,
+      evento[0],
+      login,
+    );
 
     return evento[0];
   }
@@ -1337,7 +1361,47 @@ export class AgendaService {
     return evento;
   }
 
+  /**
+   * Snapshot escalar (sem relação nenhuma) de um evento, usado só pra
+   * montar o diff de histórico — nunca pra lógica de negócio.
+   */
+  private async snapshotCalendarioHistorico(id: number) {
+    const prisma = getPrismaClient(this.prismaService);
+    return prisma.calendario.findUnique({ where: { id } });
+  }
+
+  /**
+   * Entrada pública de edição — `updateCalendarioMobile` e
+   * `updateCalendarioAtestado` delegam pra cá (ver seus corpos), então
+   * instrumentar só este ponto já cobre os três caminhos, sem log
+   * duplicado. A lógica real (série recorrente, split, baixa, etc.)
+   * continua intacta em `updateCalendarioImpl`, logo abaixo — só
+   * envolvida por um snapshot de antes/depois pro histórico.
+   */
   async updateCalendario(body: any, login: string, hasDataFim = false) {
+    const antes = body?.id
+      ? await this.snapshotCalendarioHistorico(Number(body.id))
+      : null;
+
+    const resultado = await this.updateCalendarioImpl(body, login, hasDataFim);
+
+    if (antes) {
+      const depois = await this.snapshotCalendarioHistorico(Number(body.id));
+      if (depois) {
+        await this.historicoService.registrarEdicao(
+          'Calendario',
+          Number(body.id),
+          antes,
+          depois,
+          login,
+        );
+      }
+    }
+
+    return resultado;
+  }
+
+  private async updateCalendarioImpl(body: any, login: string, hasDataFim = false) {
     const prisma = getPrismaClient(this.prismaService);
 
     const eventId = Number(body?.id);
@@ -1885,12 +1949,24 @@ export class AgendaService {
         },
       });
 
-      return await prisma.calendario.deleteMany({
+      const paraExcluir = await prisma.calendario.findMany({
+        where: { groupId: evento.groupId, usuarioId: id },
+      });
+
+      const resultado = await prisma.calendario.deleteMany({
         where: {
           groupId: evento.groupId,
           usuarioId: id,
         },
       });
+
+      await Promise.all(
+        paraExcluir.map((linha: any) =>
+          this.historicoService.registrarExclusao('Calendario', linha.id, linha, login),
+        ),
+      );
+
+      return resultado;
     } catch (error) {
       console.log(error);
       // Antes o erro morria aqui e o controller respondia sucesso mesmo

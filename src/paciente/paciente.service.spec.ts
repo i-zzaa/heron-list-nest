@@ -1,11 +1,18 @@
 import { PacienteService } from './paciente.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+const historicoServiceMock: any = {
+  registrarCriacao: jest.fn(),
+  registrarEdicao: jest.fn(),
+  registrarExclusao: jest.fn(),
+};
+
 describe('PacienteService', () => {
   let service: PacienteService;
 
   beforeEach(() => {
-    service = new PacienteService({} as PrismaService);
+    jest.clearAllMocks();
+    service = new PacienteService({} as PrismaService, historicoServiceMock);
   });
 
   it('should format patients even when vaga or especialidades are missing', async () => {
@@ -38,9 +45,10 @@ describe('PacienteService', () => {
       },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     await service.filterPatients(1, 10, ['therapy'], {
       disabled: false,
@@ -61,9 +69,10 @@ describe('PacienteService', () => {
       },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     await service.filterSinglePatients(
       { statusPacienteCod: 'crud_therapy', pacientes: 79 },
@@ -89,9 +98,10 @@ describe('PacienteService', () => {
       },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     await service.filterPatients(1, 10, ['crud_therapy'], {
       disabled: false,
@@ -111,9 +121,10 @@ describe('PacienteService', () => {
       },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     const result = await service.findByFullName('Joao Silva');
 
@@ -139,9 +150,10 @@ describe('PacienteService', () => {
       paciente: { findMany },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     const result = await service.findDuplicateFullNames();
 
@@ -163,9 +175,10 @@ describe('PacienteService', () => {
       },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     await service.search('paciente');
 
@@ -204,9 +217,10 @@ describe('PacienteService', () => {
       },
     };
 
-    service = new PacienteService({
-      getPrismaClient: () => prismaClient,
-    } as any);
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
 
     await expect(
       service.updatePatient({
@@ -230,6 +244,110 @@ describe('PacienteService', () => {
       expect.objectContaining({
         where: expect.objectContaining({ vagaId: 55 }),
       }),
+    );
+  });
+
+  it('should register history on create', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 42, nome: 'PACIENTE X' });
+    const prismaClient = { paciente: { create } };
+
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
+
+    await service.create({
+      nome: 'Paciente X',
+      responsavel: 'Resp',
+      sessao: [],
+    } as any);
+
+    expect(historicoServiceMock.registrarCriacao).toHaveBeenCalledWith(
+      'Paciente',
+      42,
+      { id: 42, nome: 'PACIENTE X' },
+      undefined,
+    );
+  });
+
+  it('should register a history diff on updatePatient, with only the changed fields', async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      nome: 'NOME ANTIGO',
+      telefone: '11111',
+      responsavel: 'RESP',
+      convenioId: 1,
+      dataNascimento: '2000-01-01',
+      tipoSessaoId: 1,
+      statusId: 1,
+      carteirinha: '',
+      statusPacienteCod: 'therapy',
+    });
+    const update = jest.fn().mockResolvedValue({ id: 1 });
+    const deleteMany = jest.fn().mockResolvedValue({ count: 0 });
+    const findMany = jest.fn().mockResolvedValue([]);
+
+    const prismaClient = {
+      $transaction: jest.fn().mockResolvedValue([{}, {}, []]),
+      paciente: { update, findUnique },
+      vagaOnEspecialidade: {
+        deleteMany,
+        findMany,
+        create: jest.fn(),
+        updateMany: jest.fn(),
+      },
+    };
+
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
+
+    await service.updatePatient(
+      {
+        id: 1,
+        vagaId: 55, // evita a segunda chamada de findUnique (resolução de vaga)
+        nome: 'Nome Novo',
+        telefone: '11111', // não muda
+        responsavel: 'RESP',
+        convenioId: 1,
+        dataNascimento: '2000-01-01',
+        tipoSessaoId: 1,
+        statusId: 1,
+        carteirinha: '',
+        statusPacienteCod: 'therapy',
+        sessao: [],
+        especialidades: [],
+      } as any,
+      'coordenadora.ana',
+    );
+
+    expect(historicoServiceMock.registrarEdicao).toHaveBeenCalledWith(
+      'Paciente',
+      1,
+      expect.objectContaining({ nome: 'NOME ANTIGO' }),
+      expect.objectContaining({ nome: 'NOME NOVO' }),
+      'coordenadora.ana',
+    );
+  });
+
+  it('should register history as an edition (not a hard delete) when disabling a patient', async () => {
+    const findUnique = jest.fn().mockResolvedValue({ disabled: false });
+    const update = jest.fn().mockResolvedValue({ id: 1, disabled: true });
+    const prismaClient = { paciente: { findUnique, update } };
+
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
+
+    await service.delete(1, 'coordenadora.ana');
+
+    expect(historicoServiceMock.registrarEdicao).toHaveBeenCalledWith(
+      'Paciente',
+      1,
+      { disabled: false },
+      { disabled: true },
+      'coordenadora.ana',
     );
   });
 });

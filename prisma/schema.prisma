@@ -309,6 +309,11 @@ model Calendario {
   @@index([terapeutaId, start])
   @@index([pacienteId])
   @@index([groupId])
+  // Toda listagem de agenda (getFilter/getRange) e os endpoints do
+  // dashboard filtram por essas duas colunas (ver buildDateRangeWhere) —
+  // sem índice até aqui porque a tabela era pequena o bastante pra não
+  // importar; deixado pronto antes de virar um problema real.
+  @@index([dataInicio, dataFim])
 }
 
 model Permissao {
@@ -346,6 +351,30 @@ model PacienteHistorico {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+}
+
+// Auditoria genérica (Paciente/Calendario por enquanto — ver
+// HistoricoService) — tabela única reaproveitável em vez de uma por
+// entidade, pra manter simples. Decisões de peso, todas deliberadas:
+// - grava só o que mudou (`antes`/`depois` só com os campos diferentes
+//   numa edição), não o registro inteiro duas vezes;
+// - `usuarioLogin` é string direto, não FK pra Usuario — evita 1 consulta
+//   extra por escrita só pra resolver id (o controller já tem o login do
+//   JWT de graça) e continua legível sem precisar de JOIN pra exibir;
+// - índice cobre exatamente a consulta de leitura (`entidade+entidadeId`,
+//   mais recente primeiro) — nunca é lida/filtrada em telas de listagem
+//   normais, só quando alguém abre o histórico de um registro específico.
+model HistoricoAlteracao {
+  id           Int      @id @default(autoincrement())
+  entidade     String
+  entidadeId   Int
+  acao         String // criacao | edicao | exclusao
+  antes        Json?
+  depois       Json?
+  usuarioLogin String?
+  createdAt    DateTime @default(now())
+
+  @@index([entidade, entidadeId, createdAt])
 }
 
 model Baixa {
