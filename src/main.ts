@@ -85,9 +85,13 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://127.0.0.1:5173',
+      'http://localhost:3002',
+      'http://127.0.0.1:3002',
       'https://fbuots.hospedagemelastica.com.br',
       'https://agenda-multialcance.com.br',
       'https://www.agenda-multialcance.com.br',
+      'https://aba-multialcance.com.br',
+      'https://www.aba-multialcance.com.br',
     ],
     credentials: true,
   });
