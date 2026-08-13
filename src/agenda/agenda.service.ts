@@ -145,6 +145,29 @@ export class AgendaService {
     };
   }
 
+  /**
+   * Localidade só é obrigatória quando o atendimento não é externo. Quando
+   * isExterno é true, não há localidade cadastrada — km (validado em
+   * validateEvento) e localExternoDescricao passam a ser obrigatórios no
+   * lugar dela.
+   */
+  private resolveLocalidadeAtendimento(body: any): {
+    localidadeId: number | null;
+    localExternoDescricao: string | null;
+  } {
+    if (body?.isExterno) {
+      return {
+        localidadeId: null,
+        localExternoDescricao: body?.localExternoDescricao || null,
+      };
+    }
+
+    return {
+      localidadeId: body?.localidade?.id ?? null,
+      localExternoDescricao: null,
+    };
+  }
+
   private buildCalendarioPayload({
     body,
     userId,
@@ -157,6 +180,7 @@ export class AgendaService {
     terapeutaId,
     funcaoId,
     localidadeId,
+    localExternoDescricao,
     statusEventosId,
     intervaloId,
     extraData = {},
@@ -171,7 +195,8 @@ export class AgendaService {
     especialidadeId: number;
     terapeutaId: number;
     funcaoId: number;
-    localidadeId: number;
+    localidadeId: number | null;
+    localExternoDescricao?: string | null;
     statusEventosId: number;
     intervaloId: number;
     extraData?: Record<string, any>;
@@ -192,6 +217,7 @@ export class AgendaService {
       terapeutaId,
       funcaoId,
       localidadeId,
+      localExternoDescricao: localExternoDescricao ?? null,
       statusEventosId,
       frequenciaId: frequencia.id,
       intervaloId,
@@ -218,6 +244,9 @@ export class AgendaService {
       diasFrequencia = event?.diasFrequencia?.join();
     }
 
+    const { localidadeId, localExternoDescricao } =
+      this.resolveLocalidadeAtendimento(event);
+
     const data: any = {
       groupId: event?.groupId,
       km: normalizeCurrencyValue(event?.km),
@@ -232,7 +261,8 @@ export class AgendaService {
       especialidadeId: event?.especialidade?.id,
       terapeutaId: event?.terapeuta?.id || event?.terapeuta?.usuarioId,
       funcaoId: event?.funcao?.id,
-      localidadeId: event.localidade?.id,
+      localidadeId,
+      localExternoDescricao,
       statusEventosId: event?.statusEventos?.id,
       diasFrequencia,
       isExterno: event?.isExterno,
@@ -419,10 +449,12 @@ export class AgendaService {
     especialidadeId: number;
     funcaoId: number;
     statusEventosId: number;
-    localidadeId: number;
+    localidadeId: number | null;
   }) {
     const prisma = getPrismaClient(this.prismaService);
 
+    // Atendimento externo (isExterno) não tem localidade — só busca/valida
+    // quando localidadeId veio preenchido.
     const [paciente, terapeuta, funcao, statusEventos, localidade] =
       await Promise.all([
         prisma.paciente.findUnique({
@@ -453,10 +485,12 @@ export class AgendaService {
           select: { ativo: true },
           where: { id: Number(statusEventosId) },
         }),
-        prisma.localidade.findUnique({
-          select: { ativo: true },
-          where: { id: Number(localidadeId) },
-        }),
+        localidadeId
+          ? prisma.localidade.findUnique({
+              select: { ativo: true },
+              where: { id: Number(localidadeId) },
+            })
+          : Promise.resolve(null),
       ]);
 
     if (!paciente || paciente.disabled) {
@@ -475,7 +509,7 @@ export class AgendaService {
       throw new Error('Status do evento não encontrado ou inativo.');
     }
 
-    if (!localidade || !localidade.ativo) {
+    if (localidadeId && (!localidade || !localidade.ativo)) {
       throw new Error('Localidade não encontrada ou inativa.');
     }
 
@@ -779,8 +813,24 @@ export class AgendaService {
   ) {
     const { excludeGroupId, original } = options;
 
-    if (data.isExterno && Number(data.km) < 0) {
-      throw new Error('Quilometragem não pode ser negativa.');
+    if (data.isExterno) {
+      if (Number(data.km) < 0) {
+        throw new Error('Quilometragem não pode ser negativa.');
+      }
+
+      if (!(Number(data.km) > 0)) {
+        throw new Error(
+          'Quilometragem é obrigatória para atendimento externo.',
+        );
+      }
+
+      if (!data.localExternoDescricao || !data.localExternoDescricao.trim()) {
+        throw new Error(
+          'Descrição do local externo é obrigatória para atendimento externo.',
+        );
+      }
+    } else if (!data.localidadeId) {
+      throw new Error('Localidade é obrigatória.');
     }
 
     const vinculosMudaram =
@@ -1144,6 +1194,9 @@ export class AgendaService {
           funcao: { id: body[`funcao${index}`].id },
         });
 
+        const { localidadeId, localExternoDescricao } =
+          this.resolveLocalidadeAtendimento(data);
+
         const eventData = this.buildCalendarioPayload({
           body: data,
           userId: user.id,
@@ -1155,7 +1208,8 @@ export class AgendaService {
           especialidadeId: data.especialidade.id,
           terapeutaId: data.terapeuta.id,
           funcaoId: data.funcao.id,
-          localidadeId: data.localidade.id,
+          localidadeId,
+          localExternoDescricao,
           statusEventosId: data.statusEventos.id,
           intervaloId: data.intervalo.id,
         });
@@ -1202,6 +1256,9 @@ export class AgendaService {
       body.funcao.id,
     );
 
+    const { localidadeId, localExternoDescricao } =
+      this.resolveLocalidadeAtendimento(body);
+
     const eventData = this.buildCalendarioPayload({
       body,
       userId: user.id,
@@ -1213,7 +1270,8 @@ export class AgendaService {
       especialidadeId: body.especialidade.id,
       terapeutaId: body.terapeuta.id,
       funcaoId: body.funcao.id,
-      localidadeId: body.localidade.id,
+      localidadeId,
+      localExternoDescricao,
       statusEventosId: body.statusEventos.id,
       intervaloId: body.intervalo.id,
     });
@@ -1481,7 +1539,8 @@ export class AgendaService {
               {
                 pacienteId: body.paciente.id,
                 terapeutaId: body.terapeuta.id,
-                localidadeId: body.localidade.id,
+                localidadeId: data.localidadeId,
+                localExternoDescricao: data.localExternoDescricao,
                 statusEventosId: statusResolvido.id,
                 eventoId: body.id,
                 dataEvento: body.dataInicio,
@@ -1544,7 +1603,8 @@ export class AgendaService {
             {
               pacienteId: event.paciente.id,
               terapeutaId: event.terapeuta.id,
-              localidadeId: event.localidade.id,
+              localidadeId: data.localidadeId,
+              localExternoDescricao: data.localExternoDescricao,
               statusEventosId: statusResolvido.id,
               eventoId: event.id,
               dataEvento: event.dateAtual,
@@ -1741,7 +1801,8 @@ export class AgendaService {
                 select: {
                   id: true,
                   terapeutaId: true,
-                  localidade: true,
+                  localidadeId: true,
+                  localExternoDescricao: true,
                   statusEventos: true,
                   paciente: true,
                 },
@@ -1760,7 +1821,8 @@ export class AgendaService {
                 {
                   pacienteId: novoEvento.paciente.id,
                   terapeutaId: novoEvento.terapeutaId,
-                  localidadeId: novoEvento.localidade.id,
+                  localidadeId: novoEvento.localidadeId,
+                  localExternoDescricao: novoEvento.localExternoDescricao,
                   statusEventosId: novoEvento.statusEventos.id,
                   eventoId: novoEvento.id,
                   dataEvento: event.dataAtual,
@@ -1854,7 +1916,8 @@ export class AgendaService {
             {
               pacienteId: event.paciente.id,
               terapeutaId: event.terapeuta.id,
-              localidadeId: event.localidade.id,
+              localidadeId: data.localidadeId,
+              localExternoDescricao: data.localExternoDescricao,
               statusEventosId: statusResolvido.id,
               eventoId: event.id,
               dataEvento: event.dataAtual,

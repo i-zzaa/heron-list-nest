@@ -19,7 +19,9 @@ export interface CalendarioCreateParam {
   especialidade: ObjProps;
   frequencia: any;
   funcao: ObjProps;
-  localidade: ObjProps;
+  // Ausente/vazia quando isExterno é true — nesse caso localExternoDescricao
+  // e km passam a ser obrigatórios em vez dela (ver validateEvento).
+  localidade?: ObjProps;
   modalidade: ObjProps;
   paciente: ObjProps;
   statusEventos: ObjProps;
@@ -29,4 +31,5 @@ export interface CalendarioCreateParam {
   groupId: string;
   isExterno: boolean;
   km?: string;
+  localExternoDescricao?: string;
 }

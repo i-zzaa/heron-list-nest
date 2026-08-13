@@ -47,6 +47,7 @@ export class BaixaService {
             },
           },
           localidade: true,
+          localExternoDescricao: true,
           status: true,
           usuario: true,
           baixa: true,
@@ -96,7 +97,9 @@ export class BaixaService {
           paciente: paciente.nome || '-',
           carteirinha: paciente.carteirinha || '-',
           terapeuta: terapeuta.nome || '-',
-          localidade: localidade.casa || '-',
+          // Atendimento externo (isExterno) não tem localidade cadastrada —
+          // mostra a descrição do local externo informada no evento no lugar.
+          localidade: item.localExternoDescricao || localidade.casa || '-',
           convenio: convenio.nome || '-',
           status: status.nome || '-',
           usuario: item.baixa ? item.usuario?.nome || '-' : '-',

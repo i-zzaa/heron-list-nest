@@ -22,7 +22,10 @@ export interface BaixaProps {
 export interface BaixaCreateProps {
   pacienteId: number;
   terapeutaId: number;
-  localidadeId: number;
+  // Ausente para baixa de evento externo (isExterno) — não tem localidade;
+  // localExternoDescricao é gravado no lugar.
+  localidadeId?: number | null;
+  localExternoDescricao?: string | null;
   statusEventosId: number;
   eventoId: number;
   dataEvento: string;

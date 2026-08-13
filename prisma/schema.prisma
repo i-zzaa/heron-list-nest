@@ -281,8 +281,12 @@ model Calendario {
   especialidadeId Int
   terapeutaId     Int
   funcaoId        Int
-  localidadeId    Int
-  statusEventosId Int
+  // Nullable a partir de isExterno: atendimento externo não tem localidade
+  // cadastrada — km e localExternoDescricao passam a ser obrigatórios no
+  // lugar dela (ver validateEvento/validateAgendamentoVinculos).
+  localidadeId          Int?
+  localExternoDescricao String?
+  statusEventosId       Int
   frequenciaId    Int
   intervaloId     Int
   usuarioId       Int
@@ -296,7 +300,7 @@ model Calendario {
   modalidade    Modalidade    @relation(fields: [modalidadeId], references: [id])
   especialidade Especialidade @relation(fields: [especialidadeId], references: [id])
   funcao        Funcao        @relation(fields: [funcaoId], references: [id])
-  localidade    Localidade    @relation(fields: [localidadeId], references: [id])
+  localidade    Localidade?   @relation(fields: [localidadeId], references: [id])
   statusEventos StatusEventos @relation(fields: [statusEventosId], references: [id])
   frequencia    Frequencia    @relation(fields: [frequenciaId], references: [id])
   intervalo     Intervalo     @relation(fields: [intervaloId], references: [id])
@@ -384,15 +388,19 @@ model Baixa {
   statusEventosId Int
   eventoId        Int?
   usuarioId       Int?
-  localidadeId    Int
-  baixa           Boolean @default(false)
-  dataEvento      String
+  // Nullable pelo mesmo motivo de Calendario.localidadeId: baixa gerada a
+  // partir de um evento externo (isExterno) não tem localidade — nesse caso
+  // localExternoDescricao é gravado no lugar (snapshot do evento de origem).
+  localidadeId          Int?
+  localExternoDescricao String?
+  baixa                 Boolean @default(false)
+  dataEvento            String
 
   paciente   Paciente      @relation(fields: [pacienteId], references: [id])
   terapeuta  Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
   status     StatusEventos @relation(fields: [statusEventosId], references: [id])
   usuario    Usuario?      @relation(fields: [usuarioId], references: [id])
-  localidade Localidade    @relation(fields: [localidadeId], references: [id])
+  localidade Localidade?   @relation(fields: [localidadeId], references: [id])
   evento     Calendario?   @relation(fields: [eventoId], references: [id])
 
   createdAt DateTime @default(now())
