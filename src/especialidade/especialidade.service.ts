@@ -84,7 +84,7 @@ export class EspecialidadeService {
     const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.create({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'cor']),
     });
   }
 
@@ -92,7 +92,7 @@ export class EspecialidadeService {
     const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.update({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'cor']),
       where: {
         id: toNumberId(body.id),
       },

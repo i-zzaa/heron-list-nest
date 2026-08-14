@@ -480,12 +480,17 @@ export class DashboardService {
       );
     });
 
-    const especialidades = await this.mapaDeNomes('especialidade', [...contagem.keys()]);
+    const especialidades = await this.mapaDeNomes(
+      'especialidade',
+      [...contagem.keys()],
+      ['nome', 'cor'],
+    );
 
     return [...contagem.entries()]
       .map(([especialidadeId, quantidade]) => ({
         especialidadeId,
         nome: especialidades.get(especialidadeId)?.nome || 'Sem especialidade',
+        cor: especialidades.get(especialidadeId)?.cor || '#94a3b8',
         quantidade,
       }))
       .sort((a, b) => b.quantidade - a.quantidade);
