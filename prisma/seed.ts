@@ -998,6 +998,26 @@ const permissao: any[] = [
     "descricao": "Botão do item da lista"
   },
   {
+    "id": 555,
+    "cod": "CADASTRO_ESPECIALIDADE",
+    "descricao": "Tab de informação de especialidade"
+  },
+  {
+    "id": 556,
+    "cod": "CADASTRO_ESPECIALIDADE_BOTAO_CADASTRAR",
+    "descricao": "Botão de cadastro de especialidade"
+  },
+  {
+    "id": 557,
+    "cod": "CADASTRO_ESPECIALIDADE_LISTA_BOTAO_EDITAR",
+    "descricao": "Botão de edição do item da lista de especialidades"
+  },
+  {
+    "id": 558,
+    "cod": "CADASTRO_ESPECIALIDADE_LISTA_BOTAO_EXCLUIR",
+    "descricao": "Botão de exclusão do item da lista de especialidades"
+  },
+  {
     "id": 481,
     "cod": "CADASTRO_LOCALIDADE",
     "descricao": "Tab de Informação de localidade"
@@ -4499,6 +4519,22 @@ const grupoPermissaoOnPermissao: any[] = [
   {
     "grupoPermissaoId": 2,
     "permissaoId": 480
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 555
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 556
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 557
+  },
+  {
+    "grupoPermissaoId": 2,
+    "permissaoId": 558
   },
   {
     "grupoPermissaoId": 2,

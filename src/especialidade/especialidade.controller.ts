@@ -15,6 +15,8 @@ import { EspecialidadeService } from './especialidade.service';
 import { EspecialidadeProps } from './especialidade.interface';
 import { responseSuccess, responseError } from 'src/util/response';
 import { normalizePageSize } from 'src/util/pagination';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { RequirePermission } from 'src/auth/require-permission.decorator';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('especialidade')
@@ -57,6 +59,8 @@ export class EspecialidadeController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_ESPECIALIDADE_BOTAO_CADASTRAR')
   @Post()
   async create(@Body() body: EspecialidadeProps, @Response() response: any) {
     try {
@@ -67,7 +71,9 @@ export class EspecialidadeController {
     }
   }
 
-  @Put(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_ESPECIALIDADE_LISTA_BOTAO_EDITAR')
+  @Put()
   async put(
     @Body() body: EspecialidadeProps,
     @Param('id') id: string,
@@ -81,6 +87,8 @@ export class EspecialidadeController {
     }
   }
 
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('CADASTRO_ESPECIALIDADE_LISTA_BOTAO_EXCLUIR')
   @Delete(':id')
   async delete(@Param('id') id: string, @Response() response: any) {
     try {
