@@ -21,14 +21,18 @@ export class EspecialidadeService {
           id: true,
           nome: true,
           cor: true,
+          ativo: true,
         },
         orderBy: {
           nome: 'asc',
         },
+        where: {
+          ativo: true,
+        },
         skip,
         take: pageSize,
       }),
-      prisma.especialidade.count(),
+      prisma.especialidade.count({ where: { ativo: true } }),
     ]);
 
     const pagination = buildPagination(page, pageSize, totalItems);
@@ -47,6 +51,9 @@ export class EspecialidadeService {
       },
       orderBy: {
         nome: 'asc',
+      },
+      where: {
+        ativo: true,
       },
     });
   }
@@ -76,7 +83,9 @@ export class EspecialidadeService {
       orderBy: {
         nome: 'asc',
       },
-      where: buildTextSearchWhere(word, ['nome']),
+      where: buildTextSearchWhere(word, ['nome'], {
+        ativo: true,
+      }),
     });
   }
 
@@ -84,7 +93,7 @@ export class EspecialidadeService {
     const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.create({
-      data: buildCreatePayload(body, ['nome', 'cor']),
+      data: buildCreatePayload(body, ['nome', 'cor', 'ativo']),
     });
   }
 
@@ -92,7 +101,7 @@ export class EspecialidadeService {
     const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.update({
-      data: buildCreatePayload(body, ['nome', 'cor']),
+      data: buildCreatePayload(body, ['nome', 'cor', 'ativo']),
       where: {
         id: toNumberId(body.id),
       },

@@ -104,6 +104,10 @@ model Especialidade {
   id         Int                   @id @default(autoincrement())
   nome       String                @unique
   cor        String                @default("#000000")
+  // Igual ao padrão de Localidade/Funcao: desativar em vez de excluir
+  // (a exclusão física exige que nada esteja vinculado — ver
+  // assertEntidadeNaoEstaEmUso em EspecialidadeService.delete).
+  ativo      Boolean               @default(true)
   Funcao     Funcao[]
   calendario Calendario[]
   terapeuta  Terapeuta[]
