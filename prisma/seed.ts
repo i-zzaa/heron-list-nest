@@ -1043,6 +1043,26 @@ const permissao: any[] = [
     "descricao": "Campo select de ticket no filtro de baixa"
   },
   {
+    "id": 564,
+    "cod": "CADASTRO_CONVENIO",
+    "descricao": "Tab de informação de convênio"
+  },
+  {
+    "id": 565,
+    "cod": "CADASTRO_CONVENIO_BOTAO_CADASTRAR",
+    "descricao": "Botão de cadastro de convênio"
+  },
+  {
+    "id": 566,
+    "cod": "CADASTRO_CONVENIO_LISTA_BOTAO_EDITAR",
+    "descricao": "Botão de edição do item da lista de convênios"
+  },
+  {
+    "id": 567,
+    "cod": "CADASTRO_CONVENIO_LISTA_BOTAO_EXCLUIR",
+    "descricao": "Botão de exclusão do item da lista de convênios"
+  },
+  {
     "id": 481,
     "cod": "CADASTRO_LOCALIDADE",
     "descricao": "Tab de Informação de localidade"
