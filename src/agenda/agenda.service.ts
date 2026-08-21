@@ -29,6 +29,7 @@ import {
   VALOR_POR_KM,
   VALOR_SESSAO_DEVOLUTIVA,
 } from 'src/util/financeiro-config';
+import { PERFIL } from 'src/util/util';
 import { HistoricoService } from 'src/historico/historico.service';
 
 // Antecedência mínima, em horas, para um cancelamento não ser cobrado.
@@ -1158,11 +1159,13 @@ export class AgendaService {
       ? await this.formatEvents(eventos, login)
       : [];
 
-    return this.expandRecurringOccurrences(
+    const ocorrencias = this.expandRecurringOccurrences(
       eventosFormat,
       inicioDoMes,
       ultimoDiaDoMes,
     );
+
+    return this.applyPermissionFlags(ocorrencias, login);
   }
 
   async getRange(params: any, device: string, login: string) {
@@ -1185,11 +1188,62 @@ export class AgendaService {
 
     const eventosFormat = await this.formatEvents(eventos, login);
 
-    return this.expandRecurringOccurrences(
+    const ocorrencias = this.expandRecurringOccurrences(
       eventosFormat,
       inicioDoMes,
       ultimoDiaDoMes,
     );
+
+    return this.applyPermissionFlags(ocorrencias, login);
+  }
+
+  /**
+   * Item 3 do pedido do front (heron-list-web): flags de permissão/estado
+   * calculadas no servidor (relógio do servidor, perfil real do usuário
+   * logado) em vez do cliente comparar statusEventos.nome com texto livre
+   * e checar "já passou" com o relógio do navegador
+   * (components/view-evento/index.tsx: canMarkAsAttended/canMarkAsAttested;
+   * components/calendar/index.tsx: isAttendedEvent/isCanceledEvent —
+   * ambas fazem .includes('cancelado') no nome, quebra se o texto mudar).
+   *
+   * Só roda depois de expandRecurringOccurrences: pra série recorrente,
+   * "já passou" só faz sentido pra uma ocorrência concreta (com date
+   * resolvido), não pra definição da série inteira.
+   */
+  private async applyPermissionFlags(items: any[], login: string) {
+    const usuario = await this.userService.getUser(login);
+    const perfilNome = usuario?.perfil?.nome;
+
+    const isDev = perfilNome === PERFIL.dev;
+    const isTerapeuta = perfilNome === PERFIL.terapeuta;
+    const isAtendente = perfilNome === PERFIL.secretaria;
+
+    return items.map((item: any) => {
+      const statusNome = (item?.statusEventos?.nome || '').trim();
+      const vago = item?.paciente?.nome === 'Livre';
+      const isAttended = statusNome === 'Atendido';
+      const isCanceled = statusNome.toLowerCase().includes('cancelado');
+      const jaPassou = item?.date ? moment(item.date).isBefore(moment()) : false;
+
+      const podeMarcarAtendido =
+        (isDev || isTerapeuta) && !isAttended && !jaPassou && !vago;
+
+      const podeMarcarAtestado =
+        (isDev || isAtendente) &&
+        jaPassou &&
+        !vago &&
+        !isAttended &&
+        statusNome !== 'Atestado';
+
+      return {
+        ...item,
+        isAttended,
+        isCanceled,
+        vago,
+        podeMarcarAtendido,
+        podeMarcarAtestado,
+      };
+    });
   }
 
   /**

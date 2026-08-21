@@ -741,3 +741,91 @@ describe('AgendaService.expandRecurringOccurrences (item 5 — heron-list-web)',
     expect(result).toEqual([]);
   });
 });
+
+describe('AgendaService.applyPermissionFlags (item 3 — heron-list-web)', () => {
+  const buildService = (perfilNome: string) =>
+    new AgendaService(
+      {} as any,
+      { getUser: jest.fn().mockResolvedValue({ perfil: { nome: perfilNome } }) } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      buildHistoricoMock() as any,
+    );
+
+  const futuro = moment().add(3, 'days').format('YYYY-MM-DD');
+  const passado = moment().subtract(3, 'days').format('YYYY-MM-DD');
+
+  it('Terapeuta pode marcar Atendido num evento futuro não atendido', async () => {
+    const service: any = buildService('Terapeuta');
+
+    const [item] = await service.applyPermissionFlags(
+      [{ date: futuro, statusEventos: { nome: 'Confirmado' }, paciente: { nome: 'Fulano' } }],
+      'login',
+    );
+
+    expect(item.podeMarcarAtendido).toBe(true);
+    expect(item.podeMarcarAtestado).toBe(false);
+    expect(item.isAttended).toBe(false);
+    expect(item.vago).toBe(false);
+  });
+
+  it('Secretária pode marcar Atestado num evento passado ainda sem status final', async () => {
+    const service: any = buildService('Secretária');
+
+    const [item] = await service.applyPermissionFlags(
+      [{ date: passado, statusEventos: { nome: 'Confirmado' }, paciente: { nome: 'Fulano' } }],
+      'login',
+    );
+
+    expect(item.podeMarcarAtestado).toBe(true);
+    expect(item.podeMarcarAtendido).toBe(false); // Secretária não marca Atendido
+  });
+
+  it('Terapeuta NÃO pode marcar Atendido num evento já passado', async () => {
+    const service: any = buildService('Terapeuta');
+
+    const [item] = await service.applyPermissionFlags(
+      [{ date: passado, statusEventos: { nome: 'Confirmado' }, paciente: { nome: 'Fulano' } }],
+      'login',
+    );
+
+    expect(item.podeMarcarAtendido).toBe(false);
+  });
+
+  it('vaga livre (paciente "Livre") nunca libera nenhuma das duas ações', async () => {
+    const service: any = buildService('Terapeuta');
+
+    const [item] = await service.applyPermissionFlags(
+      [{ date: futuro, statusEventos: { nome: 'Confirmado' }, paciente: { nome: 'Livre' } }],
+      'login',
+    );
+
+    expect(item.vago).toBe(true);
+    expect(item.podeMarcarAtendido).toBe(false);
+  });
+
+  it('isCanceled reconhece qualquer status "Cancelado *" (não exige match exato)', async () => {
+    const service: any = buildService('Developer');
+
+    const [item] = await service.applyPermissionFlags(
+      [{ date: futuro, statusEventos: { nome: 'Cancelado s/ Antecedência' }, paciente: { nome: 'Fulano' } }],
+      'login',
+    );
+
+    expect(item.isCanceled).toBe(true);
+  });
+
+  it('Administrador/perfil sem permissão específica não marca nem Atendido nem Atestado', async () => {
+    const service: any = buildService('Administrador');
+
+    const [item] = await service.applyPermissionFlags(
+      [{ date: futuro, statusEventos: { nome: 'Confirmado' }, paciente: { nome: 'Fulano' } }],
+      'login',
+    );
+
+    expect(item.podeMarcarAtendido).toBe(false);
+    expect(item.podeMarcarAtestado).toBe(false);
+  });
+});
