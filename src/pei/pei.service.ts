@@ -189,7 +189,20 @@ export class PeiService {
         procedimentoEnsinoId: true,
         subitems: true,
 
-        vbmapp: true,
+        vbmapp: {
+          select: {
+            id: true,
+            nome: true,
+            nivel: true,
+            programaId: true,
+            programa: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        },
         createdAt: true,
         paciente: {
           select: {
@@ -292,7 +305,15 @@ export class PeiService {
         subitems,
       } = item;
 
-      const { programa, id, nome, nivel } = item.vbmapp;
+      // `item.vbmapp` só tem os campos escalares de VBMappAtividades
+      // (ver select em getVbmappMetas) — programa é uma relação separada
+      // (VBMappAtividades.programa), não um campo direto. Desestruturar
+      // `programa` daqui sempre dava undefined, e todo item caía
+      // agrupado sob a chave literal "undefined" em vez do nome real do
+      // programa (Mando, Tato etc.) — a tela de meta nunca conseguia
+      // separar os itens por programa.
+      const { id, nome, nivel, programaId } = item.vbmapp;
+      const programa = item.vbmapp.programa?.nome;
 
       const selected = respostaSessao;
 
@@ -312,6 +333,7 @@ export class PeiService {
           nome,
           nivel,
           programa,
+          programaId,
           estimuloDiscriminativo,
           resposta,
           estimuloReforcadorPositivo,
