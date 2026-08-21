@@ -1,3 +1,4 @@
+import * as moment from 'moment';
 import { PacienteService } from './paciente.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -432,5 +433,124 @@ describe('PacienteService.aplicarAcaoDisponivel (item 8 dos pontos menores)', ()
     );
 
     expect(item.acaoDisponivel).toBe('devolutiva');
+  });
+});
+
+describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médico)', () => {
+  const buildService = (pacientes: any[]) => {
+    const findMany = jest.fn().mockResolvedValue(pacientes);
+    return new PacienteService(
+      { getPrismaClient: () => ({ paciente: { findMany } }) } as any,
+      historicoServiceMock,
+    );
+  };
+
+  it('inclui Plano Terapêutico já vencido (emitido há 13 meses, vence em 1 ano)', async () => {
+    const dataEmissao = moment().subtract(13, 'months').format('YYYY-MM-DD');
+    const service = buildService([
+      {
+        id: 1,
+        nome: 'Fulano',
+        dataEmissaoPlanoTerapeutico: dataEmissao,
+        dataEmissaoLaudoMedico: null,
+      },
+    ]);
+
+    const [item] = await service.getDocumentosVencendo(15);
+
+    expect(item).toMatchObject({
+      pacienteId: 1,
+      pacienteNome: 'Fulano',
+      tipo: 'plano_terapeutico',
+      vencido: true,
+    });
+    expect(item.diasParaVencer).toBeLessThan(0);
+  });
+
+  it('inclui Laudo Médico vencendo dentro da janela de antecedência (vence em 6 meses)', async () => {
+    // Emitido há (6 meses - 10 dias) -> vence em 10 dias, dentro da janela de 15.
+    const dataEmissao = moment()
+      .subtract(6, 'months')
+      .add(10, 'days')
+      .format('YYYY-MM-DD');
+    const service = buildService([
+      {
+        id: 2,
+        nome: 'Ciclana',
+        dataEmissaoPlanoTerapeutico: null,
+        dataEmissaoLaudoMedico: dataEmissao,
+      },
+    ]);
+
+    const [item] = await service.getDocumentosVencendo(15);
+
+    expect(item).toMatchObject({
+      pacienteId: 2,
+      pacienteNome: 'Ciclana',
+      tipo: 'laudo_medico',
+      vencido: false,
+    });
+    expect(item.diasParaVencer).toBeGreaterThanOrEqual(0);
+    expect(item.diasParaVencer).toBeLessThanOrEqual(15);
+  });
+
+  it('não inclui documento vencendo fora da janela de antecedência', async () => {
+    // Vence em 40 dias — fora da janela de 15.
+    const dataEmissao = moment()
+      .subtract(6, 'months')
+      .add(40, 'days')
+      .format('YYYY-MM-DD');
+    const service = buildService([
+      {
+        id: 3,
+        nome: 'Beltrano',
+        dataEmissaoPlanoTerapeutico: null,
+        dataEmissaoLaudoMedico: dataEmissao,
+      },
+    ]);
+
+    const result = await service.getDocumentosVencendo(15);
+
+    expect(result).toEqual([]);
+  });
+
+  it('um paciente com os dois documentos vencendo aparece duas vezes na lista', async () => {
+    const planoVencido = moment().subtract(13, 'months').format('YYYY-MM-DD');
+    const laudoVencido = moment().subtract(7, 'months').format('YYYY-MM-DD');
+    const service = buildService([
+      {
+        id: 4,
+        nome: 'Sicrano',
+        dataEmissaoPlanoTerapeutico: planoVencido,
+        dataEmissaoLaudoMedico: laudoVencido,
+      },
+    ]);
+
+    const result = await service.getDocumentosVencendo(15);
+
+    expect(result).toHaveLength(2);
+    expect(result.map((item) => item.tipo).sort()).toEqual([
+      'laudo_medico',
+      'plano_terapeutico',
+    ]);
+  });
+
+  it('usa 15 dias como janela padrão quando nenhum valor é passado', async () => {
+    const dataEmissao = moment()
+      .subtract(6, 'months')
+      .add(10, 'days')
+      .format('YYYY-MM-DD');
+    const service = buildService([
+      {
+        id: 5,
+        nome: 'Fulana',
+        dataEmissaoPlanoTerapeutico: null,
+        dataEmissaoLaudoMedico: dataEmissao,
+      },
+    ]);
+
+    const result = await service.getDocumentosVencendo();
+
+    expect(result).toHaveLength(1);
   });
 });

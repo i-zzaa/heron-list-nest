@@ -30,6 +30,14 @@ model Paciente {
   emAtendimento Boolean @default(false)
   disabled      Boolean @default(false)
 
+  // Data de emissão (não a de vencimento — calculada a partir dela, ver
+  // PacienteService.calcularVencimentoDocumento): Plano Terapêutico vence
+  // em 1 ano, Laudo Médico em 6 meses. Opcionais porque nem todo paciente
+  // tem os dois cadastrados ainda (ex.: pacientes já existentes antes
+  // desse campo existir).
+  dataEmissaoPlanoTerapeutico String?
+  dataEmissaoLaudoMedico      String?
+
   vaga           Vaga?
   calendario     Calendario[]
   statusPaciente StatusPaciente @relation(fields: [statusPacienteCod], references: [cod])

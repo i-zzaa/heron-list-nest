@@ -8,6 +8,7 @@ import {
   dateSubtractDay,
   getDates,
 } from 'src/util/format-date';
+import { PacienteService } from 'src/paciente/paciente.service';
 
 // Estágios reais de StatusPaciente usados no funil "Fluxo de pacientes" —
 // só os que existem de fato no cadastro (ver prisma/seed.ts). O mockup
@@ -36,7 +37,10 @@ const ROTULO_PERIODO_ANTERIOR: Record<Periodo, string> = {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly pacienteService: PacienteService,
+  ) {}
 
   /** Normaliza o valor cru do query param — qualquer coisa fora do
    * esperado cai em "hoje", nunca quebra a rota. */
@@ -510,11 +514,17 @@ export class DashboardService {
     const hoje = dateFormatYYYYMMDD(new Date());
     const { inicio, fim } = this.resolverIntervalo(periodo);
 
-    const [eventosHoje, eventosPeriodo, statusMap] = await Promise.all([
-      this.getEventosDoDia(hoje),
-      this.getEventosNoIntervalo(inicio, fim),
-      this.mapaStatusEventos(),
-    ]);
+    const [eventosHoje, eventosPeriodo, statusMap, documentosVencendo] =
+      await Promise.all([
+        this.getEventosDoDia(hoje),
+        this.getEventosNoIntervalo(inicio, fim),
+        this.mapaStatusEventos(),
+        // Plano Terapêutico (1 ano)/Laudo Médico (6 meses) vencido ou
+        // vencendo em até 15 dias — janela fixa aqui, independente do
+        // período escolhido no dashboard (é sobre o cadastro do
+        // paciente, não sobre a agenda do período).
+        this.pacienteService.getDocumentosVencendo(15),
+      ]);
 
     const idsAvisar = eventosHoje
       .filter((evento) => this.classificarStatus(statusMap.get(evento.statusEventosId)?.nome || '').avisar)
@@ -557,6 +567,11 @@ export class DashboardService {
         tipo: 'conflito-agenda',
         quantidade: conflitos,
         descricao: 'Conflitos de horário na agenda de hoje',
+      },
+      {
+        tipo: 'documentos-vencendo',
+        quantidade: documentosVencendo.length,
+        descricao: 'Plano Terapêutico/Laudo Médico vencido ou vencendo (GET /paciente/documentos-vencendo)',
       },
     ];
 

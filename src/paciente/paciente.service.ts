@@ -1,4 +1,5 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import * as moment from 'moment';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { STATUS_PACIENT_COD } from 'src/status-paciente/status-paciente.interface';
 import {
@@ -292,6 +293,8 @@ export class PacienteService {
         statusId: true,
         statusPacienteCod: true,
         carteirinha: true,
+        dataEmissaoPlanoTerapeutico: true,
+        dataEmissaoLaudoMedico: true,
       },
       where: {
         id,
@@ -480,6 +483,8 @@ export class PacienteService {
         statusId: body?.statusId,
         tipoSessaoId: tipoSessaoId,
         carteirinha: body.carteirinha,
+        dataEmissaoPlanoTerapeutico: body.dataEmissaoPlanoTerapeutico || null,
+        dataEmissaoLaudoMedico: body.dataEmissaoLaudoMedico || null,
         vaga: {
           create: {
             dataContato: dataContato,
@@ -547,6 +552,8 @@ export class PacienteService {
     'statusId',
     'carteirinha',
     'statusPacienteCod',
+    'dataEmissaoPlanoTerapeutico',
+    'dataEmissaoLaudoMedico',
   ];
 
   async updatePatient(body: any, login?: string) {
@@ -597,6 +604,9 @@ export class PacienteService {
             tipoSessaoId: body.tipoSessaoId,
             statusId: body.statusId,
             carteirinha: body.carteirinha,
+            dataEmissaoPlanoTerapeutico:
+              body.dataEmissaoPlanoTerapeutico || null,
+            dataEmissaoLaudoMedico: body.dataEmissaoLaudoMedico || null,
             statusPacienteCod: body.statusPacienteCod,
             vaga: {
               update: {
@@ -990,5 +1000,113 @@ export class PacienteService {
     const pagination = buildPagination(page, pageSize, totalItems.length);
 
     return { data: pacientes || [], pagination };
+  }
+
+  // Validade dos documentos do paciente (pedido do usuário): Plano
+  // Terapêutico vence 1 ano após a emissão, Laudo Médico vence 6 meses
+  // após. Não são datas gravadas — sempre recalculadas a partir da data
+  // de emissão, pra nunca ficarem desatualizadas se o cadastro mudar.
+  private calcularVencimentoDocumento(
+    dataEmissao: string,
+    quantidade: number,
+    unidade: moment.unitOfTime.DurationConstructor,
+  ) {
+    return moment(dataEmissao).add(quantidade, unidade).format('YYYY-MM-DD');
+  }
+
+  /**
+   * GET /paciente/documentos-vencendo — lista (não só conta) os pacientes
+   * com Plano Terapêutico ou Laudo Médico vencido ou vencendo dentro de
+   * `diasAntecedencia` dias, pra alimentar o aviso de notificação da tela
+   * (clicar no aviso mostra esta lista com o nome de quem precisa
+   * substituir o documento). Um paciente pode aparecer duas vezes (uma
+   * linha por documento) se os dois estiverem vencendo.
+   */
+  async getDocumentosVencendo(diasAntecedencia = 15) {
+    const prisma = getPrismaClient(this.prismaService);
+    const hoje = moment().startOf('day');
+    const limite = moment().startOf('day').add(diasAntecedencia, 'days');
+
+    const pacientes = await prisma.paciente.findMany({
+      select: {
+        id: true,
+        nome: true,
+        dataEmissaoPlanoTerapeutico: true,
+        dataEmissaoLaudoMedico: true,
+      },
+      where: {
+        disabled: false,
+        OR: [
+          { dataEmissaoPlanoTerapeutico: { not: null } },
+          { dataEmissaoLaudoMedico: { not: null } },
+        ],
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
+
+    const documentos: Array<{
+      pacienteId: number;
+      pacienteNome: string;
+      tipo: 'plano_terapeutico' | 'laudo_medico';
+      dataEmissao: string;
+      dataVencimento: string;
+      vencido: boolean;
+      diasParaVencer: number;
+    }> = [];
+
+    pacientes.forEach((paciente) => {
+      const candidatos: Array<{
+        tipo: 'plano_terapeutico' | 'laudo_medico';
+        dataEmissao: string | null;
+        quantidade: number;
+        unidade: moment.unitOfTime.DurationConstructor;
+      }> = [
+        {
+          tipo: 'plano_terapeutico',
+          dataEmissao: paciente.dataEmissaoPlanoTerapeutico,
+          quantidade: 1,
+          unidade: 'years',
+        },
+        {
+          tipo: 'laudo_medico',
+          dataEmissao: paciente.dataEmissaoLaudoMedico,
+          quantidade: 6,
+          unidade: 'months',
+        },
+      ];
+
+      candidatos.forEach(({ tipo, dataEmissao, quantidade, unidade }) => {
+        if (!dataEmissao) {
+          return;
+        }
+
+        const dataVencimento = this.calcularVencimentoDocumento(
+          dataEmissao,
+          quantidade,
+          unidade,
+        );
+        const vencimentoMoment = moment(dataVencimento);
+
+        if (vencimentoMoment.isAfter(limite)) {
+          return;
+        }
+
+        documentos.push({
+          pacienteId: paciente.id,
+          pacienteNome: paciente.nome,
+          tipo,
+          dataEmissao,
+          dataVencimento,
+          vencido: vencimentoMoment.isBefore(hoje),
+          diasParaVencer: vencimentoMoment.diff(hoje, 'days'),
+        });
+      });
+    });
+
+    documentos.sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
+
+    return documentos;
   }
 }

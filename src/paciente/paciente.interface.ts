@@ -7,6 +7,10 @@ export interface PatientProps {
   dataNascimento: string;
   convenioId: number;
   statusPacienteCod: string;
+  // Data de emissão dos documentos — vencimento é calculado (Plano: +1
+  // ano, Laudo: +6 meses), ver PacienteService.
+  dataEmissaoPlanoTerapeutico?: string | null;
+  dataEmissaoLaudoMedico?: string | null;
 }
 
 interface Sessao {

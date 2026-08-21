@@ -137,6 +137,27 @@ export class PacienteController {
     }
   }
 
+  // Alimenta o aviso de notificação da tela (Plano Terapêutico/Laudo
+  // Médico vencido ou vencendo em breve) — clicar no aviso chama esta
+  // rota pra mostrar os nomes dos pacientes. Precisa vir antes de
+  // ':search' (rota estática x parametrizada — ':search' casaria com
+  // "documentos-vencendo" também).
+  @Get('documentos-vencendo')
+  async getDocumentosVencendo(
+    @Query('dias') dias: string,
+    @Response() response: any,
+  ) {
+    try {
+      const diasAntecedencia = Number(dias) > 0 ? Number(dias) : 15;
+      const data = await this.pacienteService.getDocumentosVencendo(
+        diasAntecedencia,
+      );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response, error);
+    }
+  }
+
   @Get(':search')
   async search(@Param('search') search: string, @Response() response: any) {
     try {
