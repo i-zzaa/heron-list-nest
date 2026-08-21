@@ -7,12 +7,14 @@ import {
   Put,
   Delete,
   Param,
+  Request,
   Response,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConvenioService } from './convenio.service';
 import { ConvenioProps } from './convenio.interface';
 import { responseError, responseSuccess } from 'src/util/response';
+import { normalizePageSize } from 'src/util/pagination';
 import { PermissionsGuard } from 'src/auth/permissions.guard';
 import { RequirePermission } from 'src/auth/require-permission.decorator';
 
@@ -32,6 +34,30 @@ export class ConvenioController {
   async dropdown(@Response() response: any) {
     try {
       const data = await this.convenioService.dropdown();
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response, error);
+    }
+  }
+
+  @Get()
+  async getAll(@Request() req: any, @Response() response: any) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const pageSize = normalizePageSize(Number(req.query.pageSize));
+      const data = await this.convenioService.getAll(page, pageSize);
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response, error);
+    }
+  }
+
+  // GET /convenio/:search — busca por texto da listagem. Precisa vir
+  // depois de 'dropdown' e de '' (rota estática x parametrizada).
+  @Get(':search')
+  async search(@Param('search') search: string, @Response() response: any) {
+    try {
+      const data = await this.convenioService.search(search);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response, error);
