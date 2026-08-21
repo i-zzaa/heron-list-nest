@@ -1677,6 +1677,7 @@ export class AgendaService {
           statusEventos: true,
           diasFrequencia: true,
           isExterno: true,
+          localExternoDescricao: true,
           frequencia: true,
           intervalo: true,
           exdate: true,
