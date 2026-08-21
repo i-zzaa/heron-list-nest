@@ -27,6 +27,39 @@ const isRequestSecure = (req: any): boolean => {
   return typeof proto === 'string' && proto.split(',')[0].trim() === 'https';
 };
 
+/**
+ * EXPIRES_IN_SECONDS, apesar do nome, é o `expiresIn` do jsonwebtoken —
+ * aceita tanto segundos puros ("3600") quanto string de duração ("1h",
+ * "7d"), formato usado de verdade em .env (auth.module.ts:
+ * `expiresIn: process.env.EXPIRES_IN_SECONDS || '1h'`). `Number('1h')` é
+ * NaN, e `res.cookie()` rejeita `maxAge: NaN` com 400 — daí o parser
+ * abaixo, em vez de `Number()` direto. Sem depender do pacote `ms`
+ * (só transitivo via jsonwebtoken, não uma dependência declarada) — só
+ * os sufixos que esse projeto já usa (s/m/h/d) precisam ser entendidos.
+ */
+export const parseExpiresInMs = (valor: string | undefined): number => {
+  const bruto = (valor || '1h').trim();
+
+  if (/^\d+$/.test(bruto)) {
+    return Number(bruto) * 1000;
+  }
+
+  const match = /^(\d+(?:\.\d+)?)\s*(s|m|h|d)$/i.exec(bruto);
+  if (!match) {
+    return 60 * 60 * 1000; // fallback: 1h, nunca NaN
+  }
+
+  const quantidade = Number(match[1]);
+  const unidadeMs: Record<string, number> = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+
+  return quantidade * unidadeMs[match[2].toLowerCase()];
+};
+
 export const buildAccessTokenCookieOptions = (req: any) => ({
   httpOnly: true,
   secure: isRequestSecure(req),
@@ -34,7 +67,7 @@ export const buildAccessTokenCookieOptions = (req: any) => ({
   // nova aba) ainda manda o cookie; só bloqueia em requisições
   // cross-site "de fundo" (o caso que importa pra CSRF).
   sameSite: 'lax' as const,
-  maxAge: Number(process.env.EXPIRES_IN_SECONDS || 3600) * 1000,
+  maxAge: parseExpiresInMs(process.env.EXPIRES_IN_SECONDS),
   path: '/',
 });
 
