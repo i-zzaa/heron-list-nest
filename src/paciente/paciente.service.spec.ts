@@ -475,8 +475,8 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
     );
   };
 
-  it('inclui Plano Terapêutico já vencido (emitido há 13 meses, vence em 1 ano)', async () => {
-    const dataEmissao = moment().subtract(13, 'months').format('YYYY-MM-DD');
+  it('inclui Plano Terapêutico já vencido (emitido há 7 meses, vence em 6 meses)', async () => {
+    const dataEmissao = moment().subtract(7, 'months').format('YYYY-MM-DD');
     const service = buildService([
       {
         id: 1,
@@ -497,10 +497,10 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
     expect(item.diasParaVencer).toBeLessThan(0);
   });
 
-  it('inclui Laudo Médico vencendo dentro da janela de antecedência (vence em 6 meses)', async () => {
-    // Emitido há (6 meses - 10 dias) -> vence em 10 dias, dentro da janela de 15.
+  it('inclui Laudo Médico vencendo dentro da janela de antecedência (vence em 12 meses)', async () => {
+    // Emitido há (12 meses - 10 dias) -> vence em 10 dias, dentro da janela de 15.
     const dataEmissao = moment()
-      .subtract(6, 'months')
+      .subtract(12, 'months')
       .add(10, 'days')
       .format('YYYY-MM-DD');
     const service = buildService([
@@ -527,7 +527,7 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
   it('não inclui documento vencendo fora da janela de antecedência', async () => {
     // Vence em 40 dias — fora da janela de 15.
     const dataEmissao = moment()
-      .subtract(6, 'months')
+      .subtract(12, 'months')
       .add(40, 'days')
       .format('YYYY-MM-DD');
     const service = buildService([
@@ -545,8 +545,8 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
   });
 
   it('um paciente com os dois documentos vencendo aparece duas vezes na lista', async () => {
-    const planoVencido = moment().subtract(13, 'months').format('YYYY-MM-DD');
-    const laudoVencido = moment().subtract(7, 'months').format('YYYY-MM-DD');
+    const planoVencido = moment().subtract(7, 'months').format('YYYY-MM-DD');
+    const laudoVencido = moment().subtract(13, 'months').format('YYYY-MM-DD');
     const service = buildService([
       {
         id: 4,
@@ -567,7 +567,7 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
 
   it('usa 15 dias como janela padrão quando nenhum valor é passado', async () => {
     const dataEmissao = moment()
-      .subtract(6, 'months')
+      .subtract(12, 'months')
       .add(10, 'days')
       .format('YYYY-MM-DD');
     const service = buildService([

@@ -519,7 +519,7 @@ export class DashboardService {
         this.getEventosDoDia(hoje),
         this.getEventosNoIntervalo(inicio, fim),
         this.mapaStatusEventos(),
-        // Plano Terapêutico (1 ano)/Laudo Médico (6 meses) vencido ou
+        // Plano Terapêutico (6 meses)/Laudo Médico (12 meses) vencido ou
         // vencendo em até 15 dias — janela fixa aqui, independente do
         // período escolhido no dashboard (é sobre o cadastro do
         // paciente, não sobre a agenda do período).

@@ -1005,7 +1005,7 @@ export class PacienteService {
   }
 
   // Validade dos documentos do paciente (pedido do usuário): Plano
-  // Terapêutico vence 1 ano após a emissão, Laudo Médico vence 6 meses
+  // Terapêutico vence 6 meses após a emissão, Laudo Médico vence 12 meses
   // após. Não são datas gravadas — sempre recalculadas a partir da data
   // de emissão, pra nunca ficarem desatualizadas se o cadastro mudar.
   private calcularVencimentoDocumento(
@@ -1068,13 +1068,13 @@ export class PacienteService {
         {
           tipo: 'plano_terapeutico',
           dataEmissao: paciente.dataEmissaoPlanoTerapeutico,
-          quantidade: 1,
-          unidade: 'years',
+          quantidade: 6,
+          unidade: 'months',
         },
         {
           tipo: 'laudo_medico',
           dataEmissao: paciente.dataEmissaoLaudoMedico,
-          quantidade: 6,
+          quantidade: 12,
           unidade: 'months',
         },
       ];
