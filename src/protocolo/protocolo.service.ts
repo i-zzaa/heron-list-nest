@@ -579,21 +579,30 @@ export class ProtocoloService {
     );
   }
 
-  private pruneExcludedKeys(node: any, excludeKeys: Set<string>): any {
-    if (Array.isArray(node)) {
-      return node
-        .filter((item) => !excludeKeys.has(String(item?.key)))
-        .map((item) => this.pruneExcludedKeys(item, excludeKeys));
+  // Espelha luck/src/util/tree.ts (filterExcludedNode/buildFilteredTreeNodes)
+  // exatamente: só FOLHA é comparada com excludeKeys pela própria key; um
+  // nó com filhos nunca é excluído pela própria key — desaparece só como
+  // efeito colateral de todos os filhos terem sido podados (galho vazio).
+  private pruneExcludedNode(node: any, excludeKeys: Set<string>): any | null {
+    const isLeaf = !Array.isArray(node?.children) || node.children.length === 0;
+
+    if (isLeaf) {
+      return excludeKeys.has(String(node?.key)) ? null : node;
     }
 
-    if (node && typeof node === 'object' && Array.isArray(node.children)) {
-      return {
-        ...node,
-        children: this.pruneExcludedKeys(node.children, excludeKeys),
-      };
-    }
+    const childrenFiltrados = node.children
+      .map((child: any) => this.pruneExcludedNode(child, excludeKeys))
+      .filter((filho: any) => filho !== null);
 
-    return node;
+    return childrenFiltrados.length
+      ? { ...node, children: childrenFiltrados }
+      : null;
+  }
+
+  private pruneExcludedKeys(nodes: any[], excludeKeys: Set<string>): any[] {
+    return (Array.isArray(nodes) ? nodes : [])
+      .map((node) => this.pruneExcludedNode(node, excludeKeys))
+      .filter((node) => node !== null);
   }
 
   private async resolveMetaTree(body: any) {

@@ -101,14 +101,17 @@ export class SessaoService {
   }
 
   /**
-   * `resumo` é HTML vindo de um editor rich-text — "vazio" pro editor pode
-   * ser `<p></p>`/`<p><br></p>`, não string vazia crua. Já validado no
-   * cliente (useSessionForm.ts: isResumoVazio), mas nunca só confiar em
-   * validação client-side pra uma regra obrigatória — reforça aqui.
+   * `resumo` é HTML vindo de um editor rich-text (Tiptap) — "vazio" pro
+   * editor pode ser `<p></p>`/`<p><br></p>`/com `&nbsp;` sobrando, não
+   * string vazia crua. Mesma regra de `isResumoVazio`
+   * (luck/src/util/sessionTree.ts), só que no servidor — já validado no
+   * cliente, mas nunca só confiar em validação client-side pra uma regra
+   * obrigatória.
    */
   private assertResumoPreenchido(resumo: any) {
     const textoSemTags = String(resumo || '')
       .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
       .trim();
 
     if (!textoSemTags) {

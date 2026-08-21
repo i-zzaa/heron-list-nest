@@ -114,3 +114,51 @@ describe('ProtocoloService.filterMeta — excludeKeys (item 8)', () => {
     expect(keysRestantes).toContain(keyMetaB);
   });
 });
+
+describe('ProtocoloService.pruneExcludedKeys — semântica exata do front (luck/src/util/tree.ts)', () => {
+  const service = new ProtocoloService({} as any);
+
+  it('exclui uma folha pela própria key', () => {
+    const arvore = [{ key: 'a', children: [{ key: 'a-1' }, { key: 'a-2' }] }];
+
+    const podada = (service as any).pruneExcludedKeys(
+      arvore,
+      new Set(['a-1']),
+    );
+
+    expect(podada[0].children.map((c: any) => c.key)).toEqual(['a-2']);
+  });
+
+  it('NÃO remove um galho só por ter a própria key excluída — só desaparece quando fica sem filhos', () => {
+    const arvore = [
+      { key: 'galho-excluido', children: [{ key: 'folha-1' }] },
+      { key: 'galho-mantido', children: [{ key: 'folha-2' }] },
+    ];
+
+    // "galho-excluido" está em excludeKeys, mas tem um filho ("folha-1")
+    // que NÃO está — o front nunca compara a key de um nó com filhos
+    // contra excludeKeys, só filtra os filhos.
+    const podada = (service as any).pruneExcludedKeys(
+      arvore,
+      new Set(['galho-excluido']),
+    );
+
+    expect(podada.map((n: any) => n.key)).toEqual([
+      'galho-excluido',
+      'galho-mantido',
+    ]);
+  });
+
+  it('remove o galho quando TODOS os filhos são excluídos (fica vazio)', () => {
+    const arvore = [
+      { key: 'galho', children: [{ key: 'folha-1' }, { key: 'folha-2' }] },
+    ];
+
+    const podada = (service as any).pruneExcludedKeys(
+      arvore,
+      new Set(['folha-1', 'folha-2']),
+    );
+
+    expect(podada).toEqual([]);
+  });
+});
