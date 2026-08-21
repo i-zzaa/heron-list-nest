@@ -109,8 +109,8 @@ export class FinanceiroService {
     // filtra statusEventos cobrados
     // agrupa por paciente
 
-    const { pacienteId, dataFim, dataInicio, statusEventosId } = body;
-    const dataFim = dataFim || dataInicio;
+    const { pacienteId, dataFim: dataFimBody, dataInicio, statusEventosId } = body;
+    const dataFim = dataFimBody || dataInicio;
 
     const eventosBrutos = await this.agendaService.getFilterFinancialPaciente({
       pacienteId,
@@ -271,8 +271,8 @@ export class FinanceiroService {
   }
 
   async terapeuta(body: FinancialProps) {
-    const { terapeutaId, dataFim, dataInicio, statusEventosId } = body;
-    const dataFim = dataFim || dataInicio;
+    const { terapeutaId, dataFim: dataFimBody, dataInicio, statusEventosId } = body;
+    const dataFim = dataFimBody || dataInicio;
 
     const eventosBrutos = await this.agendaService.getFilterFinancialTerapeuta({
       terapeutaId,

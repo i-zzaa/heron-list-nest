@@ -2510,15 +2510,12 @@ export class AgendaService {
   async getFilterFinancialPaciente({
     dataInicio,
     dataFim,
-    dataFim,
     pacienteId,
     statusEventosId,
   }: any) {
-    const filtroDataFim = dataFim || dataFim;
-
     return this.getFinancialEvents(
       {
-        ...buildDateRangeWhere(dataInicio, filtroDataFim),
+        ...buildDateRangeWhere(dataInicio, dataFim),
         pacienteId,
         statusEventosId,
       },
@@ -2535,15 +2532,12 @@ export class AgendaService {
   getFilterFinancialTerapeuta = async ({
     dataInicio,
     dataFim,
-    dataFim,
     terapeutaId,
   }: any) => {
-    const filtroDataFim = dataFim || dataFim;
-
     return this.getFinancialEvents(
       {
         terapeutaId,
-        ...buildDateRangeWhere(dataInicio, filtroDataFim),
+        ...buildDateRangeWhere(dataInicio, dataFim),
       },
       {
         paciente: {
