@@ -10,6 +10,26 @@ const buildHistoricoMock = () => ({
   registrarExclusao: jest.fn().mockResolvedValue(undefined),
 });
 
+describe('AgendaService.getCalendarioSelect — convenio em /evento/filtro', () => {
+  it('inclui convenio (id/nome) dentro do select de paciente', () => {
+    const service: any = new AgendaService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      buildHistoricoMock() as any,
+    );
+
+    const select = service.getCalendarioSelect();
+
+    expect(select.paciente.select.convenio).toEqual({
+      select: { id: true, nome: true },
+    });
+  });
+});
+
 describe('AgendaService.formatEvents', () => {
   let service: AgendaService;
 

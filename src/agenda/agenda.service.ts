@@ -109,6 +109,12 @@ export class AgendaService {
         select: {
           nome: true,
           id: true,
+          convenio: {
+            select: {
+              id: true,
+              nome: true,
+            },
+          },
         },
       },
       modalidade: {
