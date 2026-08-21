@@ -152,6 +152,10 @@ model TipoSessao {
 model Ticket {
   id    Int     @id @default(autoincrement())
   nome  String
+  // Mesmo padrão de Especialidade/Localidade/Funcao: desativar em vez de
+  // excluir (a listagem paginada só mostra ativo=true — ver
+  // TicketService.getAll/dropdown/search).
+  ativo Boolean @default(true)
   baixa Baixa[]
 }
 

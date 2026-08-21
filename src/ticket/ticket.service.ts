@@ -24,14 +24,18 @@ export class TicketService {
         select: {
           id: true,
           nome: true,
+          ativo: true,
         },
         orderBy: {
           nome: 'asc',
         },
+        where: {
+          ativo: true,
+        },
         skip,
         take: pageSize,
       }),
-      prisma.ticket.count(),
+      prisma.ticket.count({ where: { ativo: true } }),
     ]);
 
     const pagination = buildPagination(page, pageSize, totalItems);
@@ -50,6 +54,9 @@ export class TicketService {
       orderBy: {
         nome: 'asc',
       },
+      where: {
+        ativo: true,
+      },
     });
   }
 
@@ -64,7 +71,9 @@ export class TicketService {
       orderBy: {
         nome: 'asc',
       },
-      where: buildTextSearchWhere(word, ['nome']),
+      where: buildTextSearchWhere(word, ['nome'], {
+        ativo: true,
+      }),
     });
   }
 
@@ -72,7 +81,7 @@ export class TicketService {
     const prisma = getPrismaClient(this.prismaService);
 
     return prisma.ticket.create({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'ativo']),
     });
   }
 
@@ -80,7 +89,7 @@ export class TicketService {
     const prisma = getPrismaClient(this.prismaService);
 
     return prisma.ticket.update({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'ativo']),
       where: {
         id: toNumberId(body.id),
       },
