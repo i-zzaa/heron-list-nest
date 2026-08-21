@@ -50,6 +50,12 @@ const ALLOWED_QUERY_FIELDS = new Set([
   'statusEventosId',
   'usuarioId',
   'ticketId',
+  // Filtro de Baixa por período (front: FINANCEIRO_FILTRO_SELECT_DATA_
+  // INICIAL/FINAL, mesmos campos usados na tela de Baixa) — faltava
+  // suporte aqui, então POST /baixa/filtro com dataInicio/dataFim no
+  // corpo era silenciosamente ignorado (chave fora da allowlist).
+  'dataInicio',
+  'dataFim',
 ]);
 
 export const buildQueryFilter = (
@@ -92,6 +98,16 @@ export const buildQueryFilter = (
       case 'usuarioId':
       case 'ticketId':
         filter[key] = Number(value);
+        break;
+      // Baixa.dataEvento é string única ('YYYY-MM-DD', comparação
+      // lexicográfica funciona), não um par dataInicio/dataFim de série
+      // recorrente como em Calendario — dataInicio/dataFim do filtro viram
+      // limites (gte/lte) sobre essa mesma coluna.
+      case 'dataInicio':
+        filter.dataEvento = { ...(filter.dataEvento || {}), gte: value };
+        break;
+      case 'dataFim':
+        filter.dataEvento = { ...(filter.dataEvento || {}), lte: value };
         break;
       default:
         filter[key] =

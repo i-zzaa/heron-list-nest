@@ -16,4 +16,29 @@ describe('buildQueryFilter', () => {
       baixa: false,
     });
   });
+
+  // POST /baixa/filtro com dataInicio/dataFim no corpo era ignorado
+  // silenciosamente (fora da allowlist) — a listagem nunca filtrava por
+  // período, mesmo o front sempre mandando os dois campos.
+  it('filtra Baixa.dataEvento por período (dataInicio/dataFim)', () => {
+    const filter = buildQueryFilter({
+      dataInicio: '2026-08-01',
+      dataFim: '2026-08-21',
+      baixa: 'false',
+    });
+
+    expect(filter).toEqual({
+      dataEvento: { gte: '2026-08-01', lte: '2026-08-21' },
+      baixa: false,
+    });
+  });
+
+  it('aceita só dataInicio ou só dataFim, sem exigir os dois', () => {
+    expect(buildQueryFilter({ dataInicio: '2026-08-01' })).toEqual({
+      dataEvento: { gte: '2026-08-01' },
+    });
+    expect(buildQueryFilter({ dataFim: '2026-08-21' })).toEqual({
+      dataEvento: { lte: '2026-08-21' },
+    });
+  });
 });
