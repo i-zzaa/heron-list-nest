@@ -56,6 +56,34 @@ export class FinanceiroService {
     return eventos;
   }
 
+  /**
+   * Item 2 dos "pontos menores" (heron-list-web): total por grupo do
+   * accordion (por terapeuta em paciente(), por paciente em terapeuta())
+   * era somado no cliente (Financial.tsx: reducerValorTotal/
+   * reducerHorasTotal), iterando o array de cada grupo a cada render.
+   * Aditivo — `data` continua exatamente como está (array por grupo, o
+   * front não precisa mudar como renderiza a tabela); isso só acrescenta
+   * o total já pronto por chave, pra tela usar em vez de recalcular.
+   */
+  private calcularTotaisPorGrupo(
+    grupos: Record<string, Array<{ valorTotal?: number; horas?: string }>>,
+  ) {
+    return Object.fromEntries(
+      Object.entries(grupos).map(([chave, itens]) => {
+        const valorTotal = itens.reduce(
+          (acc, item) => acc + (item.valorTotal || 0),
+          0,
+        );
+        const horas = itens.reduce(
+          (acc, item) => acc.add(moment.duration(item.horas || '00:00:00')),
+          moment.duration(0),
+        );
+
+        return [chave, { valorTotal, horas: formaTime(horas) }];
+      }),
+    );
+  }
+
   private shouldSkipEvent(
     evento: any,
     dataFim: string,
@@ -228,6 +256,9 @@ export class FinanceiroService {
 
     return {
       data: terapeutasAgrupados,
+      // Item 2 dos "pontos menores": total por grupo (por terapeuta,
+      // aqui) já pronto — data[chave] continua array, sem mudança.
+      totaisPorGrupo: this.calcularTotaisPorGrupo(terapeutasAgrupados),
       nome: paciente,
       geral: {
         nome: paciente,
@@ -427,6 +458,9 @@ export class FinanceiroService {
 
     return {
       data: pacientesAgrupados,
+      // Item 2 dos "pontos menores": total por grupo (por paciente, aqui)
+      // já pronto — data[chave] continua array, sem mudança.
+      totaisPorGrupo: this.calcularTotaisPorGrupo(pacientesAgrupados),
       nome: terapeuta,
       geral: {
         nome: terapeuta,

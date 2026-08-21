@@ -216,3 +216,38 @@ describe('FinanceiroService', () => {
     });
   });
 });
+
+describe('FinanceiroService.calcularTotaisPorGrupo (item 2 dos pontos menores)', () => {
+  it('soma valorTotal e horas (HH:mm:ss) por grupo, sem alterar a lista original', () => {
+    const service: any = new FinanceiroService(
+      {} as PrismaService,
+      {} as unknown as AgendaService,
+    );
+
+    const grupos = {
+      'Terapeuta A': [
+        { valorTotal: 100, horas: '01:00:00' },
+        { valorTotal: 50, horas: '00:30:00' },
+      ],
+      'Terapeuta B': [{ valorTotal: 80, horas: '02:15:00' }],
+    };
+
+    const totais = service.calcularTotaisPorGrupo(grupos);
+
+    expect(totais['Terapeuta A']).toEqual({ valorTotal: 150, horas: '01:30:00' });
+    expect(totais['Terapeuta B']).toEqual({ valorTotal: 80, horas: '02:15:00' });
+    // não muda o array original (data[chave] continua igual pro front)
+    expect(grupos['Terapeuta A']).toHaveLength(2);
+  });
+
+  it('grupo vazio soma zero sem quebrar', () => {
+    const service: any = new FinanceiroService(
+      {} as PrismaService,
+      {} as unknown as AgendaService,
+    );
+
+    const totais = service.calcularTotaisPorGrupo({ Vazio: [] });
+
+    expect(totais.Vazio).toEqual({ valorTotal: 0, horas: '00:00:00' });
+  });
+});
