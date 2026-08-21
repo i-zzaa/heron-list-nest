@@ -212,7 +212,11 @@ export class AgendaService {
       km: normalizeCurrencyValue(body?.km),
       dataFim: body.dataFim || '',
       start: body.start,
-      end: body.end,
+      // Item 4 dos "pontos menores" (heron-list-web): duração padrão de
+      // sessão (1h) era fixada no cliente (CalendarForm.tsx, recalculada a
+      // cada mudança de horário inicial). Aceita end ausente e calcula
+      // aqui, na mesma conta (start + 1h) — start continua obrigatório.
+      end: body.end || moment(body.start, 'HH:mm').add(1, 'hours').format('HH:mm'),
       diasFrequencia,
       ciclo: 'ativo',
       observacao: body.observacao || '',
@@ -1235,6 +1239,23 @@ export class AgendaService {
         !isAttended &&
         statusNome !== 'Atestado';
 
+      // Item 1 dos "pontos menores" (heron-list-web): "3/8 semanas" era
+      // calculado no cliente (view-evento/index.tsx: avaliationCount +
+      // diffWeek) só pra modalidade "Avaliação". Mesma conta aqui —
+      // semana atual (desde dataInicio até a ocorrência, +1) e semana
+      // total (desde dataInicio até dataFim, +1).
+      const avaliacaoProgresso =
+        item?.modalidade?.nome === 'Avaliação' && item?.dataInicio && item?.dataFim
+          ? {
+              atual: moment(item.date || item.dataInicio).diff(
+                moment(item.dataInicio),
+                'weeks',
+              ) + 1,
+              total:
+                moment(item.dataFim).diff(moment(item.dataInicio), 'weeks') + 1,
+            }
+          : null;
+
       return {
         ...item,
         isAttended,
@@ -1242,6 +1263,7 @@ export class AgendaService {
         vago,
         podeMarcarAtendido,
         podeMarcarAtestado,
+        avaliacaoProgresso,
       };
     });
   }
@@ -1355,6 +1377,10 @@ export class AgendaService {
           daysOfWeek: undefined,
           startTime: undefined,
           endTime: undefined,
+          // Item 3 dos "pontos menores" (heron-list-web): CalendarForm.tsx
+          // recalculava isso 3x (moment(dataAtual).day()) — dia da semana
+          // da ocorrência específica que está sendo editada, já resolvido.
+          diaSemanaOcorrencia: diaSemana,
         });
       }
     });
