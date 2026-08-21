@@ -576,6 +576,109 @@ export class TerapeutaService {
     return device === DEVICE.mobile ? mobileSort : webArray;
   }
 
+  /**
+   * Item 4 do pedido do front (docs/pedido-backend-dashboard.md,
+   * luck/src/pages/Home.tsx): dashboard de produtividade da terapeuta,
+   * hoje calculado no cliente em cima de /evento/filtro. Reaproveita
+   * getAvailableTimes (mesma expansão de recorrência que a Agenda já usa)
+   * pra garantir que a contagem bate 1:1 com o que /evento/filtro
+   * devolveria pro mesmo intervalo — sem duplicar a lógica de
+   * dias/exdate/isChildren aqui.
+   */
+  async getDashboardResumo(
+    terapeutaId: number,
+    dataInicio: string,
+    dataFim: string,
+    login: string,
+  ) {
+    const eventosBrutos = await this.getAvailableTimes(
+      dataInicio,
+      dataFim,
+      { terapeutaId },
+      undefined,
+      login,
+    );
+
+    const sessoes = (
+      Array.isArray(eventosBrutos) ? eventosBrutos : Object.values(eventosBrutos || {}).flat()
+    ).filter((item: any) => item?.tipo !== 'livre');
+
+    const totalSessoes = sessoes.length;
+
+    const pacientesUnicos = new Set(
+      sessoes.map((item: any) => item?.paciente?.id ?? item?.title),
+    );
+    const totalPacientes = pacientesUnicos.size;
+
+    const isAtendido = (item: any) => {
+      const codigo = item?.statusEventos?.codigo?.toLowerCase?.();
+      if (codigo === 'atendido') return true;
+      return (item?.statusEventos?.nome || '').toLowerCase().includes('atendido');
+    };
+
+    const totalAtendidos = sessoes.filter(isAtendido).length;
+    const taxaComparecimento =
+      totalSessoes > 0 ? Math.round((totalAtendidos / totalSessoes) * 100) : null;
+
+    const minutosTotais = sessoes.reduce((acc: number, item: any) => {
+      const start = item?.data?.start;
+      const end = item?.data?.end;
+      if (!start || !end) return acc;
+      const diff = moment(end, 'HH:mm').diff(moment(start, 'HH:mm'), 'minutes');
+      return acc + (diff > 0 ? diff : 0);
+    }, 0);
+    const horas = Math.floor(minutosTotais / 60);
+    const minutosRestantes = minutosTotais % 60;
+    const horasAtendidas = minutosRestantes > 0 ? `${horas}h${minutosRestantes}` : `${horas}h`;
+
+    const eventosAtendidos = sessoes.filter(isAtendido);
+    const resumosPendentes = await this.buildResumosPendentes(eventosAtendidos);
+
+    return {
+      totalSessoes,
+      totalPacientes,
+      taxaComparecimento,
+      horasAtendidas,
+      resumosPendentes,
+    };
+  }
+
+  private async buildResumosPendentes(eventosAtendidos: any[]) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const ids = eventosAtendidos
+      .map((item: any) => item?.id)
+      .filter((id: any) => typeof id === 'number');
+
+    if (!ids.length) {
+      return [];
+    }
+
+    // 1 query batch pra todos os ids do período (evita N+1 — ver pedido).
+    const sessoesSalvas = await prisma.sessao.findMany({
+      select: { calendarioId: true, resumo: true },
+      where: { calendarioId: { in: ids } },
+    });
+    const resumoPorCalendarioId = new Map(
+      sessoesSalvas.map((s: any) => [s.calendarioId, s.resumo]),
+    );
+
+    const isResumoVazio = (resumo: any) =>
+      !String(resumo || '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+
+    return eventosAtendidos
+      .filter((item: any) => isResumoVazio(resumoPorCalendarioId.get(item.id)))
+      .map((item: any) => ({
+        id: item.id,
+        pacienteNome: item?.paciente?.nome || item?.title || '-',
+        data: moment(item?.date || item?.dataAtual || item?.dataInicio).format('DD/MM'),
+        horario: item?.data?.start || item?.start || '',
+      }));
+  }
+
   async getTerapeutaByEspecialidade() {
     const prisma = this.prismaService.getPrismaClient();
 
