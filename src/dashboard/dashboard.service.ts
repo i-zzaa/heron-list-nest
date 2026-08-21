@@ -536,19 +536,25 @@ export class DashboardService {
     const conflitos = this.contarConflitosDeHorario(eventosHoje, statusMap);
     const rotulo = ROTULO_PERIODO[periodo];
 
+    // Item 2 do pedido do front (heron-list-web): código com formato único.
+    // Antes usava 'avisar'/'evolucao_pendente'/'conflito_agenda' — não
+    // batia com NENHUMA das chaves que Dashboard.tsx: PENDENCIA_META
+    // reconhece ('avisar-hoje', 'evolucao-nao-lancada', 'conflito-agenda',
+    // com/sem hífen), então toda pendência caía no ícone genérico de
+    // fallback, sempre, independente do tipo real.
     const pendencias = [
       {
-        tipo: 'avisar',
+        tipo: 'avisar-hoje',
         quantidade: idsAvisar.length,
         descricao: 'Eventos marcados para avisar hoje',
       },
       {
-        tipo: 'evolucao_pendente',
+        tipo: 'evolucao-nao-lancada',
         quantidade: semEvolucao.length,
         descricao: `Sessões atendidas sem evolução lançada (${rotulo})`,
       },
       {
-        tipo: 'conflito_agenda',
+        tipo: 'conflito-agenda',
         quantidade: conflitos,
         descricao: 'Conflitos de horário na agenda de hoje',
       },
@@ -653,7 +659,11 @@ export class DashboardService {
         terapeutaId,
         nome: terapeutas.get(terapeutaId)?.nome || '-',
         sessoes: dados.sessoes,
-        presencaPercentual: Math.round((dados.atendidos / dados.sessoes) * 100),
+        // Item 2 do pedido do front: era presencaPercentual, que não bate
+        // com nenhum dos nomes que Dashboard.tsx: buildTopTerapeutas
+        // reconhece (presenca/taxaPresenca/percentualPresenca) — a coluna
+        // de presença sempre vinha vazia.
+        presenca: Math.round((dados.atendidos / dados.sessoes) * 100),
       }))
       .sort((a, b) => b.sessoes - a.sessoes)
       .slice(0, limite);
