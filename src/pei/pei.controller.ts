@@ -32,9 +32,9 @@ export class PeiController {
   }
 
   @Get('activity-session/:id')
-  async getActivity(@Response() response: any, @Body() body: any) {
+  async getActivity(@Response() response: any, @Param('id') id: string) {
     try {
-      const data = await this.peiService.getActivity(body);
+      const data = await this.peiService.getActivity(Number(id));
       responseSuccess(response, data);
     } catch (error) {
       responseError(response, error);
