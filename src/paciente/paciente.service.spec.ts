@@ -87,6 +87,36 @@ describe('PacienteService', () => {
     ]);
   });
 
+  it('POST /paciente/filtro devolve dataEmissaoPlanoTerapeutico/dataEmissaoLaudoMedico (mesmos campos aceitos no POST/PUT /paciente)', async () => {
+    const findMany = jest.fn().mockResolvedValueOnce([
+      {
+        id: 70,
+        nome: 'ABIGAIL SILVA TESTE',
+        dataNascimento: '2000-01-01',
+        dataEmissaoPlanoTerapeutico: '2025-07-21',
+        dataEmissaoLaudoMedico: '2026-03-03',
+      },
+    ]).mockResolvedValueOnce([{ id: 70 }]);
+
+    const prismaClient = { paciente: { findMany } };
+
+    service = new PacienteService(
+      { getPrismaClient: () => prismaClient } as any,
+      historicoServiceMock,
+    );
+
+    const result = await service.filterSinglePatients({}, 1, 10);
+
+    expect(findMany.mock.calls[0][0].select).toMatchObject({
+      dataEmissaoPlanoTerapeutico: true,
+      dataEmissaoLaudoMedico: true,
+    });
+    expect(result.data[0]).toMatchObject({
+      dataEmissaoPlanoTerapeutico: '2025-07-21',
+      dataEmissaoLaudoMedico: '2026-03-03',
+    });
+  });
+
   it('should filter patients by patient id on the paciente model when pacientes is provided', async () => {
     const findMany = jest
       .fn()

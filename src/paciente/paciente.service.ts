@@ -973,6 +973,8 @@ export class PacienteService {
           carteirinha: true,
           tipoSessao: true,
           status: true,
+          dataEmissaoPlanoTerapeutico: true,
+          dataEmissaoLaudoMedico: true,
           vaga: {
             include: {
               periodo: true,
