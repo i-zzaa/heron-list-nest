@@ -829,3 +829,172 @@ describe('AgendaService.applyPermissionFlags (item 3 — heron-list-web)', () =>
     expect(item.podeMarcarAtestado).toBe(false);
   });
 });
+
+describe('AgendaService — resumo de sessão automático (RESUMO DE SESSÃO)', () => {
+  const buildService = (prisma: any) =>
+    new AgendaService(
+      { getPrismaClient: () => prisma } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      buildHistoricoMock() as any,
+    );
+
+  describe('statusExigeResumoAutomatico', () => {
+    const service: any = buildService({});
+
+    it('reconhece "Cancelado" e qualquer variação, sem exigir match exato', () => {
+      expect(service.statusExigeResumoAutomatico('Cancelado')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('Cancelado c/ Antecedência')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('Cancelado s/ Antecedência')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('Cancelado Terapeuta')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('Cancelado Clínica')).toBe(true);
+    });
+
+    it('reconhece "Atestado" e "Falta"', () => {
+      expect(service.statusExigeResumoAutomatico('Atestado')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('Falta')).toBe(true);
+    });
+
+    it('é case-insensitive e tolera espaços nas pontas', () => {
+      expect(service.statusExigeResumoAutomatico(' ATESTADO ')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('falta')).toBe(true);
+      expect(service.statusExigeResumoAutomatico('cancelado terapeuta')).toBe(true);
+    });
+
+    it('não marca outros status (Confirmado, Pago, Atendido)', () => {
+      expect(service.statusExigeResumoAutomatico('Confirmado')).toBe(false);
+      expect(service.statusExigeResumoAutomatico('Pago')).toBe(false);
+      expect(service.statusExigeResumoAutomatico('Atendido')).toBe(false);
+    });
+
+    it('não quebra com nome ausente/vazio', () => {
+      expect(service.statusExigeResumoAutomatico(undefined as any)).toBe(false);
+      expect(service.statusExigeResumoAutomatico('')).toBe(false);
+    });
+  });
+
+  describe('montarResumoAutomatico', () => {
+    const service: any = buildService({});
+
+    it('gera texto com no mínimo 200 caracteres incluindo status, data e horário', () => {
+      const texto = service.montarResumoAutomatico('Falta', '2026-08-21', '14:00');
+
+      expect(texto.length).toBeGreaterThanOrEqual(200);
+      expect(texto).toContain('Falta');
+      expect(texto).toContain('21/08/2026');
+      expect(texto).toContain('14:00');
+    });
+
+    it('usa "-" quando data/horário não vêm preenchidos', () => {
+      const texto = service.montarResumoAutomatico('Atestado', '', '');
+
+      expect(texto).toContain('Atestado');
+      expect(texto).toContain('-');
+    });
+  });
+
+  describe('autoPreencherResumoSessao', () => {
+    const evento = {
+      id: 10,
+      pacienteId: 5,
+      dataInicio: '2026-08-21',
+      start: '14:00',
+      statusEventosId: 99,
+    };
+
+    it('não faz nada quando o status não exige resumo automático', async () => {
+      const findMany = jest.fn();
+      const prisma = {
+        statusEventos: {
+          findUnique: jest.fn().mockResolvedValue({ nome: 'Confirmado' }),
+        },
+        sessao: { findFirst: findMany, update: jest.fn(), create: jest.fn() },
+      };
+      const service: any = buildService(prisma);
+
+      await service.autoPreencherResumoSessao(evento);
+
+      expect(prisma.sessao.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('cria a Sessao com o resumo automático quando não existe sessão registrada', async () => {
+      const prisma = {
+        statusEventos: {
+          findUnique: jest.fn().mockResolvedValue({ nome: 'Falta' }),
+        },
+        sessao: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn(),
+          create: jest.fn().mockResolvedValue({ id: 1 }),
+        },
+      };
+      const service: any = buildService(prisma);
+
+      await service.autoPreencherResumoSessao(evento);
+
+      expect(prisma.sessao.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          calendarioId: evento.id,
+          pacienteId: evento.pacienteId,
+          resumo: expect.stringContaining('Falta'),
+        }),
+      });
+      expect(prisma.sessao.update).not.toHaveBeenCalled();
+    });
+
+    it('acrescenta ao final do resumo já existente, sem sobrescrever (pedido explícito do usuário)', async () => {
+      const prisma = {
+        statusEventos: {
+          findUnique: jest.fn().mockResolvedValue({ nome: 'Cancelado s/ Antecedência' }),
+        },
+        sessao: {
+          findFirst: jest
+            .fn()
+            .mockResolvedValue({ id: 7, resumo: 'Evolução real já escrita pelo terapeuta.' }),
+          update: jest.fn().mockResolvedValue({}),
+          create: jest.fn(),
+        },
+      };
+      const service: any = buildService(prisma);
+
+      await service.autoPreencherResumoSessao(evento);
+
+      expect(prisma.sessao.update).toHaveBeenCalledWith({
+        where: { id: 7 },
+        data: {
+          resumo: expect.stringContaining('Evolução real já escrita pelo terapeuta.'),
+        },
+      });
+      const resumoFinal = (prisma.sessao.update as jest.Mock).mock.calls[0][0].data.resumo;
+      expect(resumoFinal.startsWith('Evolução real já escrita pelo terapeuta.')).toBe(true);
+      expect(resumoFinal).toContain('Cancelado s/ Antecedência');
+      expect(prisma.sessao.create).not.toHaveBeenCalled();
+    });
+
+    it('não lança erro quando o status não é encontrado', async () => {
+      const prisma = {
+        statusEventos: { findUnique: jest.fn().mockResolvedValue(null) },
+        sessao: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+      };
+      const service: any = buildService(prisma);
+
+      await expect(service.autoPreencherResumoSessao(evento)).resolves.toBeUndefined();
+      expect(prisma.sessao.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('captura erro internamente (não propaga) se a query falhar', async () => {
+      const prisma = {
+        statusEventos: {
+          findUnique: jest.fn().mockRejectedValue(new Error('DB fora do ar')),
+        },
+        sessao: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+      };
+      const service: any = buildService(prisma);
+
+      await expect(service.autoPreencherResumoSessao(evento)).resolves.toBeUndefined();
+    });
+  });
+});

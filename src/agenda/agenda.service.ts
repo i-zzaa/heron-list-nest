@@ -6,6 +6,7 @@ import { UserService } from 'src/user/user.service';
 import {
   HOURS,
   dateAddtDay,
+  dateFormatDDMMYYYY,
   dateFormatYYYYMMDD,
   dateSubtractDay,
   formatDateTime,
@@ -1691,6 +1692,109 @@ export class AgendaService {
   }
 
   /**
+   * Status que exigem resumo automático (pedido do usuário, sessão
+   * "RESUMO DE SESSÃO"): quando o atendimento é marcado como
+   * Cancelado (qualquer variação — "Cancelado c/ Antecedência",
+   * "Cancelado s/ Antecedência", "Cancelado Terapeuta", "Cancelado
+   * Clínica", etc.), Atestado ou Falta, precisa constar no resumo o
+   * motivo de não ter sido preenchido de verdade, pra fins de
+   * histórico.
+   */
+  private statusExigeResumoAutomatico(nome: string): boolean {
+    const normalizado = (nome || '').trim().toLowerCase();
+    return (
+      normalizado.startsWith('cancelado') ||
+      normalizado === 'atestado' ||
+      normalizado === 'falta'
+    );
+  }
+
+  private montarResumoAutomatico(
+    statusNome: string,
+    dataOcorrencia: string,
+    horario: string,
+  ): string {
+    const dataFormatada = dataOcorrencia
+      ? dateFormatDDMMYYYY(dataOcorrencia)
+      : '-';
+
+    return (
+      `Sessão não realizada. O atendimento agendado para o dia ${dataFormatada}, ` +
+      `às ${horario || '-'}, teve o status alterado para "${statusNome}". Este ` +
+      `resumo foi preenchido automaticamente pelo sistema para manter o ` +
+      `histórico do paciente completo, já que não houve evolução clínica a ` +
+      `registrar nesta data.`
+    );
+  }
+
+  /**
+   * Cria (ou complementa) o registro de Sessao do evento com o resumo
+   * automático, quando o status muda pra Cancelado / Atestado / Falta.
+   * Nunca sobrescreve um resumo já escrito — acrescenta o texto
+   * automático ao final dele (pedido explícito do usuário).
+   */
+  private async autoPreencherResumoSessao(evento: {
+    id: number;
+    pacienteId: number;
+    dataInicio: string;
+    start: string;
+    statusEventosId: number;
+  }) {
+    try {
+      const prisma = getPrismaClient(this.prismaService);
+
+      const status = await prisma.statusEventos.findUnique({
+        select: { nome: true },
+        where: { id: evento.statusEventosId },
+      });
+
+      if (!status || !this.statusExigeResumoAutomatico(status.nome)) {
+        return;
+      }
+
+      const textoAutomatico = this.montarResumoAutomatico(
+        status.nome,
+        evento.dataInicio,
+        evento.start,
+      );
+
+      const sessaoExistente = await prisma.sessao.findFirst({
+        select: { id: true, resumo: true },
+        where: { calendarioId: evento.id },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      if (sessaoExistente) {
+        const resumoAtual = (sessaoExistente.resumo || '').trim();
+        await prisma.sessao.update({
+          where: { id: sessaoExistente.id },
+          data: {
+            resumo: resumoAtual
+              ? `${resumoAtual}\n\n${textoAutomatico}`
+              : textoAutomatico,
+          },
+        });
+        return;
+      }
+
+      await prisma.sessao.create({
+        data: {
+          resumo: textoAutomatico,
+          calendarioId: evento.id,
+          pacienteId: evento.pacienteId,
+        },
+      });
+    } catch (error) {
+      // Nunca deixa o preenchimento automático do resumo derrubar a
+      // atualização do evento em si (já commitada nesse ponto) — só loga.
+      console.error(
+        `[autoPreencherResumoSessao] falha ao preencher resumo automático do evento ${evento?.id}:`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Entrada pública de edição — `updateCalendarioMobile` e
    * `updateCalendarioAtestado` delegam pra cá (ver seus corpos), então
    * instrumentar só este ponto já cobre os três caminhos, sem log
@@ -1715,6 +1819,13 @@ export class AgendaService {
           depois,
           login,
         );
+
+        // Resumo de sessão automático: só quando o status MUDOU pra um
+        // dos alvos (Cancelado*/Atestado/Falta) — não repete o texto a
+        // cada save subsequente que mantém o mesmo status.
+        if (antes.statusEventosId !== depois.statusEventosId) {
+          await this.autoPreencherResumoSessao(depois);
+        }
       }
     }
 
