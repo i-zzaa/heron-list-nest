@@ -619,3 +619,125 @@ describe('AgendaService validations', () => {
     });
   });
 });
+
+describe('AgendaService.expandRecurringOccurrences (item 5 — heron-list-web)', () => {
+  const buildService = () =>
+    new AgendaService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      buildHistoricoMock() as any,
+    );
+
+  it('devolve evento único sem alteração (não tem rrule)', () => {
+    const service: any = buildService();
+    const item = { id: 1, date: '2026-08-20', start: '2026-08-20 09:00', end: '2026-08-20 10:00' };
+
+    const result = service.expandRecurringOccurrences([item], '2026-08-17', '2026-08-23');
+
+    expect(result).toEqual([item]);
+  });
+
+  it('expande série semanal (todas as semanas) nos dias configurados dentro do range', () => {
+    const service: any = buildService();
+    // Série toda segunda e quarta, começando numa segunda, sem dataFim.
+    const item = {
+      id: 10,
+      groupId: 'serie-1',
+      dataInicio: '2026-08-17', // segunda-feira
+      dataFim: '',
+      start: '09:00',
+      end: '10:00',
+      exdate: [],
+      daysOfWeek: [1, 3], // segunda, quarta (convenção 0=domingo)
+      rrule: { freq: 'weekly', dtstart: '2026-08-17 09:00' },
+    };
+
+    // Range cobre 2 semanas completas.
+    const result = service.expandRecurringOccurrences(
+      [item],
+      '2026-08-17',
+      '2026-08-30',
+    );
+
+    const datas = result.map((r: any) => r.date);
+    expect(datas).toEqual(['2026-08-17', '2026-08-19', '2026-08-24', '2026-08-26']);
+    expect(result[0].rrule).toBeUndefined();
+    expect(result[0].daysOfWeek).toBeUndefined();
+    expect(result[0].start).toBe('2026-08-17 09:00');
+    expect(result[0].end).toBe('2026-08-17 10:00');
+  });
+
+  it('respeita o interval (a cada N semanas), ancorado na semana de dataInicio', () => {
+    const service: any = buildService();
+    // A cada 2 semanas, toda sexta.
+    const item = {
+      id: 11,
+      dataInicio: '2026-08-14', // sexta-feira
+      dataFim: '',
+      start: '14:00',
+      end: '15:00',
+      exdate: [],
+      rrule: { freq: 'weekly', interval: 2, byweekday: [5], dtstart: '2026-08-14 14:00' },
+    };
+
+    // 5 semanas de range: só semanas 0, 2, 4 (a partir da semana de 14/08) devem aparecer.
+    const result = service.expandRecurringOccurrences(
+      [item],
+      '2026-08-14',
+      '2026-09-18',
+    );
+
+    const datas = result.map((r: any) => r.date);
+    expect(datas).toEqual(['2026-08-14', '2026-08-28', '2026-09-11']);
+  });
+
+  it('exclui datas em exdate e respeita dataFim', () => {
+    const service: any = buildService();
+    const item = {
+      id: 12,
+      dataInicio: '2026-08-17', // segunda
+      dataFim: '2026-08-31',
+      start: '09:00',
+      end: '10:00',
+      exdate: ['2026-08-24 09:00'], // pula a segunda seguinte
+      daysOfWeek: [1],
+      rrule: { freq: 'weekly', dtstart: '2026-08-17 09:00' },
+    };
+
+    const result = service.expandRecurringOccurrences(
+      [item],
+      '2026-08-01',
+      '2026-09-30',
+    );
+
+    const datas = result.map((r: any) => r.date);
+    // 17/08 (ok), 24/08 (excluído), 31/08 (última segunda dentro de dataFim)
+    expect(datas).toEqual(['2026-08-17', '2026-08-31']);
+  });
+
+  it('não gera ocorrência quando a série não cruza o range pedido', () => {
+    const service: any = buildService();
+    const item = {
+      id: 13,
+      dataInicio: '2026-01-01',
+      dataFim: '2026-01-31',
+      start: '09:00',
+      end: '10:00',
+      exdate: [],
+      daysOfWeek: [1],
+      rrule: { freq: 'weekly', dtstart: '2026-01-01 09:00' },
+    };
+
+    const result = service.expandRecurringOccurrences(
+      [item],
+      '2026-08-01',
+      '2026-08-31',
+    );
+
+    expect(result).toEqual([]);
+  });
+});
