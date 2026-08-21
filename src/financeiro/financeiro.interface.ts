@@ -2,7 +2,7 @@ export interface FinancialProps {
   terapeutaId: number;
   pacienteId: number;
   statusEventosId: number;
-  datatFim: string;
+  dataFim: string;
   dataInicio: string;
 }
 

@@ -2510,11 +2510,11 @@ export class AgendaService {
   async getFilterFinancialPaciente({
     dataInicio,
     dataFim,
-    datatFim,
+    dataFim,
     pacienteId,
     statusEventosId,
   }: any) {
-    const filtroDataFim = dataFim || datatFim;
+    const filtroDataFim = dataFim || dataFim;
 
     return this.getFinancialEvents(
       {
@@ -2535,10 +2535,10 @@ export class AgendaService {
   getFilterFinancialTerapeuta = async ({
     dataInicio,
     dataFim,
-    datatFim,
+    dataFim,
     terapeutaId,
   }: any) => {
-    const filtroDataFim = dataFim || datatFim;
+    const filtroDataFim = dataFim || dataFim;
 
     return this.getFinancialEvents(
       {
@@ -2553,7 +2553,7 @@ export class AgendaService {
     );
   };
 
-  async getEventsMessage(dataInicio: string, datatFim: string) {
+  async getEventsMessage(dataInicio: string, dataFim: string) {
     const prisma = getPrismaClient(this.prismaService);
 
     const eventosBrutos = await prisma.calendario.findMany({
@@ -2578,7 +2578,7 @@ export class AgendaService {
         start: true,
       },
       where: {
-        ...buildDateRangeWhere(dataInicio, datatFim),
+        ...buildDateRangeWhere(dataInicio, dataFim),
         statusEventosId: STATUS_EVENTOS_ID.avisar,
       },
     });
@@ -2586,7 +2586,7 @@ export class AgendaService {
     const eventos: any = [];
     await Promise.all(
       eventosBrutos.map((event: any) => {
-        const dataFimParam = event?.dataFim || datatFim;
+        const dataFimParam = event?.dataFim || dataFim;
         const diasFrequencia = event?.diasFrequencia
           ? event.diasFrequencia.split(',')
           : [];

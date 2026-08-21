@@ -21,10 +21,10 @@ describe('FinanceiroService', () => {
     );
   });
 
-  it('should map the incoming datatFim payload to the agenda filter', async () => {
+  it('should map the incoming dataFim payload to the agenda filter', async () => {
     await service.terapeuta({
       terapeutaId: 25,
-      datatFim: '2026-07-31',
+      dataFim: '2026-07-31',
       dataInicio: '2026-07-01',
     } as any);
 
@@ -63,7 +63,7 @@ describe('FinanceiroService', () => {
       service.paciente({
         pacienteId: 10,
         dataInicio: '2026-07-01',
-        datatFim: '2026-07-01',
+        dataFim: '2026-07-01',
       } as any),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -101,7 +101,7 @@ describe('FinanceiroService', () => {
       service.terapeuta({
         terapeutaId: 25,
         dataInicio: '2026-07-01',
-        datatFim: '2026-07-01',
+        dataFim: '2026-07-01',
       } as any),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -136,7 +136,7 @@ describe('FinanceiroService', () => {
       const result: any = await service.paciente({
         pacienteId: 10,
         dataInicio: '2026-07-01',
-        datatFim: '2026-07-01',
+        dataFim: '2026-07-01',
       } as any);
 
       expect(result.geral.valorTotal).toBe(100);
@@ -172,7 +172,7 @@ describe('FinanceiroService', () => {
       const result: any = await service.terapeuta({
         terapeutaId: 25,
         dataInicio: '2026-07-01',
-        datatFim: '2026-07-01',
+        dataFim: '2026-07-01',
       } as any);
 
       // Fixo: valorSessao = comissaoValor (50), não sessaoValor*percentual.
@@ -208,7 +208,7 @@ describe('FinanceiroService', () => {
       const result: any = await service.terapeuta({
         terapeutaId: 25,
         dataInicio: '2026-07-01',
-        datatFim: '2026-07-01',
+        dataFim: '2026-07-01',
       } as any);
 
       // valorTotal = comissao fixa (100) + km (10 * 2.00 = 20) = 120
