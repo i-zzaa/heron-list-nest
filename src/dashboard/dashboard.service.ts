@@ -352,13 +352,14 @@ export class DashboardService {
     const especialidades = await this.mapaDeNomes(
       'especialidade',
       [...contagemPorEspecialidade.keys()],
-      ['nome', 'cor'],
+      ['nome', 'codigo', 'cor'],
     );
 
     return [...contagemPorEspecialidade.entries()]
       .map(([especialidadeId, quantidade]) => ({
         especialidadeId,
         nome: especialidades.get(especialidadeId)?.nome || 'Sem especialidade',
+        codigo: especialidades.get(especialidadeId)?.codigo || null,
         cor: especialidades.get(especialidadeId)?.cor || '#94a3b8',
         quantidade,
       }))
@@ -483,13 +484,14 @@ export class DashboardService {
     const especialidades = await this.mapaDeNomes(
       'especialidade',
       [...contagem.keys()],
-      ['nome', 'cor'],
+      ['nome', 'codigo', 'cor'],
     );
 
     return [...contagem.entries()]
       .map(([especialidadeId, quantidade]) => ({
         especialidadeId,
         nome: especialidades.get(especialidadeId)?.nome || 'Sem especialidade',
+        codigo: especialidades.get(especialidadeId)?.codigo || null,
         cor: especialidades.get(especialidadeId)?.cor || '#94a3b8',
         quantidade,
       }))

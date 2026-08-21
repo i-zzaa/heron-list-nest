@@ -3,7 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { StatusEventosProps } from './status-evento.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { buildPagination } from 'src/util/pagination';
-import { toNumberId } from 'src/util/normalizers';
+import { slugifyCodigo, toNumberId } from 'src/util/normalizers';
 import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { buildTextSearchWhere } from 'src/util/search';
 import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
@@ -22,6 +22,7 @@ export class StatusEventoService {
         select: {
           id: true,
           nome: true,
+          codigo: true,
           cobrar: true,
           atender: true,
           ativo: true,
@@ -49,6 +50,7 @@ export class StatusEventoService {
       select: {
         id: true,
         nome: true,
+        codigo: true,
         cobrar: true,
         atender: true,
       },
@@ -68,6 +70,7 @@ export class StatusEventoService {
       select: {
         id: true,
         nome: true,
+        codigo: true,
         cobrar: true,
         atender: true,
         ativo: true,
@@ -85,7 +88,10 @@ export class StatusEventoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.statusEventos.create({
-      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar', 'atender']),
+      data: buildCreatePayload(
+        { ...body, codigo: body.codigo || slugifyCodigo(body.nome, 'lower') },
+        ['nome', 'codigo', 'ativo', 'cobrar', 'atender'],
+      ),
     });
   }
 
@@ -93,7 +99,16 @@ export class StatusEventoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.statusEventos.update({
-      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar', 'atender']),
+      // `codigo` só é reescrito se vier explicitamente no body — trocar o
+      // nome depois de cadastrado não deveria mudar o código estável que
+      // o front já está usando pra lógica.
+      data: buildCreatePayload(body, [
+        'nome',
+        'codigo',
+        'ativo',
+        'cobrar',
+        'atender',
+      ]),
       where: {
         id: toNumberId(body.id),
       },
@@ -127,6 +142,7 @@ export class StatusEventoService {
       select: {
         nome: true,
         id: true,
+        codigo: true,
         cobrar: true,
         atender: true,
       },

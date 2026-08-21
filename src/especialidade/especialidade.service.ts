@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
-import { toNumberId } from 'src/util/normalizers';
+import { slugifyCodigo, toNumberId } from 'src/util/normalizers';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
 import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
@@ -20,6 +20,7 @@ export class EspecialidadeService {
         select: {
           id: true,
           nome: true,
+          codigo: true,
           cor: true,
           ativo: true,
         },
@@ -47,6 +48,7 @@ export class EspecialidadeService {
       select: {
         id: true,
         nome: true,
+        codigo: true,
         // cor: true,
       },
       orderBy: {
@@ -79,6 +81,7 @@ export class EspecialidadeService {
       select: {
         id: true,
         nome: true,
+        codigo: true,
       },
       orderBy: {
         nome: 'asc',
@@ -93,7 +96,10 @@ export class EspecialidadeService {
     const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.create({
-      data: buildCreatePayload(body, ['nome', 'cor', 'ativo']),
+      data: buildCreatePayload(
+        { ...body, codigo: body.codigo || slugifyCodigo(body.nome) },
+        ['nome', 'codigo', 'cor', 'ativo'],
+      ),
     });
   }
 
@@ -101,7 +107,10 @@ export class EspecialidadeService {
     const prisma = getPrismaClient(this.prismaService);
 
     return await prisma.especialidade.update({
-      data: buildCreatePayload(body, ['nome', 'cor', 'ativo']),
+      // `codigo` só é reescrito se vier explicitamente no body — trocar o
+      // nome depois de cadastrado não deveria mudar o código estável que o
+      // front já está usando pra lógica (ver EspecialidadeProps.codigo).
+      data: buildCreatePayload(body, ['nome', 'codigo', 'cor', 'ativo']),
       where: {
         id: toNumberId(body.id),
       },

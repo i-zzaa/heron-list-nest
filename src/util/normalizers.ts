@@ -1,5 +1,31 @@
 export const toNumberId = (value: unknown) => Number(value);
 
+/**
+ * Deriva um código estável (ex.: "TERAPIA_OCUPACIONAL", "cancelado_com_antecedencia")
+ * a partir de um nome livre — usado como default quando `codigo` não vem no
+ * create/update de Especialidade/StatusEventos (o nome pode ser editado
+ * livremente pelo usuário; o código não deveria mudar junto). Remove
+ * acentos, troca qualquer sequência de não-alfanuméricos por um único "_"
+ * e apara as pontas.
+ */
+export const slugifyCodigo = (
+  nome: string,
+  format: 'upper' | 'lower' = 'upper',
+): string => {
+  // Faixa Unicode U+0300–U+036F = marcas diacríticas combinantes, o que
+  // sobra depois do normalize('NFD') separar "ã" em "a" + "~", por exemplo.
+  const semAcento = (nome || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+
+  const slug = semAcento
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return format === 'upper' ? slug.toUpperCase() : slug.toLowerCase();
+};
+
 export const normalizeUpperCase = (value?: string) =>
   value ? value.toUpperCase() : value;
 

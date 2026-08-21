@@ -103,6 +103,11 @@ model Periodo {
 model Especialidade {
   id         Int                   @id @default(autoincrement())
   nome       String                @unique
+  // Sigla estável pra lógica do front (cor de tag/chip etc.) — nome é
+  // texto livre editável, não serve como chave de comparação. Gerada a
+  // partir do nome quando não vier no create/update (ver
+  // EspecialidadeService.resolveCodigo), mas pode ser sobrescrita.
+  codigo     String                @unique
   cor        String                @default("#000000")
   // Igual ao padrão de Localidade/Funcao: desativar em vez de excluir
   // (a exclusão física exige que nada esteja vinculado — ver
@@ -170,6 +175,11 @@ model Localidade {
 model StatusEventos {
   id         Int          @id @default(autoincrement())
   nome       String       @unique
+  // Código estável pra lógica do front (cor/categoria do status) — nome
+  // é texto livre editável, não serve como chave de comparação. Gerado
+  // a partir do nome quando não vier no create/update (ver
+  // StatusEventoService.resolveCodigo), mas pode ser sobrescrito.
+  codigo     String       @unique
   cobrar     Boolean      @default(false)
   // Indica se esse status representa um atendimento realizado (ex.:
   // "Atendido") — mesmo padrão de cobrar, cadastrável pelo front.
