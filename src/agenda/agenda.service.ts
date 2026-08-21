@@ -1012,13 +1012,13 @@ export class AgendaService {
         evento.temSessaoRegistrada = idsComSessao.has(evento.id);
 
         // Item 6: card bloqueado pra abrir a tela de Sessão quando o
-        // horário já passou (mesma tolerância de 2h usada pra travar
-        // edição, ver isEventoPassado) e o status atual não representa um
-        // atendimento de fato (statusEventos.atender). Um evento futuro,
-        // ou já marcado com um status "atender", nunca fica bloqueado.
-        evento.sessaoBloqueada =
-          this.isEventoPassado(evento?.dataInicio, evento?.end) &&
-          !evento?.statusEventos?.atender;
+        // status atual não é configurado como "atender" — decisão movida
+        // pro cadastro de StatusEventos (campo atender, ver
+        // StatusEventoService), sem hardcode de nome de status nem de data
+        // aqui. Cada status decide isso por si (ex.: "Atendido" pode
+        // liberar; "Cancelado *"/"Falta" tendem a não liberar) — quem
+        // configura é o cadastro, não este código.
+        evento.sessaoBloqueada = !evento?.statusEventos?.atender;
 
         const safeStatusEventos = evento?.statusEventos || {};
         const safeModalidade = evento?.modalidade || {};
