@@ -80,6 +80,7 @@ export class AgendaService {
       select: {
         nome: true,
         id: true,
+        atender: true,
         ...(includeCobrar ? { cobrar: true } : {}),
       },
     };

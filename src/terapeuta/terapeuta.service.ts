@@ -404,6 +404,7 @@ export class TerapeutaService {
             select: {
               nome: true,
               id: true,
+              atender: true,
             },
           },
           frequencia: {
