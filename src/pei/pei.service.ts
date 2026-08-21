@@ -111,7 +111,17 @@ export class PeiService {
             )[0];
           });
 
-          return resultPei;
+          // Tela de meta: além das metas já criadas manualmente (tabela
+          // Pei acima), também precisa dos itens já respondidos no vbMapp
+          // (mesma transformação usada no case default/vbMapp abaixo) —
+          // sem isso, um item marcado "S" na avaliação vbMapp nunca
+          // aparecia aqui pra virar meta.
+          const vbmappMetas = await this.getVbmappMetas(
+            paciente.id,
+            notSelected,
+          );
+
+          return [...resultPei, ...vbmappMetas];
         } catch (error) {
           console.log(error);
         }
@@ -154,42 +164,51 @@ export class PeiService {
         return convertToTreeStructure;
 
       default:
-        const result = await prisma.vBMappResultado.findMany({
+        return this.getVbmappMetas(paciente.id, notSelected);
+    }
+  }
+
+  /**
+   * Itens já respondidos no vbMapp, no mesmo formato de meta usado pela
+   * tela de PEI (transformJsonVBPPEI). Usado tanto pelo case default
+   * (protocoloId = vbMapp) quanto pelo case pei/Manual acima, que também
+   * precisa mostrar os itens respondidos no vbMapp junto das metas
+   * criadas manualmente.
+   */
+  private async getVbmappMetas(pacienteId: number, notSelected: any[] = []) {
+    const prisma = this.prismaService.getPrismaClient();
+
+    const result = await prisma.vBMappResultado.findMany({
+      select: {
+        id: true,
+        respostaSessao: true,
+
+        estimuloDiscriminativo: true,
+        resposta: true,
+        estimuloReforcadorPositivo: true,
+        procedimentoEnsinoId: true,
+        subitems: true,
+
+        vbmapp: true,
+        createdAt: true,
+        paciente: {
           select: {
             id: true,
-            respostaSessao: true,
-
-            estimuloDiscriminativo: true,
-            resposta: true,
-            estimuloReforcadorPositivo: true,
-            procedimentoEnsinoId: true,
-            subitems: true,
-
-            vbmapp: true,
-            createdAt: true,
-            paciente: {
-              select: {
-                id: true,
-                nome: true,
-                dataNascimento: true,
-              },
-            },
+            nome: true,
+            dataNascimento: true,
           },
-          where: buildPacienteFilter(paciente.id, {
-            respostaSessao: {
-              notIn: notSelected,
-            },
-          }),
-        });
+        },
+      },
+      where: buildPacienteFilter(pacienteId, {
+        respostaSessao: {
+          notIn: notSelected,
+        },
+      }),
+    });
 
-        const transformDataFilterVBMapp =
-          this.transformDataFilterVBMapp(result);
-        const vbmPEI = await this.transformJsonVBPPEI(
-          transformDataFilterVBMapp,
-        );
+    const transformDataFilterVBMapp = this.transformDataFilterVBMapp(result);
 
-        return vbmPEI;
-    }
+    return this.transformJsonVBPPEI(transformDataFilterVBMapp);
   }
 
   async transformJsonVBPPEI(inputJson: any) {
