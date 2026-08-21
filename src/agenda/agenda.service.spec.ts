@@ -15,7 +15,11 @@ describe('AgendaService.formatEvents', () => {
 
   beforeEach(() => {
     service = new AgendaService(
-      {} as any,
+      {
+        getPrismaClient: () => ({
+          sessao: { findMany: jest.fn().mockResolvedValue([]) },
+        }),
+      } as any,
       {
         getUser: jest.fn().mockResolvedValue({ id: 1 }),
       } as any,

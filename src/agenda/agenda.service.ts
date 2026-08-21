@@ -917,6 +917,25 @@ export class AgendaService {
   async formatEvents(eventos: any, login: string) {
     const usuario = await this.userService.getUser(login);
 
+    // Item 6 do pedido do front: existência de registro de Sessao não dá
+    // pra inferir por "atendido OU data passada" (uma sessão de dias atrás
+    // nunca aberta não tem registro, mas passaria nessa heurística) — 1
+    // consulta batch pelos calendarioId de todos os eventos da página.
+    const prisma = getPrismaClient(this.prismaService);
+    const idsValidos = eventos
+      .map((evento: any) => evento?.id)
+      .filter((id: any) => typeof id === 'number');
+
+    const sessoesRegistradas = idsValidos.length
+      ? await prisma.sessao.findMany({
+          select: { calendarioId: true },
+          where: { calendarioId: { in: idsValidos } },
+        })
+      : [];
+    const idsComSessao = new Set(
+      sessoesRegistradas.map((s: any) => s.calendarioId),
+    );
+
     const eventosFormat = await Promise.all(
       eventos.map((evento: any) => {
         if (!evento) {
@@ -987,6 +1006,19 @@ export class AgendaService {
         // sem depender de sentinela de id — todo evento que passa por aqui
         // é um evento real vindo do banco.
         evento.tipo = 'agendado';
+
+        // Item 6 do pedido do front: existe registro de sessão de verdade
+        // pra esse evento? (não é heurística — vem da query batch acima).
+        evento.temSessaoRegistrada = idsComSessao.has(evento.id);
+
+        // Item 6: card bloqueado pra abrir a tela de Sessão quando o
+        // horário já passou (mesma tolerância de 2h usada pra travar
+        // edição, ver isEventoPassado) e o status atual não representa um
+        // atendimento de fato (statusEventos.atender). Um evento futuro,
+        // ou já marcado com um status "atender", nunca fica bloqueado.
+        evento.sessaoBloqueada =
+          this.isEventoPassado(evento?.dataInicio, evento?.end) &&
+          !evento?.statusEventos?.atender;
 
         const safeStatusEventos = evento?.statusEventos || {};
         const safeModalidade = evento?.modalidade || {};
