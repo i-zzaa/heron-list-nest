@@ -1018,6 +1018,31 @@ const permissao: any[] = [
     "descricao": "Botão de exclusão do item da lista de especialidades"
   },
   {
+    "id": 559,
+    "cod": "CADASTRO_TICKET",
+    "descricao": "Tab de informação de ticket"
+  },
+  {
+    "id": 560,
+    "cod": "CADASTRO_TICKET_BOTAO_CADASTRAR",
+    "descricao": "Botão de cadastro de ticket"
+  },
+  {
+    "id": 561,
+    "cod": "CADASTRO_TICKET_LISTA_BOTAO_EDITAR",
+    "descricao": "Botão de edição do item da lista de tickets"
+  },
+  {
+    "id": 562,
+    "cod": "CADASTRO_TICKET_LISTA_BOTAO_EXCLUIR",
+    "descricao": "Botão de exclusão do item da lista de tickets"
+  },
+  {
+    "id": 563,
+    "cod": "AGENDA_BAIXA_FILTRO_SELECT_TICKET",
+    "descricao": "Campo select de ticket no filtro de baixa"
+  },
+  {
     "id": 481,
     "cod": "CADASTRO_LOCALIDADE",
     "descricao": "Tab de Informação de localidade"

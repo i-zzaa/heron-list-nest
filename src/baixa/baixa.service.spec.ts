@@ -28,6 +28,12 @@ describe('BaixaService', () => {
     });
   });
 
+  it('normaliza ticketId (filtro de Baixa por chamado de origem)', () => {
+    const filter = buildQueryFilter({ ticketId: '3' });
+
+    expect(filter).toEqual({ ticketId: 3 });
+  });
+
   it('should not crash when evento is null', async () => {
     const findMany = jest.fn().mockResolvedValue([
       {
@@ -70,6 +76,57 @@ describe('BaixaService', () => {
       dataEvento: '-',
       cargaHoraria: '-',
       especialidade: '-',
+    });
+  });
+
+  describe('update', () => {
+    it('confirma a baixa (baixa=true + usuarioId do login) quando o corpo não traz ticketId', async () => {
+      const update = jest.fn().mockResolvedValue({ id: 1, baixa: true });
+      const prisma = { baixa: { update } };
+
+      (service as any).prismaService = { getPrismaClient: () => prisma };
+      (service as any).userService = {
+        getUser: jest.fn().mockResolvedValue({ id: 42 }),
+      };
+
+      await service.update({ id: 1 } as any, 'login');
+
+      expect(update).toHaveBeenCalledWith({
+        data: { baixa: true, usuarioId: 42 },
+        where: { id: 1 },
+      });
+    });
+
+    it('só atualiza o ticket (sem tocar em baixa/usuarioId) quando ticketId vem no corpo', async () => {
+      const update = jest.fn().mockResolvedValue({ id: 1, ticketId: 5 });
+      const prisma = { baixa: { update } };
+      const getUser = jest.fn();
+
+      (service as any).prismaService = { getPrismaClient: () => prisma };
+      (service as any).userService = { getUser };
+
+      await service.update({ id: 1, ticketId: 5 } as any, 'login');
+
+      expect(update).toHaveBeenCalledWith({
+        data: { ticketId: 5 },
+        where: { id: 1 },
+      });
+      expect(getUser).not.toHaveBeenCalled();
+    });
+
+    it('limpa o vínculo do ticket quando ticketId vem null', async () => {
+      const update = jest.fn().mockResolvedValue({ id: 1, ticketId: null });
+      const prisma = { baixa: { update } };
+
+      (service as any).prismaService = { getPrismaClient: () => prisma };
+      (service as any).userService = { getUser: jest.fn() };
+
+      await service.update({ id: 1, ticketId: null } as any, 'login');
+
+      expect(update).toHaveBeenCalledWith({
+        data: { ticketId: null },
+        where: { id: 1 },
+      });
     });
   });
 

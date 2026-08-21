@@ -6,6 +6,11 @@ export interface BaixaFilterProps {
   convenioId?: number;
   statusEventosId?: number;
   usuarioId?: number;
+  // Também dobra de payload de PUT /baixa (BaixaController.put): quando vem
+  // preenchida a própria chave (mesmo com valor null, pra limpar o vínculo),
+  // BaixaService.update só atualiza o ticket — não confirma a baixa. Ver
+  // handleUpdateTicket em Baixa.tsx.
+  ticketId?: number | null;
   baixa: boolean;
 }
 
@@ -16,6 +21,7 @@ export interface BaixaProps {
   convenio: string;
   statusEventos: string;
   usuario: string;
+  ticket?: string;
   baixa: boolean;
 }
 

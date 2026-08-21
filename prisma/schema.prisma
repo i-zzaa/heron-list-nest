@@ -138,6 +138,15 @@ model TipoSessao {
   paciente Paciente[]
 }
 
+// Cadastro simples (só nome), igual Periodo/Status/TipoSessao — vinculado
+// a Baixa (link opcional pra identificar/rastrear o atendimento por
+// ticket de origem, ex.: sistema de chamados externo).
+model Ticket {
+  id    Int     @id @default(autoincrement())
+  nome  String
+  baixa Baixa[]
+}
+
 model Usuario {
   id               Int     @id @default(autoincrement())
   nome             String
@@ -423,6 +432,10 @@ model Baixa {
   localExternoDescricao String?
   baixa                 Boolean @default(false)
   dataEvento            String
+  // Vínculo opcional com o chamado/ticket de origem (ex.: sistema externo
+  // de suporte) — editável direto na listagem de Baixa, sem passar pelo
+  // fluxo de confirmação de baixa (ver BaixaService.update).
+  ticketId              Int?
 
   paciente   Paciente      @relation(fields: [pacienteId], references: [id])
   terapeuta  Terapeuta     @relation(fields: [terapeutaId], references: [usuarioId])
@@ -430,6 +443,7 @@ model Baixa {
   usuario    Usuario?      @relation(fields: [usuarioId], references: [id])
   localidade Localidade?   @relation(fields: [localidadeId], references: [id])
   evento     Calendario?   @relation(fields: [eventoId], references: [id])
+  ticket     Ticket?       @relation(fields: [ticketId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())

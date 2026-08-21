@@ -33,6 +33,7 @@ import { GuiaAmilModule } from './guia-amil/guia-amil.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HistoricoModule } from './historico/historico.module';
+import { TicketModule } from './ticket/ticket.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { HistoricoModule } from './historico/historico.module';
     PeriodoModule,
     StatusModule,
     BaixaModule,
+    TicketModule,
     WhatsappModule,
     ProgramaModule,
     SessaoModule,

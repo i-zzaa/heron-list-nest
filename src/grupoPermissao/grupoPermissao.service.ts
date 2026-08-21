@@ -76,19 +76,48 @@ export class GrupoPermissaoService {
     });
   }
 
+  // Busca por texto da própria listagem (campo de busca do Crud), não das
+  // permissões — GET /grupo-permissoes/:search chama isto. Devolve os
+  // grupos no mesmo formato de getAll (permissoesId já achatado), porque a
+  // List reaproveita o mesmo handler de clique/edição para os dois casos.
   async search(word: string) {
     const prisma = this.prismaService.getPrismaClient();
 
-    return await prisma.permissao.findMany({
+    const data: any = await prisma.grupoPermissao.findMany({
       select: {
-        cod: true,
-        descricao: true,
+        id: true,
+        nome: true,
+        permissoes: {
+          select: {
+            permissao: true,
+          },
+        },
       },
       orderBy: {
-        cod: 'asc',
+        nome: 'asc',
       },
-      where: buildTextSearchWhere(word, ['cod', 'descricao']),
+      where: buildTextSearchWhere(word, ['nome'], {
+        NOT: {
+          nome: {
+            in: ['developer', 'Developer'],
+          },
+        },
+      }),
     });
+
+    await Promise.all(
+      data.map(async (item: any) => {
+        item.permissoesId = [];
+        await Promise.all(
+          item?.permissoes.map(({ permissao }: any) => {
+            item.permissoesId.push(permissao.id);
+          }),
+        );
+        delete item.permissoes;
+      }),
+    );
+
+    return data;
   }
 
   async create(body: any) {

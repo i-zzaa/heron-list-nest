@@ -7,6 +7,7 @@ import {
   Request,
   Put,
   Response,
+  Param,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { normalizePageSize } from 'src/util/pagination';
@@ -41,6 +42,20 @@ export class GrupoPermissaoController {
         page,
         pageSize,
       );
+      responseSuccess(response, data);
+    } catch (error) {
+      responseError(response, error);
+    }
+  }
+
+  // GET /grupo-permissoes/:search — campo de busca por texto da listagem
+  // (Search dentro de CrudSimples). Faltava essa rota: o front já mandava
+  // a chamada (search('grupo-permissoes', word) -> GET /grupo-permissoes/
+  // <word>) e caía em 404.
+  @Get(':search')
+  async search(@Param('search') search: string, @Response() response: any) {
+    try {
+      const data = await this.grupoPermissaoService.search(search);
       responseSuccess(response, data);
     } catch (error) {
       responseError(response, error);

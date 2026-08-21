@@ -49,6 +49,7 @@ const ALLOWED_QUERY_FIELDS = new Set([
   'localidadeId',
   'statusEventosId',
   'usuarioId',
+  'ticketId',
 ]);
 
 export const buildQueryFilter = (
@@ -89,6 +90,7 @@ export const buildQueryFilter = (
       case 'localidadeId':
       case 'statusEventosId':
       case 'usuarioId':
+      case 'ticketId':
         filter[key] = Number(value);
         break;
       default:

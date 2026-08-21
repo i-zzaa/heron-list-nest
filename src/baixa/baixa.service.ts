@@ -50,6 +50,7 @@ export class BaixaService {
           localExternoDescricao: true,
           status: true,
           usuario: true,
+          ticketId: true,
           baixa: true,
           updatedAt: true,
           dataEvento: true,
@@ -103,6 +104,7 @@ export class BaixaService {
           convenio: convenio.nome || '-',
           status: status.nome || '-',
           usuario: item.baixa ? item.usuario?.nome || '-' : '-',
+          ticketId: item.ticketId ?? null,
           baixa: item.baixa,
           dataBaixa:
             item.baixa && updatedAt !== '-'
@@ -120,8 +122,25 @@ export class BaixaService {
     return { data, pagination };
   }
 
-  async update({ id }: BaixaFilterProps, login?: string) {
+  async update(body: BaixaFilterProps, login?: string) {
     const prisma = this.prismaService.getPrismaClient();
+    const { id } = body;
+
+    // PUT /baixa também é usado só pra ligar/trocar/limpar o ticket
+    // vinculado (Baixa.tsx: handleUpdateTicket manda { id, ticketId }, sem
+    // querer confirmar a baixa). Distingue pela chave `ticketId` estar
+    // presente no corpo (mesmo com valor null, pra limpar o vínculo) — só
+    // nesse caso não mexe em `baixa`/`usuarioId`.
+    if (Object.prototype.hasOwnProperty.call(body, 'ticketId')) {
+      return await prisma.baixa.update({
+        data: {
+          ticketId: body.ticketId ?? null,
+        },
+        where: {
+          id: Number(id),
+        },
+      });
+    }
 
     // usuarioId nunca vem do corpo da requisição: é sempre resolvido a
     // partir do usuário autenticado (JWT), para que o registro de quem deu
