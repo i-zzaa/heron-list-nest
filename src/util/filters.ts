@@ -64,6 +64,14 @@ export const buildQueryFilter = (
 ) => {
   const filter: Record<string, any> = { ...extraWhere };
 
+  // Quando os dois vêm preenchidos, dataFim não pode ficar antes de
+  // dataInicio — sem essa checagem o gte/lte resultante nunca bate com
+  // nada (intervalo invertido) e o filtro simplesmente devolve lista
+  // vazia, sem nenhum aviso de que o período em si é que está errado.
+  if (query?.dataInicio && query?.dataFim && query.dataFim < query.dataInicio) {
+    throw new Error('Data final não pode ser menor que a data inicial.');
+  }
+
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') {
       return;

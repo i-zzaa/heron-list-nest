@@ -41,4 +41,16 @@ describe('buildQueryFilter', () => {
       dataEvento: { lte: '2026-08-21' },
     });
   });
+
+  it('rejeita quando dataFim é menor que dataInicio', () => {
+    expect(() =>
+      buildQueryFilter({ dataInicio: '2026-08-21', dataFim: '2026-08-01' }),
+    ).toThrow(/final não pode ser menor/);
+  });
+
+  it('aceita dataFim igual a dataInicio (intervalo de 1 dia só)', () => {
+    expect(
+      buildQueryFilter({ dataInicio: '2026-08-21', dataFim: '2026-08-21' }),
+    ).toEqual({ dataEvento: { gte: '2026-08-21', lte: '2026-08-21' } });
+  });
 });
