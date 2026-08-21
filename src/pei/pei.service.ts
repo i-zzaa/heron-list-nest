@@ -345,6 +345,12 @@ export class PeiService {
       }
     });
 
+    // Ordem do id dentro do programa — a ordem de chegada do banco (sem
+    // orderBy em getVbmappMetas) não é confiável pra exibição.
+    Object.keys(result).forEach((programa) => {
+      result[programa].sort((a: any, b: any) => a.id - b.id);
+    });
+
     return result;
   }
 

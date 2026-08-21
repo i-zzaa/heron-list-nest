@@ -189,8 +189,11 @@ export class ProtocoloService {
         }
       });
 
-      // Converte o mapa em um array e adiciona à chave correspondente
-      mergedData[key] = Array.from(map.values());
+      // Converte o mapa em um array e adiciona à chave correspondente,
+      // sempre na ordem do id dentro do programa — a ordem de chegada do
+      // banco (list2 vem por createdAt desc, list1 sem orderBy) não é
+      // confiável pra exibição.
+      mergedData[key] = Array.from(map.values()).sort((a, b) => a.id - b.id);
     });
 
     return mergedData;
