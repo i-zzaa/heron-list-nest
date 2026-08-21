@@ -24,7 +24,7 @@ import { BaixaService } from 'src/baixa/baixa.service';
 import { STATUS_EVENTOS_ID } from 'src/status-evento/status-evento.interface';
 import { getPrismaClient } from 'src/util/crud';
 import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
-import { normalizeCurrencyValue } from 'src/util/normalizers';
+import { normalizeCurrencyValue, readDecimal } from 'src/util/normalizers';
 import {
   VALOR_POR_KM,
   VALOR_SESSAO_DEVOLUTIVA,
@@ -96,6 +96,7 @@ export class AgendaService {
       diasFrequencia: true,
       exdate: true,
       isExterno: true,
+      localExternoDescricao: true,
       ...(includeIsChildren ? { isChildren: true } : {}),
       ...(includeUsuarioId ? { usuarioId: true } : {}),
       km: true,
@@ -955,10 +956,25 @@ export class AgendaService {
           ? 'cancelado'
           : `border-${especialidadeNome.toLowerCase()}`;
 
+        const localidadeNomeFormatado = evento?.localidade
+          ? this.localidadadeService.formatLocalidade(evento.localidade)
+          : '-';
+
+        // Regra que o front hoje decide sozinho (isExterno ? descrição
+        // externa : nome da localidade, com km concatenado quando
+        // externo): centralizada aqui pra devolver pronta em
+        // `localExibicao`.
+        if (evento?.isExterno) {
+          const kmValue = readDecimal(evento?.km);
+          const descricaoExterna = evento?.localExternoDescricao || 'Local externo';
+          evento.localExibicao =
+            kmValue > 0 ? `${descricaoExterna} - ${kmValue}km` : descricaoExterna;
+        } else {
+          evento.localExibicao = localidadeNomeFormatado;
+        }
+
         evento.localidade = {
-          nome: evento?.localidade
-            ? this.localidadadeService.formatLocalidade(evento.localidade)
-            : '-',
+          nome: localidadeNomeFormatado,
           id: evento?.localidade?.id || null,
         };
 
@@ -966,6 +982,11 @@ export class AgendaService {
           nome: evento?.terapeuta?.usuario?.nome || '-',
           id: evento?.terapeuta?.usuario?.id || null,
         };
+
+        // Distingue de "vaga livre" (id: 0, ver TerapeutaService.eventFree)
+        // sem depender de sentinela de id — todo evento que passa por aqui
+        // é um evento real vindo do banco.
+        evento.tipo = 'agendado';
 
         const safeStatusEventos = evento?.statusEventos || {};
         const safeModalidade = evento?.modalidade || {};

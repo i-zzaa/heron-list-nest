@@ -100,7 +100,25 @@ export class SessaoService {
     return data;
   }
 
+  /**
+   * `resumo` é HTML vindo de um editor rich-text — "vazio" pro editor pode
+   * ser `<p></p>`/`<p><br></p>`, não string vazia crua. Já validado no
+   * cliente (useSessionForm.ts: isResumoVazio), mas nunca só confiar em
+   * validação client-side pra uma regra obrigatória — reforça aqui.
+   */
+  private assertResumoPreenchido(resumo: any) {
+    const textoSemTags = String(resumo || '')
+      .replace(/<[^>]*>/g, '')
+      .trim();
+
+    if (!textoSemTags) {
+      throw new Error('Resumo da sessão é obrigatório.');
+    }
+  }
+
   async create(body: any, login: string) {
+    this.assertResumoPreenchido(body.resumo);
+
     const prisma = this.prismaService.getPrismaClient();
     const dateFim = dateAddtDay(body.date, 1);
 
@@ -819,6 +837,8 @@ export class SessaoService {
 
   // ===================== OUTRAS AÇÕES =====================
   async updateSumary(body: any) {
+    this.assertResumoPreenchido(body.resumo);
+
     const prisma = this.prismaService.getPrismaClient();
     return await prisma.sessao.update({
       data: buildCreatePayload(body, [

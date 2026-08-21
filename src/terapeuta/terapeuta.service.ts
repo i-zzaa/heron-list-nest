@@ -16,6 +16,9 @@ import { buildDateRangeWhere, buildQueryFilter } from 'src/util/filters';
 export class TerapeutaService {
   eventFree: any = {
     id: 0,
+    // Front hoje usa id === 0 como sentinela pra "vaga livre" — campo
+    // explícito pra não depender mais disso (ver isSlotLivre no front).
+    tipo: 'livre',
     dataInicio: '2023-02-24',
     dataFim: '2023-02-27',
     start: '20:55',
@@ -370,6 +373,9 @@ export class TerapeutaService {
           ciclo: true,
           observacao: true,
           exdate: true,
+          km: true,
+          isExterno: true,
+          localExternoDescricao: true,
           paciente: {
             select: {
               nome: true,
