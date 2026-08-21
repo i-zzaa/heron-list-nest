@@ -34,6 +34,41 @@ describe('BaixaService', () => {
     expect(filter).toEqual({ ticketId: 3 });
   });
 
+  // Ticket desativado (soft delete por estar em uso — ver
+  // TicketService.delete) precisa continuar aparecendo na baixa onde já
+  // foi aplicado, mesmo sumindo do dropdown/listagem de tickets — o nome
+  // vem embutido direto na baixa, sem depender do ticket estar ativo.
+  it('mantém o nome do ticket na baixa mesmo quando o ticket foi desativado', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 1,
+        paciente: null,
+        terapeuta: null,
+        localidade: null,
+        status: { nome: 'PENDENTE' },
+        usuario: null,
+        baixa: false,
+        updatedAt: null,
+        dataEvento: null,
+        evento: null,
+        ticketId: 9,
+        ticket: { id: 9, nome: 'Chamado antigo (desativado)' },
+      },
+    ]);
+    const count = jest.fn().mockResolvedValue(1);
+
+    (service as any).prismaService = {
+      getPrismaClient: () => ({ baixa: { findMany, count } }),
+    };
+
+    const result = await service.getAll(1, 10, {} as any);
+
+    expect(result.data[0]).toMatchObject({
+      ticketId: 9,
+      ticket: 'Chamado antigo (desativado)',
+    });
+  });
+
   it('should not crash when evento is null', async () => {
     const findMany = jest.fn().mockResolvedValue([
       {

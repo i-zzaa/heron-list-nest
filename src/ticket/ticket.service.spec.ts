@@ -84,26 +84,39 @@ describe('TicketService', () => {
     });
   });
 
-  it('delete bloqueia exclusão quando o ticket está vinculado a alguma baixa', async () => {
-    const del = jest.fn();
-    const service = buildService({
-      ticket: { delete: del },
-      baixa: { count: jest.fn().mockResolvedValue(1) },
+  // Replanejado: exclusão não é mais bloqueada quando em uso — decide
+  // sozinha entre soft (desativa) e hard delete.
+  describe('delete', () => {
+    it('desativa (ativo:false) em vez de excluir quando está vinculado a alguma baixa', async () => {
+      const del = jest.fn();
+      const update = jest.fn().mockResolvedValue({ id: 1, ativo: false });
+      const service = buildService({
+        ticket: { delete: del, update },
+        baixa: { count: jest.fn().mockResolvedValue(1) },
+      });
+
+      const result = await service.delete(1);
+
+      expect(update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { ativo: false },
+      });
+      expect(del).not.toHaveBeenCalled();
+      expect(result).toEqual({ id: 1, ativo: false });
     });
 
-    await expect(service.delete(1)).rejects.toThrow(/em uso/);
-    expect(del).not.toHaveBeenCalled();
-  });
+    it('exclui fisicamente quando não tem nenhum vínculo', async () => {
+      const del = jest.fn().mockResolvedValue({ id: 1 });
+      const update = jest.fn();
+      const service = buildService({
+        ticket: { delete: del, update },
+        baixa: { count: jest.fn().mockResolvedValue(0) },
+      });
 
-  it('delete exclui normalmente quando não está em uso', async () => {
-    const del = jest.fn().mockResolvedValue({ id: 1 });
-    const service = buildService({
-      ticket: { delete: del },
-      baixa: { count: jest.fn().mockResolvedValue(0) },
+      await service.delete(1);
+
+      expect(del).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(update).not.toHaveBeenCalled();
     });
-
-    await service.delete(1);
-
-    expect(del).toHaveBeenCalledWith({ where: { id: 1 } });
   });
 });

@@ -51,6 +51,16 @@ export class BaixaService {
           status: true,
           usuario: true,
           ticketId: true,
+          // Sem filtro de `ativo` de propósito: um ticket desativado (soft
+          // delete por estar em uso — ver TicketService.delete) precisa
+          // continuar aparecendo normalmente nas baixas onde já foi
+          // aplicado, mesmo sumindo da listagem/dropdown de tickets.
+          ticket: {
+            select: {
+              id: true,
+              nome: true,
+            },
+          },
           baixa: true,
           updatedAt: true,
           dataEvento: true,
@@ -104,7 +114,11 @@ export class BaixaService {
           convenio: convenio.nome || '-',
           status: status.nome || '-',
           usuario: item.baixa ? item.usuario?.nome || '-' : '-',
+          // ticketId: valor cru, pra edição (Dropdown do front usa como
+          // value). ticket: nome já resolvido, pra exibição — não depende
+          // do ticket ainda estar ativo/aparecer no dropdown de opções.
           ticketId: item.ticketId ?? null,
+          ticket: item.ticket?.nome || null,
           baixa: item.baixa,
           dataBaixa:
             item.baixa && updatedAt !== '-'

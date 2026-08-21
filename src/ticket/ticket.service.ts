@@ -4,7 +4,6 @@ import { buildCreatePayload, getPrismaClient } from 'src/util/crud';
 import { toNumberId } from 'src/util/normalizers';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
-import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
 
 // Cadastro simples (id + nome), mesmo molde de Periodo/Status/TipoSessao —
 // GET /ticket/:search (busca por texto, usada pelo campo de busca da
@@ -96,15 +95,28 @@ export class TicketService {
     });
   }
 
+  /**
+   * Replanejado (pedido do usuário): exclusão de Ticket não é mais
+   * bloqueada quando em uso — em vez disso, decide sozinha entre soft e
+   * hard delete:
+   *   - em uso em alguma Baixa: desativa (ativo:false) em vez de excluir.
+   *     Some da listagem/dropdown, mas continua aparecendo normalmente
+   *     nas Baixas onde já estava aplicado (ver BaixaService.getAll, que
+   *     embute o nome do ticket sem filtrar por ativo).
+   *   - sem nenhum vínculo: exclusão física mesmo, não sobra lixo.
+   */
   async delete(id: number) {
     const prisma = getPrismaClient(this.prismaService);
     const ticketId = toNumberId(id);
 
-    await assertEntidadeNaoEstaEmUso(
-      prisma,
-      [{ model: 'baixa', where: { ticketId } }],
-      'Não é possível excluir: ticket em uso em ao menos uma baixa.',
-    );
+    const emUso = await prisma.baixa.count({ where: { ticketId } });
+
+    if (emUso > 0) {
+      return prisma.ticket.update({
+        where: { id: ticketId },
+        data: { ativo: false },
+      });
+    }
 
     return prisma.ticket.delete({
       where: {
