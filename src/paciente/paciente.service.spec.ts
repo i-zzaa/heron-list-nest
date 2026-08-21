@@ -469,15 +469,26 @@ describe('PacienteService.aplicarAcaoDisponivel (item 8 dos pontos menores)', ()
 describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médico)', () => {
   const buildService = (pacientes: any[]) => {
     const findMany = jest.fn().mockResolvedValue(pacientes);
-    return new PacienteService(
+    const service = new PacienteService(
       { getPrismaClient: () => ({ paciente: { findMany } }) } as any,
       historicoServiceMock,
     );
+    return { service, findMany };
   };
+
+  it('nunca busca paciente inativo (disabled:false na query, mesmo antes de qualquer filtro em memória)', async () => {
+    const { service, findMany } = buildService([]);
+
+    await service.getDocumentosVencendo(15);
+
+    expect(findMany.mock.calls[0][0].where).toMatchObject({
+      disabled: false,
+    });
+  });
 
   it('inclui Plano Terapêutico já vencido (emitido há 7 meses, vence em 6 meses)', async () => {
     const dataEmissao = moment().subtract(7, 'months').format('YYYY-MM-DD');
-    const service = buildService([
+    const { service } = buildService([
       {
         id: 1,
         nome: 'Fulano',
@@ -503,7 +514,7 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
       .subtract(12, 'months')
       .add(10, 'days')
       .format('YYYY-MM-DD');
-    const service = buildService([
+    const { service } = buildService([
       {
         id: 2,
         nome: 'Ciclana',
@@ -530,7 +541,7 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
       .subtract(12, 'months')
       .add(40, 'days')
       .format('YYYY-MM-DD');
-    const service = buildService([
+    const { service } = buildService([
       {
         id: 3,
         nome: 'Beltrano',
@@ -547,7 +558,7 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
   it('um paciente com os dois documentos vencendo aparece duas vezes na lista', async () => {
     const planoVencido = moment().subtract(7, 'months').format('YYYY-MM-DD');
     const laudoVencido = moment().subtract(13, 'months').format('YYYY-MM-DD');
-    const service = buildService([
+    const { service } = buildService([
       {
         id: 4,
         nome: 'Sicrano',
@@ -570,7 +581,7 @@ describe('PacienteService.getDocumentosVencendo (Plano Terapêutico/Laudo Médic
       .subtract(12, 'months')
       .add(10, 'days')
       .format('YYYY-MM-DD');
-    const service = buildService([
+    const { service } = buildService([
       {
         id: 5,
         nome: 'Fulana',
