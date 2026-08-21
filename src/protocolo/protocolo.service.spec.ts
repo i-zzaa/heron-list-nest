@@ -61,3 +61,56 @@ describe('ProtocoloService.mergeAtividadesVBMapp (ordenação por id)', () => {
     expect(result.Mando.map((item: any) => item.id)).toEqual([1]);
   });
 });
+
+describe('ProtocoloService.filterMeta — excludeKeys (item 8)', () => {
+  const buildService = (portageTree: any) => {
+    const prisma = {
+      portage: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 1,
+          respostaPortage: portageTree,
+          paciente: { id: 79, nome: 'Paciente' },
+        }),
+      },
+    };
+
+    const service = new ProtocoloService({ getPrismaClient: () => prisma } as any);
+
+    return { service };
+  };
+
+  it('poda recursivamente os nós marcados em excludeKeys, sem afetar os demais', async () => {
+    // filterDataBySelected/convertToTreeStructure exigem `selected` nas
+    // atividades (ver protocolo.service.ts) — payload mínimo pra chegar
+    // numa árvore com pelo menos 2 metas dentro de uma faixa etária.
+    const portageTree = {
+      Cognicao: {
+        '0 a 1': [
+          { id: 1, nome: 'Meta A', selected: '0.5' },
+          { id: 2, nome: 'Meta B', selected: '0' },
+        ],
+      },
+    };
+
+    const { service } = buildService(portageTree);
+
+    const semFiltro: any = await service.filterMeta({
+      protocoloId: 1,
+      pacienteId: 79,
+    });
+
+    const keyMetaA = semFiltro[0].children[0].key;
+    const keyMetaB = semFiltro[0].children[1].key;
+
+    const comFiltro: any = await service.filterMeta({
+      protocoloId: 1,
+      pacienteId: 79,
+      excludeKeys: String(keyMetaA),
+    });
+
+    const keysRestantes = comFiltro[0].children.map((meta: any) => meta.key);
+
+    expect(keysRestantes).not.toContain(keyMetaA);
+    expect(keysRestantes).toContain(keyMetaB);
+  });
+});

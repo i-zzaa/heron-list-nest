@@ -547,7 +547,56 @@ export class ProtocoloService {
       .map(sortProgramas);
   }
 
+  /**
+   * Item 8 do pedido do front: `body.excludeKeys` (string "101,205,310" ou
+   * array) marca itens já "em manutenção" — poda esses nós (e os filhos
+   * deles) recursivamente da árvore antes de devolver, pra o cliente não
+   * precisar filtrar de novo (o filtro que ele já tem continua funcionando
+   * como camada extra: podar uma árvore já podada não muda nada).
+   */
   async filterMeta(body: any) {
+    const resultado = await this.resolveMetaTree(body);
+    const excludeKeys = this.parseExcludeKeys(body?.excludeKeys);
+
+    if (!excludeKeys.size) {
+      return resultado;
+    }
+
+    return this.pruneExcludedKeys(resultado, excludeKeys);
+  }
+
+  private parseExcludeKeys(excludeKeys: unknown): Set<string> {
+    if (!excludeKeys) {
+      return new Set();
+    }
+
+    const lista = Array.isArray(excludeKeys)
+      ? excludeKeys
+      : String(excludeKeys).split(',');
+
+    return new Set(
+      lista.map((key) => String(key).trim()).filter((key) => key.length),
+    );
+  }
+
+  private pruneExcludedKeys(node: any, excludeKeys: Set<string>): any {
+    if (Array.isArray(node)) {
+      return node
+        .filter((item) => !excludeKeys.has(String(item?.key)))
+        .map((item) => this.pruneExcludedKeys(item, excludeKeys));
+    }
+
+    if (node && typeof node === 'object' && Array.isArray(node.children)) {
+      return {
+        ...node,
+        children: this.pruneExcludedKeys(node.children, excludeKeys),
+      };
+    }
+
+    return node;
+  }
+
+  private async resolveMetaTree(body: any) {
     const prisma = getPrismaClient(this.prismaService);
     switch (body.protocoloId) {
       case TIPO_PROTOCOLO_ENUM.portage:

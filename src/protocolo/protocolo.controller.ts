@@ -37,7 +37,13 @@ export class ProtocoloController {
   @Post('meta/filtro')
   async filterMeta(@Request() req: any, @Response() response: any) {
     try {
-      const data = await this.protocoloService.filterMeta(req.body);
+      // excludeKeys opcional via query (?excludeKeys=101,205,310) ou já no
+      // corpo — endpoint continua POST (é o que o front já chama, com
+      // pacienteId/protocoloId no body); query só pra esse parâmetro extra.
+      const data = await this.protocoloService.filterMeta({
+        ...req.body,
+        excludeKeys: req.body?.excludeKeys ?? req.query?.excludeKeys,
+      });
 
       responseSuccess(response, data);
     } catch (error) {
