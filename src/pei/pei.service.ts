@@ -31,6 +31,173 @@ type SelectedMaintenanceByCategory = {
   portage?: SelectionKeys;
 };
 
+// Item 7 do pedido do front: as árvores de Manual/VB-MAPP/Portage/
+// Manutenção devem chegar já no formato final de slots — hoje o front
+// reconstrói isso em runtime (luck/src/pages/session/useSessionForm.ts:
+// transformGenericNode/transformVBMappNode), e essas funções são
+// idempotentes em cima do próprio formato de saída delas (rodar de novo
+// sobre um nó já no formato final não muda nada). As funções abaixo são
+// port 1:1 dessas duas (mesmos 3 casos de branching, mesmos helpers
+// isPrimitiveOrNull/isObj/padSlots de luck/src/util/sessionTree.ts) —
+// aplicadas aqui, o transform do cliente vira no-op.
+const SLOT_COUNT_ATIVIDADE = 10; // Manual/VB-MAPP/Portage
+const SLOT_COUNT_MANUTENCAO = 1;
+
+const isObjNode = (v: any) => v && typeof v === 'object' && !Array.isArray(v);
+const isPrimitiveOrNull = (v: any) => v === null || !isObjNode(v);
+
+const padSlots = (arr: any[], count: number): any[] => {
+  const base = Array.isArray(arr) ? arr.slice(0, count) : [];
+  if (base.length < count) {
+    base.push(...Array.from({ length: count - base.length }, () => null));
+  }
+  return base;
+};
+
+/**
+ * GENÉRICO (Manual/Portage/Manutenção): entende children e subitems,
+ * cria slots no penúltimo nível ou em folhas puras. Port de
+ * transformGenericNode.
+ */
+function transformGenericNode(node: any, slotCount: number): any {
+  const out: any = {
+    key: String(node?.key ?? node?.id ?? ''),
+    label: node?.label ?? node?.nome ?? '',
+    estimuloDiscriminativo: node?.estimuloDiscriminativo ?? '',
+    estimuloReforcadorPositivo: node?.estimuloReforcadorPositivo ?? '',
+    resposta: node?.resposta ?? '',
+  };
+
+  const kids: any[] = (() => {
+    if (Array.isArray(node?.children) && node.children.length) {
+      return node.children;
+    }
+    if (Array.isArray(node?.subitems) && node.subitems.length) {
+      return node.subitems.map((si: any) => ({
+        ...si,
+        key: String(si?.key ?? si?.id ?? ''),
+        label: si?.label ?? si?.nome ?? '',
+        children: Array.isArray(si?.children) ? si.children : undefined,
+        subitems: Array.isArray(si?.subitems) ? si.subitems : undefined,
+      }));
+    }
+    return [];
+  })();
+
+  if (kids.length > 0) {
+    // CASO 1: folha com array de slots (primitivos/null) — usa direto e padroniza
+    if (kids.every(isPrimitiveOrNull)) {
+      out.children = padSlots(kids, slotCount);
+      return out;
+    }
+
+    // CASO 2: array de objetos "folha" (sem children/subitems — penúltimo nível)
+    const isLeafObject = (k: any) =>
+      isObjNode(k) && !Array.isArray(k?.children) && !Array.isArray(k?.subitems);
+
+    if (kids.every(isLeafObject)) {
+      out.children = kids.map((sub: any) => ({
+        key: String(sub?.key ?? sub?.id ?? ''),
+        label: sub?.label ?? sub?.nome ?? '',
+        estimuloDiscriminativo: sub?.estimuloDiscriminativo ?? '',
+        estimuloReforcadorPositivo: sub?.estimuloReforcadorPositivo ?? '',
+        resposta: sub?.resposta ?? '',
+        children:
+          Array.isArray(sub?.children) && sub.children.every(isPrimitiveOrNull)
+            ? padSlots(sub.children, slotCount)
+            : Array.from({ length: slotCount }, () => null),
+      }));
+      return out;
+    }
+
+    // CASO 3: nó interno — recursão
+    out.children = kids.map((ch: any) => transformGenericNode(ch, slotCount));
+    return out;
+  }
+
+  // Sem filhos: folha pura — cria slots vazios
+  out.children = Array.from({ length: slotCount }, () => null);
+  return out;
+}
+
+/**
+ * VB-MAPP: formato de saída próprio (permiteSubitens, sem subitems). Port
+ * de transformVBMappNode.
+ */
+function transformVBMappNode(node: any): any {
+  const out: any = {
+    key: String(node?.key ?? node?.id ?? ''),
+    label: node?.label ?? node?.nome ?? '',
+    estimuloDiscriminativo: node?.estimuloDiscriminativo ?? '',
+    estimuloReforcadorPositivo: node?.estimuloReforcadorPositivo ?? '',
+    resposta: node?.resposta ?? '',
+  };
+
+  const ch = node?.children;
+
+  if (Array.isArray(ch) && ch.length > 0) {
+    // Caso 1: folha com array de valores (primitivos/null)
+    if (ch.every(isPrimitiveOrNull)) {
+      out.children = padSlots(ch, SLOT_COUNT_ATIVIDADE);
+      return out;
+    }
+
+    const first = ch[0];
+
+    // 2.a) Subitens: objetos sem "children" (ou "children" não-array).
+    // Trata array vazio como equivalente a ausente — filterSelectedItemsTree
+    // (acima, já roda antes de chegar aqui) força `children: []` em toda
+    // folha marcada, então "não tem children de verdade" na prática
+    // também é "children é []", não só undefined/não-array.
+    if (isObjNode(first) && !(Array.isArray(first.children) && first.children.length > 0)) {
+      out.children = ch.map((sub: any) => {
+        const subOut: any = {
+          key: String(sub?.key ?? sub?.id ?? ''),
+          label: sub?.label ?? sub?.nome ?? '',
+          permiteSubitens: !!sub?.permiteSubitens,
+        };
+
+        if (
+          Array.isArray(sub?.children) &&
+          sub.children.length > 0 &&
+          sub.children.every(isPrimitiveOrNull)
+        ) {
+          subOut.children = padSlots(sub.children, SLOT_COUNT_ATIVIDADE);
+        } else {
+          subOut.children = Array.from(
+            { length: SLOT_COUNT_ATIVIDADE },
+            () => null,
+          );
+        }
+
+        return subOut;
+      });
+      return out;
+    }
+
+    // 2.b) Nós internos com filhos-objetos — recursão
+    out.children = ch.map((child: any) => transformVBMappNode(child));
+    return out;
+  }
+
+  out.children = Array.from({ length: SLOT_COUNT_ATIVIDADE }, () => null);
+  return out;
+}
+
+function transformMaintenanceObject(maintenanceObj: MaintenanceObject = {}) {
+  return {
+    manual: (maintenanceObj?.manual || []).map((n) =>
+      transformGenericNode(n, SLOT_COUNT_MANUTENCAO),
+    ),
+    vbmapp: (maintenanceObj?.vbmapp || []).map((n) =>
+      transformGenericNode(n, SLOT_COUNT_MANUTENCAO),
+    ),
+    portage: (maintenanceObj?.portage || []).map((n) =>
+      transformGenericNode(n, SLOT_COUNT_MANUTENCAO),
+    ),
+  };
+}
+
 @Injectable()
 export class PeiService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -727,10 +894,18 @@ export class PeiService {
         );
       }
 
-      item.atividades = item.atividades;
-      item.maintenance = maintenance; // objeto filtrado
-      item.portage = portage;
-      item.vbmapp = vbMapp;
+      // Item 7: normaliza cada árvore pro formato final de slots antes de
+      // devolver — o transformGenericNode/transformVBMappNode do cliente
+      // (useSessionForm.ts) é idempotente em cima desse formato, então
+      // passa a virar no-op.
+      item.atividades = (Array.isArray(item.atividades) ? item.atividades : []).map(
+        (n: any) => transformGenericNode(n, SLOT_COUNT_ATIVIDADE),
+      );
+      item.maintenance = transformMaintenanceObject(maintenance);
+      item.portage = portage.map((n: any) =>
+        transformGenericNode(n, SLOT_COUNT_ATIVIDADE),
+      );
+      item.vbmapp = vbMapp.map((n: any) => transformVBMappNode(n));
       item.selectedMaintenanceKeys = selectedMaintenanceKeys;
     });
 

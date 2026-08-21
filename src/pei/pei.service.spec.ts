@@ -53,3 +53,114 @@ describe('PeiService.filtro — vbMapp (ordenação por id dentro do programa)',
     expect(mando.metas.map((meta: any) => meta.id)).toEqual([1, 2, 3, 4, 5]);
   });
 });
+
+describe('PeiService.activitySession — árvores no formato final de slots (item 7)', () => {
+  const buildService = (atividadeSessaoRow: any) => {
+    const prisma = {
+      atividadeSessao: {
+        findMany: jest.fn().mockResolvedValue([atividadeSessaoRow]),
+      },
+    };
+
+    const service = new PeiService({ getPrismaClient: () => prisma } as any);
+
+    return { service };
+  };
+
+  it('preenche a árvore de atividades (Manual) com 10 slots por folha, a partir de children cru', async () => {
+    const { service } = buildService({
+      atividades: [
+        {
+          key: '1',
+          label: 'Programa',
+          children: [
+            { key: '1-1', label: 'Meta', children: ['C', 'C', null] },
+          ],
+        },
+      ],
+      maintenance: null,
+      portage: [],
+      selectedPortageKeys: null,
+      vbmapp: [],
+      selectedVbMappKeys: null,
+      selectedMaintenanceKeys: {},
+    });
+
+    const result: any = await service.activitySession(79);
+
+    const meta = result.atividades[0].children[0];
+    expect(meta.children).toHaveLength(10);
+    expect(meta.children).toEqual(['C', 'C', null, null, null, null, null, null, null, null]);
+  });
+
+  it('é idempotente: rodar de novo sobre uma árvore já no formato final não muda nada', async () => {
+    const jaFinal = {
+      key: '1',
+      label: 'Programa',
+      estimuloDiscriminativo: '',
+      estimuloReforcadorPositivo: '',
+      resposta: '',
+      children: [
+        {
+          key: '1-1',
+          label: 'Meta',
+          estimuloDiscriminativo: '',
+          estimuloReforcadorPositivo: '',
+          resposta: '',
+          children: ['C', 'C', null, null, null, null, null, null, null, null],
+        },
+      ],
+    };
+
+    const { service } = buildService({
+      atividades: [jaFinal],
+      maintenance: null,
+      portage: [],
+      selectedPortageKeys: null,
+      vbmapp: [],
+      selectedVbMappKeys: null,
+      selectedMaintenanceKeys: {},
+    });
+
+    const result: any = await service.activitySession(79);
+
+    expect(result.atividades[0]).toEqual(jaFinal);
+  });
+
+  it('VB-MAPP: subitem folha carrega permiteSubitens e 10 slots', async () => {
+    const { service } = buildService({
+      atividades: [],
+      maintenance: null,
+      portage: [],
+      selectedPortageKeys: null,
+      vbmapp: [
+        {
+          key: 'nivel-1',
+          label: 'Nível 1',
+          children: [
+            {
+              key: 'meta-1',
+              label: 'Meta',
+              children: [
+                { key: 'sub-1', label: 'Subitem', permiteSubitens: true },
+              ],
+            },
+          ],
+        },
+      ],
+      selectedVbMappKeys: {
+        'nivel-1': true,
+        'meta-1': true,
+        'sub-1': true,
+      },
+      selectedMaintenanceKeys: {},
+    });
+
+    const result: any = await service.activitySession(79);
+
+    const subitem = result.vbmapp[0].children[0].children[0];
+    expect(subitem.permiteSubitens).toBe(true);
+    expect(subitem.children).toHaveLength(10);
+    expect(subitem.children.every((v: any) => v === null)).toBe(true);
+  });
+});
