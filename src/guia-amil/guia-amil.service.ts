@@ -7,6 +7,7 @@ import {
 } from './guia-amil.interface';
 import { AmilClientService } from './amil-client.service';
 import { guiaAmilMockResponse } from './guia-amil.mock';
+import { GUIA_AMIL_STATUS } from './guia-amil';
 import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
 
@@ -71,45 +72,31 @@ export class GuiaAmilService {
     });
   }
 
-  async dropdown() {
-    if (process.env.AMIL_MOCK_MODE === 'true') {
-      return [
-        {
-          id: 1,
-          numeroGuia: 'GUIA-MOCK-001',
-          tipoGuia: 'CONSULTA',
-          status: 'RASCUNHO',
-          paciente: { id: 1, nome: 'Paciente Mock' },
-        },
-        {
-          id: 2,
-          numeroGuia: 'GUIA-MOCK-002',
-          tipoGuia: 'CONSULTA',
-          status: 'PRONTA_PARA_ENVIO',
-          paciente: { id: 2, nome: 'Paciente Mock 2' },
-        },
-      ];
-    }
-
-    const prisma = this.prismaService.getPrismaClient();
-
-    return prisma.guiaAmil.findMany({
-      select: {
-        id: true,
-        numeroGuia: true,
-        tipoGuia: true,
-        status: true,
-        paciente: {
-          select: {
-            id: true,
-            nome: true,
-          },
-        },
-      },
-      orderBy: {
-        numeroGuia: 'asc',
-      },
-    });
+  /**
+   * Item 11 dos "pontos menores" (heron-list-web): esse endpoint tinha o
+   * nome de "dropdown" (opções pra preencher os selects do formulário de
+   * guia — status, origem) mas devolvia uma LISTAGEM de guias já
+   * existentes (mesma coisa que `list()` já faz, redundante). O front
+   * (server/index.ts: getAmilGuideDropdowns) espera
+   * `{ status: [{id,nome}], origens: [{id,nome}] }` — como nunca batia
+   * com nenhum campo do payload real, o front sempre caía no fallback de
+   * reconstruir as opções a partir da própria listagem de guias.
+   *
+   * status vem de GUIA_AMIL_STATUS (guia-amil.ts, único catálogo real de
+   * status válidos pra GuiaAmil já existente no código). "origens" não é
+   * um conceito de GuiaAmil (é de LoteGuia.origem, que só é usado como
+   * 'MANUAL' — não achei nenhum outro valor gerado em nenhum lugar do
+   * backend) — devolvido com essa única opção conhecida, pra não
+   * inventar valores que não existem.
+   */
+  dropdown() {
+    return {
+      status: Object.values(GUIA_AMIL_STATUS).map((status) => ({
+        id: status,
+        nome: status,
+      })),
+      origens: [{ id: 'MANUAL', nome: 'Manual' }],
+    };
   }
 
   private buildListWhere(query: GuiaAmilListQuery) {

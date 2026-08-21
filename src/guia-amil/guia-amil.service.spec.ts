@@ -9,45 +9,21 @@ describe('GuiaAmilService', () => {
     service = new GuiaAmilService({} as PrismaService);
   });
 
-  it('should list guides for dropdown', async () => {
-    const findMany = jest
-      .fn()
-      .mockResolvedValue([
-        {
-          id: 1,
-          numeroGuia: 'G-001',
-          tipoGuia: 'CONSULTA',
-          status: 'RASCUNHO',
-          paciente: { id: 1, nome: 'Paciente' },
-        },
-      ]);
+  // Item 11 dos "pontos menores" (heron-list-web): dropdown() devolvia uma
+  // listagem de guias (redundante com list()) em vez das opções que o
+  // front realmente precisa pro formulário (status/origens).
+  it('devolve as opções de status a partir do catálogo real (GUIA_AMIL_STATUS), sem tocar o banco', () => {
+    const result = service.dropdown();
 
-    const prisma = {
-      guiaAmil: {
-        findMany,
-      },
-    };
-
-    (service as any).prismaService = {
-      getPrismaClient: () => prisma,
-    };
-
-    const result = await service.dropdown();
-
-    expect(findMany).toHaveBeenCalled();
-    expect(result[0]).toMatchObject({ id: 1, numeroGuia: 'G-001' });
+    expect(result.status).toContainEqual({ id: 'RASCUNHO', nome: 'RASCUNHO' });
+    expect(result.status).toContainEqual({ id: 'ENVIADA', nome: 'ENVIADA' });
+    expect(result.status.length).toBeGreaterThan(1);
   });
 
-  it('should return mock guide data when mock mode is enabled', async () => {
-    process.env.AMIL_MOCK_MODE = 'true';
+  it('devolve origens com a única opção conhecida no código (MANUAL)', () => {
+    const result = service.dropdown();
 
-    const result = await service.dropdown();
-
-    expect(Array.isArray(result)).toBe(true);
-    expect(result[0]).toMatchObject({
-      numeroGuia: 'GUIA-MOCK-001',
-      tipoGuia: 'CONSULTA',
-    });
+    expect(result.origens).toEqual([{ id: 'MANUAL', nome: 'Manual' }]);
   });
 
   it('should return paginated guide list when mock mode is enabled', async () => {
