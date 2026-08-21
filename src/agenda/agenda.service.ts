@@ -81,6 +81,7 @@ export class AgendaService {
         nome: true,
         id: true,
         codigo: true,
+        cor: true,
         atender: true,
         ...(includeCobrar ? { cobrar: true } : {}),
       },
@@ -1156,7 +1157,12 @@ export class AgendaService {
     const eventosFormat = Boolean(eventos)
       ? await this.formatEvents(eventos, login)
       : [];
-    return eventosFormat;
+
+    return this.expandRecurringOccurrences(
+      eventosFormat,
+      inicioDoMes,
+      ultimoDiaDoMes,
+    );
   }
 
   async getRange(params: any, device: string, login: string) {
@@ -1178,7 +1184,128 @@ export class AgendaService {
     });
 
     const eventosFormat = await this.formatEvents(eventos, login);
-    return eventosFormat;
+
+    return this.expandRecurringOccurrences(
+      eventosFormat,
+      inicioDoMes,
+      ultimoDiaDoMes,
+    );
+  }
+
+  /**
+   * Item 5 do pedido do front (heron-list-web): /evento/filtro/:start/:end
+   * mandava uma linha só por série recorrente (rrule.freq/dtstart/until +
+   * exdate) e o cliente reconstruía cada ocorrência dentro do período
+   * visível na mão (components/calendar/index.tsx: expandRecurringEvent).
+   * Aqui, a mesma expansão roda uma vez só, no servidor — cada ocorrência
+   * concreta dentro de [rangeStart, rangeEnd] vira 1 item de resposta, com
+   * date/start/end já resolvidos; rrule/daysOfWeek somem da resposta
+   * (undefined não serializa no JSON).
+   *
+   * Convenção de dia da semana: igual à de diasFrequencia em todo o
+   * resto do arquivo — 0=domingo..6=sábado (moment().day(), não
+   * isoWeekday()); "semana" pra fins de `interval` é sempre segunda a
+   * domingo (isoWeek), ancorada na semana de dataInicio.
+   *
+   * Eventos que não têm dados suficientes pra expandir (sem
+   * dataInicio/dias da semana) voltam como vieram, sem quebrar a
+   * resposta — mais seguro que descartar silenciosamente.
+   */
+  private expandRecurringOccurrences(
+    items: any[],
+    rangeStart: string,
+    rangeEnd: string,
+  ): any[] {
+    const rangeStartM = moment(rangeStart, 'YYYY-MM-DD');
+    const rangeEndM = moment(rangeEnd, 'YYYY-MM-DD');
+
+    if (!rangeStartM.isValid() || !rangeEndM.isValid()) {
+      return items;
+    }
+
+    const resultado: any[] = [];
+
+    items.forEach((item: any) => {
+      if (!item?.rrule?.freq) {
+        resultado.push(item);
+        return;
+      }
+
+      const diasSemana: number[] =
+        Array.isArray(item.daysOfWeek) && item.daysOfWeek.length
+          ? item.daysOfWeek
+          : Array.isArray(item.rrule.byweekday)
+          ? item.rrule.byweekday
+          : [];
+
+      const seriesStart = moment(item.dataInicio, 'YYYY-MM-DD');
+
+      if (!diasSemana.length || !seriesStart.isValid()) {
+        resultado.push(item);
+        return;
+      }
+
+      const interval = Number(item.rrule.interval) || 1;
+      const seriesEnd = item.dataFim
+        ? moment(item.dataFim, 'YYYY-MM-DD').endOf('day')
+        : null;
+
+      const exdateDias = new Set(
+        (Array.isArray(item.exdate) ? item.exdate : [])
+          .map((ex: string) => String(ex).trim().slice(0, 10))
+          .filter(Boolean),
+      );
+
+      const janelaInicio = moment.max(rangeStartM, seriesStart.clone().startOf('day'));
+      const janelaFim = seriesEnd ? moment.min(rangeEndM, seriesEnd) : rangeEndM;
+
+      if (janelaFim.isBefore(janelaInicio, 'day')) {
+        return; // série não cruza a janela pedida — nenhuma ocorrência aqui
+      }
+
+      const semanaInicioSerie = seriesStart.clone().startOf('isoWeek');
+
+      for (
+        const cursor = janelaInicio.clone();
+        cursor.isSameOrBefore(janelaFim, 'day');
+        cursor.add(1, 'day')
+      ) {
+        const diaSemana = cursor.day(); // 0=domingo..6=sábado
+
+        if (!diasSemana.includes(diaSemana)) {
+          continue;
+        }
+
+        const semanasDesdeInicio = cursor
+          .clone()
+          .startOf('isoWeek')
+          .diff(semanaInicioSerie, 'weeks');
+
+        if (semanasDesdeInicio % interval !== 0) {
+          continue;
+        }
+
+        const dataOcorrencia = cursor.format('YYYY-MM-DD');
+
+        if (exdateDias.has(dataOcorrencia)) {
+          continue;
+        }
+
+        resultado.push({
+          ...item,
+          date: dataOcorrencia,
+          start: formatDateTime(item.start, dataOcorrencia),
+          end: formatDateTime(item.end || item.start, dataOcorrencia),
+          allDay: false,
+          rrule: undefined,
+          daysOfWeek: undefined,
+          startTime: undefined,
+          endTime: undefined,
+        });
+      }
+    });
+
+    return resultado;
   }
 
   async createCalendario(body: any, login: string) {

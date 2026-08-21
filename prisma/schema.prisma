@@ -180,6 +180,10 @@ model StatusEventos {
   // a partir do nome quando não vier no create/update (ver
   // StatusEventoService.resolveCodigo), mas pode ser sobrescrito.
   codigo     String       @unique
+  // Item 4 do pedido do front (heron-list-web): cor pronta pra badge,
+  // mesmo padrão de Especialidade.cor — sem isso o front mantinha 3
+  // paletas fixas em paralelo, tentando adivinhar a cor a partir do nome.
+  cor        String       @default("#94a3b8")
   cobrar     Boolean      @default(false)
   // Indica se esse status representa um atendimento realizado (ex.:
   // "Atendido") — mesmo padrão de cobrar, cadastrável pelo front.

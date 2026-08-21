@@ -411,6 +411,7 @@ export class TerapeutaService {
               nome: true,
               id: true,
               codigo: true,
+              cor: true,
               atender: true,
             },
           },

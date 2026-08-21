@@ -23,6 +23,7 @@ export class StatusEventoService {
           id: true,
           nome: true,
           codigo: true,
+          cor: true,
           cobrar: true,
           atender: true,
           ativo: true,
@@ -51,6 +52,7 @@ export class StatusEventoService {
         id: true,
         nome: true,
         codigo: true,
+        cor: true,
         cobrar: true,
         atender: true,
       },
@@ -71,6 +73,7 @@ export class StatusEventoService {
         id: true,
         nome: true,
         codigo: true,
+        cor: true,
         cobrar: true,
         atender: true,
         ativo: true,
@@ -90,7 +93,7 @@ export class StatusEventoService {
     return await prisma.statusEventos.create({
       data: buildCreatePayload(
         { ...body, codigo: body.codigo || slugifyCodigo(body.nome, 'lower') },
-        ['nome', 'codigo', 'ativo', 'cobrar', 'atender'],
+        ['nome', 'codigo', 'cor', 'ativo', 'cobrar', 'atender'],
       ),
     });
   }
@@ -105,6 +108,7 @@ export class StatusEventoService {
       data: buildCreatePayload(body, [
         'nome',
         'codigo',
+        'cor',
         'ativo',
         'cobrar',
         'atender',
@@ -143,6 +147,7 @@ export class StatusEventoService {
         nome: true,
         id: true,
         codigo: true,
+        cor: true,
         cobrar: true,
         atender: true,
       },
