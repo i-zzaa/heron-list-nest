@@ -3,6 +3,7 @@ export interface StatusEventosProps {
   nome: string;
   ativo: boolean;
   cobrar: boolean;
+  atender: boolean;
 }
 
 export enum STATUS_EVENTOS_ID {

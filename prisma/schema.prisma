@@ -171,6 +171,9 @@ model StatusEventos {
   id         Int          @id @default(autoincrement())
   nome       String       @unique
   cobrar     Boolean      @default(false)
+  // Indica se esse status representa um atendimento realizado (ex.:
+  // "Atendido") — mesmo padrão de cobrar, cadastrável pelo front.
+  atender    Boolean      @default(false)
   ativo      Boolean      @default(true)
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @default(now())

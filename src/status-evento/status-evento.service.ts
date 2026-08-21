@@ -23,6 +23,7 @@ export class StatusEventoService {
           id: true,
           nome: true,
           cobrar: true,
+          atender: true,
           ativo: true,
         },
         orderBy: {
@@ -49,6 +50,7 @@ export class StatusEventoService {
         id: true,
         nome: true,
         cobrar: true,
+        atender: true,
       },
       where: {
         ativo: true,
@@ -67,6 +69,7 @@ export class StatusEventoService {
         id: true,
         nome: true,
         cobrar: true,
+        atender: true,
         ativo: true,
       },
       orderBy: {
@@ -82,7 +85,7 @@ export class StatusEventoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.statusEventos.create({
-      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar']),
+      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar', 'atender']),
     });
   }
 
@@ -90,7 +93,7 @@ export class StatusEventoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.statusEventos.update({
-      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar']),
+      data: buildCreatePayload(body, ['nome', 'ativo', 'cobrar', 'atender']),
       where: {
         id: toNumberId(body.id),
       },
@@ -125,6 +128,7 @@ export class StatusEventoService {
         nome: true,
         id: true,
         cobrar: true,
+        atender: true,
       },
       where: {
         id: Number(id),
