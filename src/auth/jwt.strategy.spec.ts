@@ -41,5 +41,26 @@ describe('JwtStrategy', () => {
 
       expect(JwtStrategy.extractJwtFromRequest(req)).toBeNull();
     });
+
+    it('item 10: extrai do cookie accessToken quando não há header nem query', () => {
+      const req = {
+        headers: { cookie: 'outraCoisa=1; accessToken=do-cookie; foo=bar' },
+        query: {},
+      };
+
+      expect(JwtStrategy.extractJwtFromRequest(req)).toBe('do-cookie');
+    });
+
+    it('item 10: header Authorization tem prioridade sobre o cookie', () => {
+      const req = {
+        headers: {
+          authorization: 'Bearer do-header',
+          cookie: 'accessToken=do-cookie',
+        },
+        query: {},
+      };
+
+      expect(JwtStrategy.extractJwtFromRequest(req)).toBe('do-header');
+    });
   });
 });

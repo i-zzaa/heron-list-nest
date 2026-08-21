@@ -1,6 +1,7 @@
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
+import { extractAccessTokenFromCookie } from './auth-cookie';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -52,7 +53,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return fromQuery;
     }
 
-    return null;
+    // Item 10: fallback pro cookie HttpOnly (ver auth-cookie.ts) — só é
+    // efetivamente usado quando o front migrar pra parar de mandar
+    // Authorization manualmente; até lá, o header sempre bate primeiro.
+    return extractAccessTokenFromCookie(req);
   }
 
   async validate(payload: any) {
