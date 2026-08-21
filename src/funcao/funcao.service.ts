@@ -5,6 +5,7 @@ import { buildPagination } from 'src/util/pagination';
 import { toNumberId } from 'src/util/normalizers';
 import { buildTextSearchWhere } from 'src/util/search';
 import { assertEntidadeNaoEstaEmUso } from 'src/util/assert-not-in-use';
+import { VALOR_COMISSAO_PADRAO } from 'src/util/financeiro-config';
 
 @Injectable()
 export class FuncaoService {
@@ -47,7 +48,7 @@ export class FuncaoService {
   async dropdown() {
     const prisma = this.prismaService.getPrismaClient();
 
-    return prisma.funcao.findMany({
+    const funcoes = await prisma.funcao.findMany({
       select: {
         id: true,
         nome: true,
@@ -59,6 +60,14 @@ export class FuncaoService {
         ativo: true,
       },
     });
+
+    // Item 5 dos "pontos menores": valor default de comissão pronto, pra
+    // não hardcodar 80 no front — mesmo valor que já é o default do
+    // schema (TerapeutaOnFuncao.comissao).
+    return funcoes.map((funcao) => ({
+      ...funcao,
+      comissaoPadrao: VALOR_COMISSAO_PADRAO,
+    }));
   }
 
   async getTerapeutaByFuncaoDropdown(terapeutaId: number) {
