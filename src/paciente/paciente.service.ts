@@ -14,6 +14,18 @@ import { buildPagination } from 'src/util/pagination';
 import { buildTextSearchWhere } from 'src/util/search';
 import { normalizeCurrencyValue, readDecimal } from 'src/util/normalizers';
 import { HistoricoService } from 'src/historico/historico.service';
+import { getUsuarioPermissoes } from 'src/auth/permission-lookup';
+
+// Item 8 dos "pontos menores" (heron-list-web): qual tela cada
+// statusPacienteCod de fila representa — mesmo prefixo de tag usado nas
+// permissões (FILA_AVALIACAO_*, FILA_DEVOLUTIVA_*, etc.), pra resolver
+// acaoDisponivel sem duplicar essa lógica de novo.
+const TELA_POR_STATUS_FILA: Record<string, string> = {
+  [STATUS_PACIENT_COD.queue_avaliation]: 'FILA_AVALIACAO',
+  [STATUS_PACIENT_COD.queue_devolutiva]: 'FILA_DEVOLUTIVA',
+  [STATUS_PACIENT_COD.queue_therapy]: 'FILA_TERAPIA',
+  [STATUS_PACIENT_COD.crud_therapy]: 'CADASTRO_PACIENTES',
+};
 
 @Injectable()
 export class PacienteService {
@@ -22,8 +34,10 @@ export class PacienteService {
     private readonly historicoService: HistoricoService,
   ) {}
 
-  async getAll(query: any, page: number, pageSize: number) {
+  async getAll(query: any, page: number, pageSize: number, login?: string) {
     const statusPacienteCod = query.statusPacienteCod;
+    const tela = TELA_POR_STATUS_FILA[statusPacienteCod];
+
     switch (statusPacienteCod) {
       case STATUS_PACIENT_COD.queue_avaliation:
         return this.getPatientsQueue(
@@ -31,6 +45,8 @@ export class PacienteService {
           pageSize,
           [STATUS_PACIENT_COD.queue_avaliation, STATUS_PACIENT_COD.avaliation],
           true,
+          tela,
+          login,
         );
       case STATUS_PACIENT_COD.queue_devolutiva:
         return this.getPatientsQueue(
@@ -38,11 +54,18 @@ export class PacienteService {
           pageSize,
           [STATUS_PACIENT_COD.queue_devolutiva],
           true,
+          tela,
+          login,
         );
       case STATUS_PACIENT_COD.queue_therapy:
-        return this.getPatientsQueue(page, pageSize, [
-          STATUS_PACIENT_COD.queue_therapy,
-        ]);
+        return this.getPatientsQueue(
+          page,
+          pageSize,
+          [STATUS_PACIENT_COD.queue_therapy],
+          undefined,
+          tela,
+          login,
+        );
       case STATUS_PACIENT_COD.crud_therapy:
         return this.getPatientsQueue(
           page,
@@ -53,6 +76,8 @@ export class PacienteService {
             STATUS_PACIENT_COD.crud_therapy,
           ],
           false,
+          tela,
+          login,
         );
       default:
         break;
@@ -117,6 +142,8 @@ export class PacienteService {
     pageSize: number,
     statusPacienteCod: string[],
     naFila?: boolean,
+    tela?: string,
+    login?: string,
   ) {
     const prisma = getPrismaClient(this.prismaService);
 
@@ -177,9 +204,78 @@ export class PacienteService {
 
     const pacientes: any = data ? await this.formatPatients(data) : [];
 
+    const pacientesComAcao = tela
+      ? await this.aplicarAcaoDisponivel(pacientes, tela, login)
+      : pacientes;
+
     const pagination = buildPagination(page, pageSize, totalItems.length);
 
-    return { data: pacientes || [], pagination };
+    return { data: pacientesComAcao || [], pagination };
+  }
+
+  /**
+   * Item 8 dos "pontos menores" (heron-list-web): qual ação o botão do
+   * rodapé de cada item da fila deve oferecer — hoje decidido no cliente
+   * (templates/list/index.tsx), cruzando tela + statusPacienteCod/naFila
+   * + permissão do usuário logado (hasPermition(`${tela}_LISTA_BOTAO_*`)).
+   * Réplica 1:1 da mesma regra, do lado do servidor.
+   */
+  private async aplicarAcaoDisponivel(
+    pacientes: any[],
+    tela: string,
+    login?: string,
+  ) {
+    // CADASTRO_PACIENTES nunca tem botão de ação (o front nem entra no
+    // switch pra essa tela) — resolve sem precisar buscar permissão.
+    if (tela === 'CADASTRO_PACIENTES') {
+      return pacientes.map((paciente: any) => ({
+        ...paciente,
+        acaoDisponivel: null,
+      }));
+    }
+
+    const usuario = await getUsuarioPermissoes(this.prismaService, login);
+    const tags = new Set(usuario?.tags || []);
+    const temTag = (sufixo: string) => tags.has(`${tela}_${sufixo}`);
+
+    return pacientes.map((paciente: any) => {
+      const naFila = !!paciente?.vaga?.naFila;
+      const statusPacienteCod = paciente?.statusPacienteCod;
+
+      let acaoDisponivel:
+        | 'agendar'
+        | 'retornar'
+        | 'devolutiva'
+        | 'voltou_aba'
+        | null = null;
+
+      if (
+        naFila &&
+        statusPacienteCod !== STATUS_PACIENT_COD.queue_devolutiva &&
+        statusPacienteCod !== STATUS_PACIENT_COD.devolutiva &&
+        temTag('LISTA_BOTAO_AGENDAR')
+      ) {
+        acaoDisponivel = 'agendar';
+      } else if (
+        tela === 'FILA_DEVOLUTIVA' &&
+        !naFila &&
+        temTag('LISTA_BOTAO_RETORNAR_AGENDAR')
+      ) {
+        acaoDisponivel = 'retornar';
+      } else if (
+        tela === 'FILA_DEVOLUTIVA' &&
+        statusPacienteCod === STATUS_PACIENT_COD.queue_devolutiva
+      ) {
+        acaoDisponivel = 'devolutiva';
+      } else if (
+        statusPacienteCod === STATUS_PACIENT_COD.devolutiva &&
+        !naFila
+      ) {
+        acaoDisponivel = 'voltou_aba';
+      }
+
+      return { ...paciente, acaoDisponivel };
+    });
   }
 
   async getPatientId(id: number) {

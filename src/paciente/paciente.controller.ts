@@ -152,7 +152,12 @@ export class PacienteController {
     try {
       const page = Number(req.query.page) || 1;
       const pageSize = normalizePageSize(Number(req.query.pageSize));
-      const data = await this.pacienteService.getAll(req.query, page, pageSize);
+      const data = await this.pacienteService.getAll(
+        req.query,
+        page,
+        pageSize,
+        req.user?.username,
+      );
 
       responseSuccess(response, data);
     } catch (error) {

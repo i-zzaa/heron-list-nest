@@ -351,3 +351,86 @@ describe('PacienteService', () => {
     );
   });
 });
+
+describe('PacienteService.aplicarAcaoDisponivel (item 8 dos pontos menores)', () => {
+  const buildService = (tags: string[]) => {
+    const prisma = {
+      usuario: {
+        findUnique: jest.fn().mockResolvedValue({
+          mustChangePassword: false,
+          perfil: { nome: 'Secretária' },
+          grupo: {
+            permissoes: tags.map((cod) => ({ permissao: { cod } })),
+          },
+        }),
+      },
+    };
+
+    return new PacienteService(
+      { getPrismaClient: () => prisma } as any,
+      historicoServiceMock,
+    );
+  };
+
+  it('CADASTRO_PACIENTES nunca tem ação (nem busca permissão)', async () => {
+    const service: any = buildService([]);
+
+    const [item] = await service.aplicarAcaoDisponivel(
+      [{ vaga: { naFila: true }, statusPacienteCod: 'crud_therapy' }],
+      'CADASTRO_PACIENTES',
+      'login-a',
+    );
+
+    expect(item.acaoDisponivel).toBeNull();
+  });
+
+  it('FILA_AVALIACAO: paciente na fila com a tag de agendar -> agendar', async () => {
+    const service: any = buildService(['FILA_AVALIACAO_LISTA_BOTAO_AGENDAR']);
+
+    const [item] = await service.aplicarAcaoDisponivel(
+      [{ vaga: { naFila: true }, statusPacienteCod: 'queue_avaliation' }],
+      'FILA_AVALIACAO',
+      'login-b',
+    );
+
+    expect(item.acaoDisponivel).toBe('agendar');
+  });
+
+  it('sem a tag de agendar, mesmo na fila, não libera ação nenhuma', async () => {
+    const service: any = buildService([]);
+
+    const [item] = await service.aplicarAcaoDisponivel(
+      [{ vaga: { naFila: true }, statusPacienteCod: 'queue_avaliation' }],
+      'FILA_AVALIACAO',
+      'login-c',
+    );
+
+    expect(item.acaoDisponivel).toBeNull();
+  });
+
+  it('FILA_DEVOLUTIVA: fora da fila com a tag de retornar -> retornar', async () => {
+    const service: any = buildService([
+      'FILA_DEVOLUTIVA_LISTA_BOTAO_RETORNAR_AGENDAR',
+    ]);
+
+    const [item] = await service.aplicarAcaoDisponivel(
+      [{ vaga: { naFila: false }, statusPacienteCod: 'devolutiva' }],
+      'FILA_DEVOLUTIVA',
+      'login-d',
+    );
+
+    expect(item.acaoDisponivel).toBe('retornar');
+  });
+
+  it('FILA_DEVOLUTIVA: status queue_devolutiva -> devolutiva (sem depender de tag)', async () => {
+    const service: any = buildService([]);
+
+    const [item] = await service.aplicarAcaoDisponivel(
+      [{ vaga: { naFila: true }, statusPacienteCod: 'queue_devolutiva' }],
+      'FILA_DEVOLUTIVA',
+      'login-e',
+    );
+
+    expect(item.acaoDisponivel).toBe('devolutiva');
+  });
+});
