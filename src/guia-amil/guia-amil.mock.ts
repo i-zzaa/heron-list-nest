@@ -39,8 +39,9 @@ export const guiaAmilMockResponse = {
       },
     ],
     pagination: {
-      currentPage: 1,
+      page: 1,
       pageSize: 10,
+      total: 2,
       totalPages: 1,
     },
   },

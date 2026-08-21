@@ -14,12 +14,18 @@ export const normalizePageSize = (
   return Math.min(pageSize, maxPageSize);
 };
 
+// Envelope único pedido pelo front (heron-list-web, item 1 da
+// especificação): antes essa função devolvia `currentPage` (não `page`)
+// e nunca incluía o total de itens — cada tela do front tentava adivinhar
+// o nome certo (page/currentPage, total/totalItems). Nomes fixos agora:
+// page, pageSize, total, totalPages — sem variação entre endpoints.
 export const buildPagination = (
   page: number,
   pageSize: number,
   totalItems: number,
 ) => ({
-  currentPage: page,
+  page,
   pageSize,
+  total: totalItems,
   totalPages: Math.ceil(totalItems / pageSize) || 1,
 });

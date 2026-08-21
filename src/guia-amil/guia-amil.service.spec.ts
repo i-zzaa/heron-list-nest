@@ -57,7 +57,7 @@ describe('GuiaAmilService', () => {
 
     expect(result).toHaveProperty('data');
     expect(result).toHaveProperty('pagination');
-    expect(result.pagination).toMatchObject({ currentPage: 1, pageSize: 10 });
+    expect(result.pagination).toMatchObject({ page: 1, pageSize: 10 });
     expect(Array.isArray(result.data)).toBe(true);
   });
 
