@@ -21,6 +21,7 @@ export class StatusService {
         select: {
           id: true,
           nome: true,
+          padrao: true,
         },
         orderBy: {
           nome: 'asc',
@@ -43,6 +44,7 @@ export class StatusService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       where: {
         NOT: {
@@ -65,6 +67,7 @@ export class StatusService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       orderBy: {
         nome: 'asc',
@@ -77,7 +80,7 @@ export class StatusService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.status.create({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'padrao']),
     });
   }
 
@@ -85,7 +88,7 @@ export class StatusService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.status.update({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'padrao']),
       where: {
         id: toNumberId(body.id),
       },
@@ -109,6 +112,7 @@ export class StatusService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       where: {
         id: Number(id),

@@ -20,6 +20,7 @@ export class TipoSessaoService {
         select: {
           id: true,
           nome: true,
+          padrao: true,
         },
         orderBy: {
           nome: 'asc',
@@ -41,6 +42,7 @@ export class TipoSessaoService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       where: {
         NOT: {
@@ -60,6 +62,7 @@ export class TipoSessaoService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       orderBy: {
         nome: 'asc',
@@ -72,7 +75,7 @@ export class TipoSessaoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.tipoSessao.create({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'padrao']),
     });
   }
 
@@ -80,7 +83,7 @@ export class TipoSessaoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.tipoSessao.update({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'padrao']),
       where: {
         id: toNumberId(body.id),
       },
@@ -104,6 +107,7 @@ export class TipoSessaoService {
       select: {
         nome: true,
         id: true,
+        padrao: true,
       },
       where: {
         id: Number(id),

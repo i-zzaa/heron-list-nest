@@ -20,6 +20,7 @@ export class PeriodoService {
         select: {
           id: true,
           nome: true,
+          padrao: true,
         },
         orderBy: {
           nome: 'asc',
@@ -42,6 +43,7 @@ export class PeriodoService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       where: {},
       orderBy: {
@@ -57,6 +59,7 @@ export class PeriodoService {
       select: {
         id: true,
         nome: true,
+        padrao: true,
       },
       orderBy: {
         nome: 'asc',
@@ -69,7 +72,7 @@ export class PeriodoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.periodo.create({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'padrao']),
     });
   }
 
@@ -77,7 +80,7 @@ export class PeriodoService {
     const prisma = this.prismaService.getPrismaClient();
 
     return await prisma.periodo.update({
-      data: buildCreatePayload(body, ['nome']),
+      data: buildCreatePayload(body, ['nome', 'padrao']),
       where: {
         id: toNumberId(body.id),
       },

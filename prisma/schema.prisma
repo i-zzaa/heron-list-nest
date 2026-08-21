@@ -95,9 +95,14 @@ model VagaOnEspecialidade {
 }
 
 model Periodo {
-  id   Int    @id @default(autoincrement())
-  nome String
-  vaga Vaga[]
+  id     Int     @id @default(autoincrement())
+  nome   String
+  // Item 6 dos "pontos menores" (heron-list-web): opção default marcada
+  // no próprio cadastro, em vez do front supor qual id é o padrão
+  // (PatientForm.tsx tinha PERIODO.integral/STATUS.padrao/
+  // TIPO_SESSAO.terapeuta hardcoded). Mesmo padrão em Status/TipoSessao.
+  padrao Boolean @default(false)
+  vaga   Vaga[]
 }
 
 model Especialidade {
@@ -122,12 +127,14 @@ model Especialidade {
 model Status {
   id       Int        @id @default(autoincrement())
   nome     String
+  padrao   Boolean    @default(false)
   paciente Paciente[]
 }
 
 model TipoSessao {
   id       Int        @id @default(autoincrement())
   nome     String
+  padrao   Boolean    @default(false)
   paciente Paciente[]
 }
 
