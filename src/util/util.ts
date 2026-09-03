@@ -35,7 +35,15 @@ export enum TYPE_DTT {
 }
 
 export const calcAcertos = (array: string[]) => {
-  const filteredArray = array.filter((item) => item !== null);
+  const filteredArray = (array || []).filter((item) => item !== null);
+
+  // Sem nenhuma resposta registrada (array vazio, ou só nulls filtrados),
+  // countC/filteredArray.length é 0/0 = NaN — "NaN" ia parar direto na
+  // tela (ex.: relatório de atividade por dia). "-" deixa claro que não
+  // há dado, em vez de vazar o resultado bruto de uma divisão inválida.
+  if (!filteredArray.length) {
+    return '-';
+  }
 
   const countC = filteredArray.filter((item) => item === TYPE_DTT.c).length;
   return ((countC / filteredArray.length) * 100).toFixed(2);

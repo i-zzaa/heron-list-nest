@@ -158,4 +158,21 @@ describe('SessaoService.getAtividadeSessaoByPacient — Manual/VB-MAPP/Portage',
       service.getAtividadeSessaoByPacient(79),
     ).resolves.toHaveLength(1);
   });
+
+  it('item sem nenhuma resposta registrada devolve porcentagem "-", não "NaN"', async () => {
+    const sessaoManual = [
+      {
+        label: 'Comportamental',
+        children: [{ label: 'meta', children: [itemFolha('5 segundos', [])] }],
+      },
+    ];
+
+    const { service } = buildService([
+      { sessao: sessaoManual, vbmapp: null, portage: null, evento },
+    ]);
+
+    const result: any = await service.getAtividadeSessaoByPacient(79);
+
+    expect(result[0].children[0].dias[0].porcentagem).toBe('-');
+  });
 });
