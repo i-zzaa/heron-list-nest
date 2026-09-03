@@ -94,11 +94,11 @@ describe('PeiService.filtro — protocolo Manual (agrupamento por programa, sem 
     expect(result.some((grupo: any) => grupo.programa.nome === 'Mando')).toBe(false);
   });
 
-  it('agrupa vários registros do mesmo programa num item só, preservando cada registro em "entries"', async () => {
+  it('agrupa vários registros do mesmo programa num item só, com peiIds de todos os registros originais', async () => {
     const { service } = buildService([
-      buildPeiRow(67, { resposta: 'Criança esperou' }),
-      buildPeiRow(68, { resposta: 'Criança esperou de novo' }),
-      buildPeiRow(69, { resposta: 'Sentar' }),
+      buildPeiRow(67, { metas: [{ id: '67-meta-0', value: 'Criança esperar' }] }),
+      buildPeiRow(68, { metas: [{ id: '68-meta-0', value: 'Sentar' }] }),
+      buildPeiRow(69, { metas: [{ id: '69-meta-0', value: 'Levantar' }] }),
     ]);
 
     const result: any = await service.filtro({
@@ -108,9 +108,82 @@ describe('PeiService.filtro — protocolo Manual (agrupamento por programa, sem 
 
     // 1 item só pro programa "Comportamental" (não 3, um por registro Pei).
     expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(67); // canônico: o primeiro do grupo
     expect(result[0].programa).toEqual({ id: 3, nome: 'Comportamental' });
-    expect(result[0].entries).toHaveLength(3);
-    expect(result[0].entries.map((e: any) => e.id)).toEqual([67, 68, 69]);
+    expect(result[0].peiIds).toEqual([67, 68, 69]);
+    expect(result[0].metas.map((m: any) => m.value)).toEqual([
+      'Criança esperar',
+      'Sentar',
+      'Levantar',
+    ]);
+  });
+
+  it('metas com o mesmo texto se mesclam (subitems combinados), em vez de duplicar', async () => {
+    const { service } = buildService([
+      buildPeiRow(67, {
+        metas: [
+          {
+            id: '67-meta-0',
+            value: 'Criança esperar',
+            subitems: [{ id: '67-meta-0-sub-item-0', value: '5 segundos' }],
+          },
+        ],
+      }),
+      buildPeiRow(68, {
+        // Mesmo texto da meta acima, com espaço nas pontas (dado real:
+        // variação de digitação entre registros) — deve mesclar, não
+        // duplicar a meta.
+        metas: [
+          {
+            id: '68-meta-0',
+            value: ' Criança esperar ',
+            subitems: [{ id: '68-meta-0-sub-item-0', value: '10 segundos' }],
+          },
+        ],
+      }),
+    ]);
+
+    const result: any = await service.filtro({
+      paciente: { id: 79 },
+      protocoloId: { id: 3, nome: 'Manual' },
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].metas).toHaveLength(1); // não duplicou a meta
+    expect(result[0].metas[0].subitems.map((s: any) => s.value)).toEqual([
+      '5 segundos',
+      '10 segundos',
+    ]);
+  });
+
+  it('subitem com o mesmo texto também não duplica ao mesclar', async () => {
+    const { service } = buildService([
+      buildPeiRow(67, {
+        metas: [
+          {
+            id: '67-meta-0',
+            value: 'Criança esperar',
+            subitems: [{ id: '67-meta-0-sub-item-0', value: '5 segundos' }],
+          },
+        ],
+      }),
+      buildPeiRow(68, {
+        metas: [
+          {
+            id: '68-meta-0',
+            value: 'Criança esperar',
+            subitems: [{ id: '68-meta-0-sub-item-0', value: '5 segundos' }],
+          },
+        ],
+      }),
+    ]);
+
+    const result: any = await service.filtro({
+      paciente: { id: 79 },
+      protocoloId: { id: 3, nome: 'Manual' },
+    });
+
+    expect(result[0].metas[0].subitems).toHaveLength(1);
   });
 
   it('programas diferentes viram itens separados', async () => {
@@ -240,5 +313,59 @@ describe('PeiService.activitySession — árvores no formato final de slots (ite
     expect(subitem.permiteSubitens).toBe(true);
     expect(subitem.children).toHaveLength(10);
     expect(subitem.children.every((v: any) => v === null)).toBe(true);
+  });
+});
+
+describe('PeiService.update — edição em nível de protocolo (consolidação de peiIds)', () => {
+  const buildService = () => {
+    const prisma = {
+      pei: {
+        update: jest.fn().mockResolvedValue({ id: 67 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+
+    const service = new PeiService({ getPrismaClient: () => prisma } as any);
+
+    return { service, prisma };
+  };
+
+  it('grava só no registro canônico (body.id) e apaga os demais registros do grupo (peiIds)', async () => {
+    const { service, prisma } = buildService();
+
+    await service.update({
+      id: 67,
+      peiIds: [67, 68, 69],
+      pacienteId: 79,
+      programaId: 3,
+      procedimentoEnsinoId: 1,
+      estimuloDiscriminativo: 'x',
+      resposta: 'y',
+      estimuloReforcadorPositivo: 'z',
+      metas: [{ id: '67-meta-0', value: 'Criança esperar' }],
+    });
+
+    expect(prisma.pei.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 67 } }),
+    );
+    expect(prisma.pei.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: [68, 69] } },
+    });
+  });
+
+  it('sem peiIds (edição avulsa), não apaga nada — comportamento de sempre', async () => {
+    const { service, prisma } = buildService();
+
+    await service.update({ id: 67, pacienteId: 79, programaId: 3, metas: [] });
+
+    expect(prisma.pei.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('quando o grupo tem só o registro canônico, não chama deleteMany à toa', async () => {
+    const { service, prisma } = buildService();
+
+    await service.update({ id: 67, peiIds: [67], pacienteId: 79, programaId: 3, metas: [] });
+
+    expect(prisma.pei.deleteMany).not.toHaveBeenCalled();
   });
 });

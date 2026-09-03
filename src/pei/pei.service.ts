@@ -286,12 +286,13 @@ export class PeiService {
           // VB-MAPP numa chamada própria (POST /protocolo/meta/filtro),
           // separada desta.
           //
-          // Agrupado por programa (era 1 item por registro Pei — 3
-          // registros "Comportamental" viravam 3 abas idênticas no
-          // Accordion). `entries` preserva cada registro original (com
-          // seu id, estímulo/resposta/procedimento próprios) pra
-          // editar/excluir continuar agindo sobre o registro certo,
-          // sem apagar as outras metas do mesmo programa.
+          // Agrupado e mesclado por programa (era 1 item por registro Pei
+          // — 3 registros "Comportamental" viravam 3 abas idênticas no
+          // Accordion, cada uma com só parte das metas). Metas com o
+          // mesmo texto se combinam (subitems mesclados) em vez de
+          // duplicar. `peiIds` guarda todos os registros originais do
+          // grupo, pra edição em nível de protocolo consolidar no save
+          // (ver PeiService.update).
           return this.agruparPeiPorPrograma(resultPei);
         } catch (error) {
           console.log(error);
@@ -343,11 +344,18 @@ export class PeiService {
    * Agrupa os registros de Pei (protocolo Manual) por programa — cada
    * programa vira UM item da lista (era um item por registro Pei, então
    * um programa com 3 registros virava 3 abas idênticas no Accordion do
-   * front). `entries` guarda cada registro original intacto (id,
-   * estímulo/resposta/procedimento e suas próprias metas), pra
-   * editar/excluir continuar agindo sobre o registro certo — sem isso,
-   * um "editar"/"excluir" na aba agrupada não saberia qual dos vários
-   * registros originais mexer.
+   * front, todas com o mesmo nome). Dentro do grupo, as metas de todos os
+   * registros são mescladas: quando duas metas têm o mesmo texto (mesmo
+   * `value`, ignorando espaços nas pontas), os `subitems` delas são
+   * combinados em vez de duplicar a meta.
+   *
+   * Edição passa a ser em nível de protocolo: o grupo carrega `peiIds`
+   * com TODOS os registros originais que foram mesclados nele — o campo
+   * `id` é só o primeiro (canônico), usado pelo formulário de edição.
+   * `PeiService.update` usa `peiIds` pra consolidar fisicamente os
+   * registros extras no registro canônico ao salvar (ver lá), senão as
+   * metas antigas dos registros não-canônicos ressurgiriam mescladas de
+   * volta na próxima listagem.
    */
   private agruparPeiPorPrograma(resultPei: any[]) {
     const porPrograma = new Map<number, any>();
@@ -355,17 +363,68 @@ export class PeiService {
     resultPei.forEach((item: any) => {
       const programaId = item.programa?.id;
       const grupo = porPrograma.get(programaId) || {
-        id: programaId,
-        programa: item.programa,
-        paciente: item.paciente,
-        entries: [],
+        ...item,
+        peiIds: [],
+        metas: [],
       };
 
-      grupo.entries.push(item);
+      grupo.peiIds.push(item.id);
+      grupo.metas = this.mesclarMetas(grupo.metas, item.metas || []);
+
       porPrograma.set(programaId, grupo);
     });
 
     return Array.from(porPrograma.values());
+  }
+
+  /**
+   * Mescla duas listas de metas: meta com o mesmo `value` (texto,
+   * comparado com trim — dados reais têm variação de espaço nas pontas
+   * entre registros do mesmo programa) não duplica — em vez disso,
+   * combina os `subitems` das duas ocorrências.
+   */
+  private mesclarMetas(metasBase: any[], metasNovas: any[]) {
+    const resultado = [...metasBase];
+
+    metasNovas.forEach((metaNova: any) => {
+      const chave = (metaNova?.value || '').trim();
+      const existente = resultado.find(
+        (meta) => (meta?.value || '').trim() === chave,
+      );
+
+      if (!existente) {
+        resultado.push(metaNova);
+        return;
+      }
+
+      existente.subitems = this.mesclarSubitens(
+        existente.subitems || [],
+        metaNova.subitems || [],
+      );
+    });
+
+    return resultado;
+  }
+
+  /**
+   * Mesma lógica de mesclagem que mesclarMetas, um nível abaixo — subitem
+   * com o mesmo `value` (trim) não duplica.
+   */
+  private mesclarSubitens(subitensBase: any[], subitensNovos: any[]) {
+    const resultado = [...subitensBase];
+
+    subitensNovos.forEach((subitemNovo: any) => {
+      const chave = (subitemNovo?.value || '').trim();
+      const jaExiste = resultado.some(
+        (subitem) => (subitem?.value || '').trim() === chave,
+      );
+
+      if (!jaExiste) {
+        resultado.push(subitemNovo);
+      }
+    });
+
+    return resultado;
   }
 
   /**
@@ -674,10 +733,22 @@ export class PeiService {
     return result;
   }
 
+  /**
+   * Edição em nível de protocolo (pedido do usuário): a tela de PEI edita
+   * o grupo inteiro de um programa, que pode ter nascido de vários
+   * registros Pei mesclados na listagem (ver agruparPeiPorPrograma).
+   * `body.peiIds` carrega todos os registros originais daquele grupo —
+   * este update grava o conteúdo editado só no registro canônico
+   * (`body.id`, o primeiro do grupo) e apaga os demais, senão as metas
+   * antigas deles ressurgiriam mescladas de volta na próxima listagem
+   * (a mesclagem acontece de novo a cada GET, a partir do que existir no
+   * banco). Sem `peiIds` (edição de um registro avulso, fora da tela de
+   * PEI), o comportamento é o de sempre — só atualiza `body.id`.
+   */
   async update(body: any) {
     const prisma = this.prismaService.getPrismaClient();
 
-    return await prisma.pei.update({
+    const atualizado = await prisma.pei.update({
       data: buildCreatePayload(
         {
           ...body,
@@ -698,6 +769,18 @@ export class PeiService {
         id: body.id,
       },
     });
+
+    const outrosIdsDoGrupo = (body.peiIds || []).filter(
+      (id: number) => Number(id) !== Number(body.id),
+    );
+
+    if (outrosIdsDoGrupo.length) {
+      await prisma.pei.deleteMany({
+        where: { id: { in: outrosIdsDoGrupo.map(Number) } },
+      });
+    }
+
+    return atualizado;
   }
 
   async getActivity(calendarioId: number) {
