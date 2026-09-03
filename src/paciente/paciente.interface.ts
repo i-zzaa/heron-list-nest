@@ -11,6 +11,8 @@ export interface PatientProps {
   // meses, Laudo: +12 meses), ver PacienteService.
   dataEmissaoPlanoTerapeutico?: string | null;
   dataEmissaoLaudoMedico?: string | null;
+  // Código de vínculo com a conta do responsável no app PEIgo.
+  codigoVinculo?: string | null;
 }
 
 interface Sessao {

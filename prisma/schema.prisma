@@ -38,6 +38,12 @@ model Paciente {
   dataEmissaoPlanoTerapeutico String?
   dataEmissaoLaudoMedico      String?
 
+  // Código que o responsável digita no app PEIgo para vincular a conta dele
+  // a este paciente. Único e opcional: pacientes cadastrados antes desta
+  // coluna existir ficam sem código até alguém gerar um. A forma de gerar e
+  // entregar o código ainda não foi definida.
+  codigoVinculo String? @unique
+
   vaga           Vaga?
   calendario     Calendario[]
   statusPaciente StatusPaciente @relation(fields: [statusPacienteCod], references: [cod])

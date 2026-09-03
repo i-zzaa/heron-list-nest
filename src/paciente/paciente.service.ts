@@ -295,6 +295,7 @@ export class PacienteService {
         carteirinha: true,
         dataEmissaoPlanoTerapeutico: true,
         dataEmissaoLaudoMedico: true,
+        codigoVinculo: true,
       },
       where: {
         id,
@@ -485,6 +486,7 @@ export class PacienteService {
         carteirinha: body.carteirinha,
         dataEmissaoPlanoTerapeutico: body.dataEmissaoPlanoTerapeutico || null,
         dataEmissaoLaudoMedico: body.dataEmissaoLaudoMedico || null,
+        codigoVinculo: body.codigoVinculo || null,
         vaga: {
           create: {
             dataContato: dataContato,
@@ -554,6 +556,7 @@ export class PacienteService {
     'statusPacienteCod',
     'dataEmissaoPlanoTerapeutico',
     'dataEmissaoLaudoMedico',
+    'codigoVinculo',
   ];
 
   async updatePatient(body: any, login?: string) {
@@ -607,6 +610,7 @@ export class PacienteService {
             dataEmissaoPlanoTerapeutico:
               body.dataEmissaoPlanoTerapeutico || null,
             dataEmissaoLaudoMedico: body.dataEmissaoLaudoMedico || null,
+            codigoVinculo: body.codigoVinculo || null,
             statusPacienteCod: body.statusPacienteCod,
             vaga: {
               update: {
