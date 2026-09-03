@@ -278,17 +278,21 @@ export class PeiService {
             )[0];
           });
 
-          // Tela de meta: além das metas já criadas manualmente (tabela
-          // Pei acima), também precisa dos itens já respondidos no vbMapp
-          // (mesma transformação usada no case default/vbMapp abaixo) —
-          // sem isso, um item marcado "S" na avaliação vbMapp nunca
-          // aparecia aqui pra virar meta.
-          const vbmappMetas = await this.getVbmappMetas(
-            paciente.id,
-            notSelected,
-          );
-
-          return [...resultPei, ...vbmappMetas];
+          // Protocolo Manual mostra só os próprios programas — nada de
+          // VB-MAPP misturado aqui (bug reportado: Mando/Tato/Ouvinte
+          // apareciam junto de "Comportamental"). O merge com vbMapp que
+          // existia aqui não tinha nenhum consumidor real: a tela que
+          // motivou o comentário original (tela de metas) já busca
+          // VB-MAPP numa chamada própria (POST /protocolo/meta/filtro),
+          // separada desta.
+          //
+          // Agrupado por programa (era 1 item por registro Pei — 3
+          // registros "Comportamental" viravam 3 abas idênticas no
+          // Accordion). `entries` preserva cada registro original (com
+          // seu id, estímulo/resposta/procedimento próprios) pra
+          // editar/excluir continuar agindo sobre o registro certo,
+          // sem apagar as outras metas do mesmo programa.
+          return this.agruparPeiPorPrograma(resultPei);
         } catch (error) {
           console.log(error);
         }
@@ -336,11 +340,38 @@ export class PeiService {
   }
 
   /**
+   * Agrupa os registros de Pei (protocolo Manual) por programa — cada
+   * programa vira UM item da lista (era um item por registro Pei, então
+   * um programa com 3 registros virava 3 abas idênticas no Accordion do
+   * front). `entries` guarda cada registro original intacto (id,
+   * estímulo/resposta/procedimento e suas próprias metas), pra
+   * editar/excluir continuar agindo sobre o registro certo — sem isso,
+   * um "editar"/"excluir" na aba agrupada não saberia qual dos vários
+   * registros originais mexer.
+   */
+  private agruparPeiPorPrograma(resultPei: any[]) {
+    const porPrograma = new Map<number, any>();
+
+    resultPei.forEach((item: any) => {
+      const programaId = item.programa?.id;
+      const grupo = porPrograma.get(programaId) || {
+        id: programaId,
+        programa: item.programa,
+        paciente: item.paciente,
+        entries: [],
+      };
+
+      grupo.entries.push(item);
+      porPrograma.set(programaId, grupo);
+    });
+
+    return Array.from(porPrograma.values());
+  }
+
+  /**
    * Itens já respondidos no vbMapp, no mesmo formato de meta usado pela
-   * tela de PEI (transformJsonVBPPEI). Usado tanto pelo case default
-   * (protocoloId = vbMapp) quanto pelo case pei/Manual acima, que também
-   * precisa mostrar os itens respondidos no vbMapp junto das metas
-   * criadas manualmente.
+   * tela de PEI (transformJsonVBPPEI). Usado pelo case default
+   * (protocoloId = vbMapp).
    */
   private async getVbmappMetas(pacienteId: number, notSelected: any[] = []) {
     const prisma = this.prismaService.getPrismaClient();

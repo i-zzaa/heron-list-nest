@@ -54,6 +54,84 @@ describe('PeiService.filtro — vbMapp (ordenação por id dentro do programa)',
   });
 });
 
+describe('PeiService.filtro — protocolo Manual (agrupamento por programa, sem VB-MAPP misturado)', () => {
+  const buildPeiRow = (id: number, over: any = {}) => ({
+    id,
+    estimuloDiscriminativo: `estimulo ${id}`,
+    estimuloReforcadorPositivo: `reforcador ${id}`,
+    procedimentoEnsinoId: 1,
+    metas: [{ id: `${id}-meta-0`, value: `meta ${id}` }],
+    programa: { id: 3, nome: 'Comportamental' },
+    resposta: `resposta ${id}`,
+    paciente: { id: 79, nome: 'GABRIEL LUIS GUIDO' },
+    ...over,
+  });
+
+  const buildService = (peiRows: any[], vbmappRows: any[] = []) => {
+    const prisma = {
+      pei: { findMany: jest.fn().mockResolvedValue(peiRows) },
+      vBMappResultado: { findMany: jest.fn().mockResolvedValue(vbmappRows) },
+    };
+
+    const service = new PeiService({ getPrismaClient: () => prisma } as any);
+
+    return { service, prisma };
+  };
+
+  it('nunca mistura itens do VB-MAPP (Mando/Tato/etc.) no resultado do protocolo Manual', async () => {
+    const { service, prisma } = buildService(
+      [buildPeiRow(67)],
+      [{ id: 1, respostaSessao: '0.5', vbmapp: { id: 2, nome: 'x', programa: { id: 18, nome: 'Mando' } } }],
+    );
+
+    const result: any = await service.filtro({
+      paciente: { id: 79 },
+      protocoloId: { id: 3, nome: 'Manual' },
+    });
+
+    // getVbmappMetas (vBMappResultado) nem deveria ser consultado no case Manual.
+    expect(prisma.vBMappResultado.findMany).not.toHaveBeenCalled();
+    expect(result.some((grupo: any) => grupo.programa.nome === 'Mando')).toBe(false);
+  });
+
+  it('agrupa vários registros do mesmo programa num item só, preservando cada registro em "entries"', async () => {
+    const { service } = buildService([
+      buildPeiRow(67, { resposta: 'Criança esperou' }),
+      buildPeiRow(68, { resposta: 'Criança esperou de novo' }),
+      buildPeiRow(69, { resposta: 'Sentar' }),
+    ]);
+
+    const result: any = await service.filtro({
+      paciente: { id: 79 },
+      protocoloId: { id: 3, nome: 'Manual' },
+    });
+
+    // 1 item só pro programa "Comportamental" (não 3, um por registro Pei).
+    expect(result).toHaveLength(1);
+    expect(result[0].programa).toEqual({ id: 3, nome: 'Comportamental' });
+    expect(result[0].entries).toHaveLength(3);
+    expect(result[0].entries.map((e: any) => e.id)).toEqual([67, 68, 69]);
+  });
+
+  it('programas diferentes viram itens separados', async () => {
+    const { service } = buildService([
+      buildPeiRow(67, { programa: { id: 3, nome: 'Comportamental' } }),
+      buildPeiRow(70, { programa: { id: 4, nome: 'Social' } }),
+    ]);
+
+    const result: any = await service.filtro({
+      paciente: { id: 79 },
+      protocoloId: { id: 3, nome: 'Manual' },
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result.map((g: any) => g.programa.nome).sort()).toEqual([
+      'Comportamental',
+      'Social',
+    ]);
+  });
+});
+
 describe('PeiService.activitySession — árvores no formato final de slots (item 7)', () => {
   const buildService = (atividadeSessaoRow: any) => {
     const prisma = {
