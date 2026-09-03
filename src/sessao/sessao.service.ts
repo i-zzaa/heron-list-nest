@@ -903,12 +903,71 @@ export class SessaoService {
     };
   }
 
+  /**
+   * Percorre programa->meta->item (3 níveis, item é a folha com a lista
+   * de respostas DTT em `children`) — formato do Manual, e também do
+   * VB-MAPP depois de tirar o nível extra de "nível" (ver
+   * coletarFolhasVbmapp).
+   */
+  private coletarFolhasProgramaMetaItem(
+    programas: any[],
+  ): Array<{ programa: string; item: any }> {
+    const pares: Array<{ programa: string; item: any }> = [];
+
+    (programas || []).forEach((programa: any) => {
+      (programa?.children || []).forEach((meta: any) => {
+        (meta?.children || []).forEach((item: any) => {
+          pares.push({ programa: programa?.label, item });
+        });
+      });
+    });
+
+    return pares;
+  }
+
+  /** VB-MAPP: nível->programa->meta->item (4 níveis) — achata o nível
+   * "nível" (não é usado como agrupamento no relatório, só a categoria/
+   * programa, igual ao Manual) e reaproveita o mesmo caminhador. */
+  private coletarFolhasVbmapp(
+    niveis: any[],
+  ): Array<{ programa: string; item: any }> {
+    const programas: any[] = [];
+
+    (niveis || []).forEach((nivel: any) => {
+      (nivel?.children || []).forEach((programa: any) => programas.push(programa));
+    });
+
+    return this.coletarFolhasProgramaMetaItem(programas);
+  }
+
+  /** Portage: lista de metas na raiz (sem nível de "programa" acima) ->
+   * item (2 níveis) — a própria meta vira o agrupamento do relatório. */
+  private coletarFolhasPortage(
+    metas: any[],
+  ): Array<{ programa: string; item: any }> {
+    const pares: Array<{ programa: string; item: any }> = [];
+
+    (metas || []).forEach((meta: any) => {
+      (meta?.children || []).forEach((item: any) => {
+        pares.push({ programa: meta?.label, item });
+      });
+    });
+
+    return pares;
+  }
+
   async getAtividadeSessaoByPacient(pacienteId: number) {
     const prisma = this.prismaService.getPrismaClient();
 
     try {
       const result: any = await prisma.sessao.findMany({
-        select: { sessao: true, createdAt: true, evento: true },
+        select: {
+          sessao: true,
+          vbmapp: true,
+          portage: true,
+          createdAt: true,
+          evento: true,
+        },
         where: { pacienteId: Number(pacienteId) },
         orderBy: { createdAt: 'asc' },
       });
@@ -916,27 +975,37 @@ export class SessaoService {
       const sessoes: any[] = [];
       await Promise.all(
         result.map((item: any) => {
-          const programas = Array.isArray(item.sessao)
+          const manual = Array.isArray(item.sessao)
             ? item.sessao
-            : JSON.parse(item.sessao);
+            : this.safeJsonParse(item.sessao) || [];
+          const vbmapp = this.safeJsonParse(item.vbmapp) || [];
+          const portage = this.safeJsonParse(item.portage) || [];
 
-          programas.map((programa: any) => {
-            const current: any[] = [];
-            const metas = programa.children;
-            metas.map((meta: any) => {
-              const subtItem = meta.children;
+          // Mesma lógica pros 3 protocolos: agrupa por "programa"
+          // (categoria) e usa o item-folha (aquele cujo `children` é o
+          // array de respostas DTT) pra montar cada coluna/dia.
+          const pares = [
+            ...this.coletarFolhasProgramaMetaItem(manual),
+            ...this.coletarFolhasVbmapp(vbmapp),
+            ...this.coletarFolhasPortage(portage),
+          ];
 
-              subtItem.map((sub: any) => {
-                current.push({
-                  programa: sub.label,
-                  primeiraResposta: sub.children[0] === TYPE_DTT.c,
-                  data: dateFormatDDMMYYYY(item.evento.dataInicio),
-                  porcentagem: calcAcertos(sub.children),
-                });
-              });
+          const dataEvento = dateFormatDDMMYYYY(item.evento.dataInicio);
+          const porPrograma = new Map<string, any[]>();
+
+          pares.forEach(({ programa, item: sub }) => {
+            const current = porPrograma.get(programa) || [];
+            current.push({
+              programa: sub?.label,
+              primeiraResposta: sub?.children?.[0] === TYPE_DTT.c,
+              data: dataEvento,
+              porcentagem: calcAcertos(sub?.children ?? []),
             });
+            porPrograma.set(programa, current);
+          });
 
-            sessoes.push({ programa: programa.label, children: current });
+          porPrograma.forEach((children, programa) => {
+            sessoes.push({ programa, children });
           });
 
           delete item.evento;
