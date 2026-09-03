@@ -374,7 +374,33 @@ export class PeiService {
       porPrograma.set(programaId, grupo);
     });
 
-    return Array.from(porPrograma.values());
+    return Array.from(porPrograma.values()).map((grupo: any) => ({
+      ...grupo,
+      metas: this.reindexarMetas(grupo.metas, grupo.programa?.id),
+    }));
+  }
+
+  /**
+   * Os ids de meta/subitem são sintéticos (`${programaId}-meta-${i}`,
+   * `${programaId}-meta-${i}-sub-item-${j}`) gerados no momento da
+   * criação, com o índice reiniciando em 0 a cada registro — dois
+   * registros diferentes do mesmo programa frequentemente geram o MESMO
+   * id pra metas *diferentes* (ex.: registro 67 e registro 69 os dois
+   * com uma meta "3-meta-0", uma "Criança esperar" outra "Sentar"). Sem
+   * reindexar depois de mesclar, o formulário de edição (que usa esses
+   * ids como chave dos campos) clobber uma meta em cima da outra. Gera
+   * ids novos, únicos, na mesma convenção, a partir da posição final no
+   * array já mesclado.
+   */
+  private reindexarMetas(metas: any[], programaId: number) {
+    return metas.map((meta: any, indexMeta: number) => ({
+      ...meta,
+      id: `${programaId}-meta-${indexMeta}`,
+      subitems: (meta.subitems || []).map((subitem: any, indexSub: number) => ({
+        ...subitem,
+        id: `${programaId}-meta-${indexMeta}-sub-item-${indexSub}`,
+      })),
+    }));
   }
 
   /**

@@ -156,6 +156,27 @@ describe('PeiService.filtro — protocolo Manual (agrupamento por programa, sem 
     ]);
   });
 
+  it('reindexa os ids das metas após mesclar, mesmo quando registros diferentes geram o mesmo id sintético pra metas diferentes', async () => {
+    // Dado real: registro 67 e registro 69 (mesmo programa) os dois
+    // geraram uma meta com id "3-meta-0" — mas com valores DIFERENTES
+    // ("Criança esperar" vs "Sentar"). Sem reindexar, o formulário de
+    // edição usaria esse id como chave e uma meta sobrescreveria a outra.
+    const { service } = buildService([
+      buildPeiRow(67, { metas: [{ id: '3-meta-0', value: 'Criança esperar' }] }),
+      buildPeiRow(69, { metas: [{ id: '3-meta-0', value: 'Sentar' }] }),
+    ]);
+
+    const result: any = await service.filtro({
+      paciente: { id: 79 },
+      protocoloId: { id: 3, nome: 'Manual' },
+    });
+
+    const metas = result[0].metas;
+    expect(metas).toHaveLength(2); // valores diferentes, não mescla
+    expect(new Set(metas.map((m: any) => m.id)).size).toBe(2); // ids não colidem mais
+    expect(metas.map((m: any) => m.id)).toEqual(['3-meta-0', '3-meta-1']);
+  });
+
   it('subitem com o mesmo texto também não duplica ao mesclar', async () => {
     const { service } = buildService([
       buildPeiRow(67, {
